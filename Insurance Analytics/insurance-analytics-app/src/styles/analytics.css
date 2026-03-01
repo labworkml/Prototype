@@ -1,0 +1,426 @@
+/* =====================================================
+   INSURANCE ANALYTICS DASHBOARD - PREMIUM STYLES
+   ===================================================== */
+
+/* Wrapper & Container */
+.analytics-wrapper {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 24px 20px;
+}
+
+.analytics-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* =====================================================
+   BREADCRUMB NAVIGATION
+   ===================================================== */
+
+.analytics-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  font-size: 14px;
+}
+
+.breadcrumb-link {
+  background: none;
+  border: none;
+  color: #0066ff;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 150ms ease;
+  padding: 0;
+}
+
+.breadcrumb-link:hover {
+  color: #0052cc;
+}
+
+.breadcrumb-separator {
+  color: #cbd5e1;
+  font-weight: 300;
+}
+
+.breadcrumb-current {
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* =====================================================
+   MAIN TITLE
+   ===================================================== */
+
+.analytics-title {
+  font-size: 40px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 40px 0;
+  letter-spacing: -0.6px;
+}
+
+/* =====================================================
+   MODULES CONTAINER & GRID
+   ===================================================== */
+
+.modules-container {
+  margin-bottom: 48px;
+}
+
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  padding: 32px;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* =====================================================
+   MODULE CARD (TOP LEVEL)
+   ===================================================== */
+
+.module-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 28px 24px;
+  background: white;
+  border: 2px solid #f1f5f9;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+}
+
+.module-card:hover {
+  border-color: #e2e8f0;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.module-card.active {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 8px rgba(22, 163, 74, 0.08);
+}
+
+.module-card-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.module-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.module-card-description {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* =====================================================
+   SUBMODULES SECTION
+   ===================================================== */
+
+.submodules-section {
+  animation: slideIn 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.section-header {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.4px;
+}
+
+/* =====================================================
+   SUBMODULES GRID
+   ===================================================== */
+
+.submodules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+/* =====================================================
+   SUBMODULE CARD
+   ===================================================== */
+
+.submodule-card {
+  background: white;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.submodule-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #16a34a, #10b981);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.submodule-card:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-3px);
+}
+
+.submodule-card:hover::before {
+  transform: scaleX(1);
+}
+
+.submodule-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.submodule-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.submodule-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  line-height: 1.3;
+  text-align: left;
+}
+
+.submodule-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.placeholder-line {
+  height: 6px;
+  background: linear-gradient(90deg, #f3f4f6 0%, #f3f4f6 80%, transparent 100%);
+  border-radius: 3px;
+  flex: 1;
+}
+
+.placeholder-line.short {
+  width: 70%;
+}
+
+.menu-dots {
+  flex-shrink: 0;
+  font-size: 18px;
+  color: #d1d5db;
+  cursor: pointer;
+  transition: all 150ms ease;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.submodule-card:hover .menu-dots {
+  color: #6b7280;
+  background: #f9fafb;
+}
+
+/* =====================================================
+   RESPONSIVE DESIGN
+   ===================================================== */
+
+@media (max-width: 1024px) {
+  .modules-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 24px;
+  }
+
+  .module-card {
+    padding: 20px 16px;
+    gap: 12px;
+  }
+
+  .module-card-icon {
+    font-size: 40px;
+  }
+
+  .module-card-title {
+    font-size: 13px;
+  }
+
+  .submodules-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 20px;
+  }
+
+  .analytics-title {
+    font-size: 32px;
+  }
+
+  .section-title {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .analytics-wrapper {
+    padding: 16px 12px;
+  }
+
+  .modules-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 20px;
+  }
+
+  .module-card {
+    padding: 20px 12px;
+    gap: 12px;
+  }
+
+  .module-card-icon {
+    font-size: 36px;
+  }
+
+  .module-card-title {
+    font-size: 12px;
+  }
+
+  .submodules-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .submodule-card {
+    padding: 20px;
+  }
+
+  .submodule-icon {
+    font-size: 28px;
+  }
+
+  .submodule-title {
+    font-size: 14px;
+  }
+
+  .analytics-title {
+    font-size: 28px;
+    margin-bottom: 32px;
+  }
+
+  .section-title {
+    font-size: 22px;
+    margin-bottom: 24px;
+  }
+
+  .analytics-breadcrumb {
+    margin-bottom: 24px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 640px) {
+  .modules-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .module-card {
+    padding: 18px 16px;
+    gap: 10px;
+  }
+
+  .module-card-icon {
+    font-size: 32px;
+  }
+
+  .module-card-title {
+    font-size: 13px;
+  }
+
+  .submodules-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .submodule-card {
+    padding: 16px;
+  }
+
+  .submodule-header {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .submodule-icon {
+    font-size: 28px;
+  }
+
+  .submodule-title {
+    font-size: 14px;
+  }
+
+  .analytics-title {
+    font-size: 24px;
+    margin-bottom: 24px;
+  }
+
+  .section-title {
+    font-size: 20px;
+  }
+
+  .section-header {
+    margin-bottom: 24px;
+  }
+
+  .placeholder-line {
+    height: 4px;
+  }
+
+  .menu-dots {
+    font-size: 14px;
+    padding: 2px 4px;
+  }
+}

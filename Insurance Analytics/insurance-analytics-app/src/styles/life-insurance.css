@@ -1,0 +1,517 @@
+/* =====================================================
+   LIFE INSURANCE MODULE - PREMIUM ENTERPRISE SAAS
+   INSPIRED BY STRIPE & LINEAR AESTHETICS
+   ===================================================== */
+
+/* =====================================================
+   MAIN VIEWPORT CONTAINER
+   ===================================================== */
+
+.life-insurance-viewport {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #fafafa 0%, #f5f5f7 50%, #fafafa 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'SF Pro Display', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =====================================================
+   BREADCRUMB - MINIMAL & CLEAN
+   ===================================================== */
+
+.life-breadcrumb {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 32px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
+}
+
+.breadcrumb-link {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 13px;
+  transition: color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+}
+
+.breadcrumb-link:hover {
+  color: #10b981;
+}
+
+.breadcrumb-separator {
+  color: #d1d5db;
+  font-size: 12px;
+}
+
+.breadcrumb-current {
+  color: #111827;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* =====================================================
+   PAGE TITLE WITH ICON BADGE
+   ===================================================== */
+
+.life-header {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 32px;
+  flex-shrink: 0;
+}
+
+.life-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.life-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.life-icon {
+  color: white;
+}
+
+.life-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  letter-spacing: -0.6px;
+  line-height: 1;
+}
+
+/* =====================================================
+   TAB NAVIGATION - PREMIUM SEGMENTED CONTROLS
+   ===================================================== */
+
+.life-tabs {
+  height: 72px;
+  display: flex;
+  gap: 6px;
+  padding: 12px 32px;
+  background: transparent;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.life-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  flex-shrink: 0;
+  height: 40px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.life-tab:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: #374151;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.life-tab.active {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: 
+    0 4px 12px rgba(16, 185, 129, 0.25),
+    0 1px 2px rgba(16, 185, 129, 0.1);
+  transform: translateY(-1px);
+}
+
+.life-tab-icon {
+  flex-shrink: 0;
+}
+
+.life-tab-label {
+  font-size: 13px;
+  font-weight: inherit;
+}
+
+/* =====================================================
+   SUB-MODULES - ELEVATED CARDS
+   ===================================================== */
+
+.life-submodules {
+  height: 110px;
+  display: flex;
+  gap: 12px;
+  padding: 20px 32px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.life-submodule {
+  min-width: 200px;
+  height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  background: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+.life-submodule:hover {
+  box-shadow: 
+    0 8px 20px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(16, 185, 129, 0.1);
+  transform: translateY(-2px);
+}
+
+.life-submodule.selected {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  box-shadow: 
+    0 8px 20px rgba(16, 185, 129, 0.12),
+    0 2px 6px rgba(16, 185, 129, 0.06),
+    0 0 0 2px rgba(16, 185, 129, 0.2);
+  transform: translateY(-2px);
+}
+
+.submodule-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #10b981;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.08);
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.life-submodule:hover .submodule-icon {
+  background: rgba(16, 185, 129, 0.12);
+  transform: scale(1.05);
+}
+
+.life-submodule.selected .submodule-icon {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+
+.submodule-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* =====================================================
+   MAIN CONTENT AREA - 3 COLUMN GRID
+   ===================================================== */
+
+.life-content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 280px 1fr 1fr;
+  gap: 20px;
+  padding: 0 32px 32px 32px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* =====================================================
+   PANEL SHARED STYLES - LAYERED SURFACES
+   ===================================================== */
+
+.life-filters,
+.life-data-panel,
+.life-viz-panel {
+  background: white;
+  border-radius: 16px;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+  transition: box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.life-filters:hover,
+.life-data-panel:hover,
+.life-viz-panel:hover {
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.8) 0%, rgba(255, 255, 255, 0.8) 100%);
+  flex-shrink: 0;
+}
+
+.panel-icon-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.08) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+/* =====================================================
+   FILTERS PANEL
+   ===================================================== */
+
+.filters-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  letter-spacing: -0.1px;
+}
+
+.filter-select {
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #111827;
+  background: white;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+}
+
+.filter-select:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: rgba(249, 250, 251, 0.8);
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.08);
+  background: white;
+}
+
+/* =====================================================
+   DATA & VISUALIZATION PANELS
+   ===================================================== */
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-placeholder {
+  color: #9ca3af;
+  font-size: 13px;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* =====================================================
+   SCROLLBAR STYLING - MINIMAL & ELEGANT
+   ===================================================== */
+
+.life-tabs::-webkit-scrollbar,
+.life-submodules::-webkit-scrollbar,
+.filters-body::-webkit-scrollbar,
+.panel-body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.life-tabs::-webkit-scrollbar-track,
+.life-submodules::-webkit-scrollbar-track,
+.filters-body::-webkit-scrollbar-track,
+.panel-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.life-tabs::-webkit-scrollbar-thumb,
+.life-submodules::-webkit-scrollbar-thumb,
+.filters-body::-webkit-scrollbar-thumb,
+.panel-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+}
+
+.life-tabs::-webkit-scrollbar-thumb:hover,
+.life-submodules::-webkit-scrollbar-thumb:hover,
+.filters-body::-webkit-scrollbar-thumb:hover,
+.panel-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* =====================================================
+   RESPONSIVE DESIGN - ADAPTIVE LAYOUTS
+   ===================================================== */
+
+@media (max-width: 1024px) {
+  .life-content {
+    grid-template-columns: 260px 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .life-filters {
+    grid-row: 1 / 3;
+  }
+
+  .life-data-panel {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .life-viz-panel {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .life-insurance-viewport {
+    background: linear-gradient(135deg, #fafafa 0%, #f8f9fa 100%);
+  }
+
+  .life-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    overflow-y: auto;
+    gap: 16px;
+    padding: 0 20px 24px 20px;
+  }
+
+  .life-filters,
+  .life-data-panel,
+  .life-viz-panel {
+    grid-column: 1;
+    min-height: 320px;
+  }
+
+  .life-tab-label {
+    display: none;
+  }
+
+  .submodule-name {
+    font-size: 11px;
+  }
+
+  .life-submodule {
+    min-width: 160px;
+  }
+}
+
+@media (max-width: 640px) {
+  .life-breadcrumb {
+    padding: 0 20px;
+    height: 48px;
+  }
+
+  .life-header {
+    padding: 0 20px;
+    height: 60px;
+  }
+
+  .life-title {
+    font-size: 24px;
+  }
+
+  .life-icon-badge {
+    width: 32px;
+    height: 32px;
+  }
+
+  .life-tabs {
+    padding: 12px 20px;
+  }
+
+  .life-submodules {
+    padding: 16px 20px;
+  }
+
+  .life-content {
+    padding: 0 16px 20px 16px;
+  }
+}

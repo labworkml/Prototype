@@ -1,0 +1,432 @@
+/* Handbook Modules Grid - for listing all modules */
+.handbook-modules-grid {
+  background: white;
+  border-radius: 14px;
+  padding: 40px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 28px;
+  margin-bottom: 40px;
+}
+
+.handbook-module-card {
+  background: white;
+  border-radius: 12px;
+  padding: 32px 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 250ms ease;
+  cursor: pointer;
+  text-align: center;
+  border: 1px solid #f0f4f8;
+}
+
+.handbook-module-card:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px);
+  border-color: #e2e8f0;
+}
+
+.handbook-module-icon {
+  font-size: 56px;
+  margin-bottom: 20px;
+  display: inline-block;
+}
+
+.handbook-module-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+
+.handbook-module-subtitle {
+  font-size: 14px;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Handbook Grid */
+.handbook-page-wrapper {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #f0f4f8 100%);
+  padding: 40px 20px;
+}
+
+.handbook-page-header {
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  position: relative;
+  background: white;
+  border-radius: 14px;
+  padding: 40px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.handbook-back-btn {
+  background: none;
+  border: none;
+  color: #0066ff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 24px;
+  transition: all 150ms ease;
+  padding: 8px 0;
+}
+
+.handbook-back-btn:hover {
+  color: #0052cc;
+  transform: translateX(-4px);
+}
+
+.handbook-page-title {
+  font-size: 42px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+}
+
+.handbook-page-subtitle {
+  font-size: 16px;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.handbook-page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Handbook Grid */
+.handbook-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.handbook-card {
+  background: white;
+  border-radius: 14px;
+  padding: 32px 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 200ms ease;
+  text-align: center;
+  border-top: 4px solid #0066ff;
+}
+
+.handbook-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-top-color: #0052cc;
+}
+
+.handbook-card-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: inline-block;
+}
+
+.handbook-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 12px;
+}
+
+.handbook-card-description {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Content Section */
+.content-section {
+  background: white;
+  border-radius: 14px;
+  padding: 40px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  margin-bottom: 32px;
+}
+
+.content-section h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+/* Details List */
+.details-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.detail-item {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 24px;
+  border-left: 4px solid #0066ff;
+  transition: all 200ms ease;
+}
+
+.detail-item:hover {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.1);
+}
+
+.detail-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.detail-description {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Requirements List */
+.requirements-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.requirements-list li {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 10px;
+  border-left: 4px solid #10b981;
+  color: #475569;
+  font-weight: 500;
+  transition: all 150ms ease;
+}
+
+.requirements-list li:hover {
+  background: #dcfce7;
+  transform: translateX(4px);
+}
+
+/* Process List */
+.process-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: step-counter;
+}
+
+.process-list li {
+  counter-increment: step-counter;
+  background: #f8fafc;
+  padding: 16px 16px 16px 50px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  position: relative;
+  color: #475569;
+  transition: all 150ms ease;
+}
+
+.process-list li:hover {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.process-list li::before {
+  content: counter(step-counter);
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #0066ff;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Programs List */
+.programs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.programs-list li {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 10px;
+  border-left: 4px solid #50c878;
+  color: #475569;
+  font-weight: 500;
+  transition: all 150ms ease;
+}
+
+.programs-list li:hover {
+  background: #dcfce7;
+  transform: translateX(4px);
+}
+
+/* Metrics List */
+.metrics-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.metric-item {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-left: 4px solid #ff6b6b;
+  transition: all 150ms ease;
+}
+
+.metric-item:hover {
+  background: #fee2e2;
+  transform: translateX(4px);
+}
+
+.metric-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.metric-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* Standards List */
+.standards-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.standards-list li {
+  padding: 16px;
+  padding-left: 32px;
+  position: relative;
+  color: #475569;
+  margin-bottom: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  transition: all 150ms ease;
+}
+
+.standards-list li:hover {
+  background: #dcfce7;
+  transform: translateX(4px);
+}
+
+.standards-list li::before {
+  content: "✓";
+  position: absolute;
+  left: 12px;
+  font-weight: 700;
+  color: #10b981;
+  font-size: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .handbook-page-wrapper {
+    padding: 24px 16px;
+  }
+
+  .handbook-page-header {
+    margin-bottom: 40px;
+  }
+
+  .handbook-page-title {
+    font-size: 32px;
+  }
+
+  .content-section {
+    padding: 24px 16px;
+  }
+
+  .content-section h2 {
+    font-size: 20px;
+  }
+
+  .details-list {
+    grid-template-columns: 1fr;
+  }
+
+  .handbook-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .handbook-page-wrapper {
+    padding: 20px 12px;
+  }
+
+  .handbook-page-title {
+    font-size: 26px;
+  }
+
+  .handbook-page-subtitle {
+    font-size: 14px;
+  }
+
+  .handbook-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .handbook-card {
+    padding: 24px 16px;
+  }
+
+  .handbook-card-icon {
+    font-size: 40px;
+  }
+
+  .requirements-list,
+  .programs-list,
+  .metrics-list {
+    grid-template-columns: 1fr;
+  }
+
+  .process-list li {
+    padding: 16px 16px 16px 44px;
+  }
+
+  .process-list li::before {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    left: 12px;
+  }
+}
