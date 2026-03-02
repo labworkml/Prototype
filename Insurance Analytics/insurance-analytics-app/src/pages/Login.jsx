@@ -29,7 +29,7 @@ export default function Login() {
   return (
     <div className="page-wrapper">
       <div className="login-container">
-        <div className="login-card">
+        <div className="login-card card">
           <div className="login-header">
             <h1 className="login-title">Insurance Analytics</h1>
             <p className="login-subtitle">Analytics Platform for Insurance</p>
@@ -64,7 +64,7 @@ export default function Login() {
               />
             </div>
 
-            {error && <div className="error-box">{error}</div>}
+            {error && <div className="error-box card">{error}</div>}
 
             <button
               type="submit"

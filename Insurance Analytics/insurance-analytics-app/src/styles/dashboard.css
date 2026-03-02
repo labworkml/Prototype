@@ -4,70 +4,7 @@
 
 .dashboard-wrapper {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f5f7fb 0%, #eef2f9 100%);
-}
-
-.dashboard-header {
-  background-color: #2c3e50;
-  border-bottom: 1px solid #1a252f;
-  padding: 16px 0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-}
-
-.dashboard-header-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 40px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.dashboard-welcome {
-  font-size: 24px;
-  font-weight: 600;
-  color: white;
-  margin: 0;
-  letter-spacing: 0.5px;
-}
-
-.dashboard-header-right {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-
-.user-email {
-  font-size: 14px;
-  color: #e0e7ff;
-  font-weight: 500;
-}
-
-.logout-btn {
-  padding: 8px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  background-color: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 200ms ease-out;
-  font-family: 'Inter', sans-serif;
-}
-
-.logout-btn:hover:not(:disabled) {
-  background-color: #dc2626;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-  transform: translateY(-2px);
-}
-
-.logout-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+  background: #F8FAFC;
 }
 
 /* ===========================
@@ -76,7 +13,7 @@
 
 .dashboard-main {
   padding: 60px 0;
-  min-height: calc(100vh - 100px);
+  min-height: calc(100vh - 64px);
 }
 
 .dashboard-container {
@@ -204,7 +141,6 @@
    =========================== */
 
 @media (max-width: 1024px) {
-  .dashboard-header-container,
   .dashboard-container {
     padding: 0 32px;
   }
@@ -224,25 +160,8 @@
 }
 
 @media (max-width: 768px) {
-  .dashboard-header-container,
   .dashboard-container {
     padding: 0 20px;
-  }
-
-  .dashboard-header-container {
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-
-  .dashboard-welcome {
-    width: 100%;
-    text-align: center;
-  }
-
-  .dashboard-header-right {
-    width: 100%;
-    justify-content: center;
-    flex-wrap: wrap;
   }
 
   .modules-title {

@@ -1,7 +1,7 @@
 /* Module Page Base Styles */
 .module-page-wrapper {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f6f8fc 0%, #eef2f9 100%);
+  background: #F8FAFC;
   padding: 40px 20px;
 }
 

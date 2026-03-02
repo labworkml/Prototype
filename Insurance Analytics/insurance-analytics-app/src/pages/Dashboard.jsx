@@ -1,28 +1,9 @@
-import { signOut } from "firebase/auth";
-import { auth } from "../firebase/firebaseConfig";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import "../styles/dashboard.css";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState(null);
-
-  // Get current user email
-  const currentUser = auth.currentUser;
-  const userEmail = currentUser?.email || "user@company.com";
-
-  const handleLogout = async () => {
-    setLoading(true);
-    try {
-      await signOut(auth);
-      navigate("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-      setLoading(false);
-    }
-  };
 
   const modules = [
     {
@@ -47,23 +28,6 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      {/* Header */}
-      <header className="dashboard-header">
-        <div className="dashboard-header-container">
-          <h1 className="dashboard-welcome">Welcome</h1>
-          <div className="dashboard-header-right">
-            <span className="user-email">{userEmail}</span>
-            <button
-              onClick={handleLogout}
-              disabled={loading}
-              className="logout-btn"
-            >
-              {loading ? "Logging out..." : "Logout"}
-            </button>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="dashboard-main">
         <div className="dashboard-container">
@@ -103,7 +67,7 @@ function ModuleCard({ module, navigate }) {
 
   return (
     <div
-      className="module-card"
+      className="module-card card"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleModuleClick}

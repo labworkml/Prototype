@@ -20,11 +20,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(
-    135deg,
-    #f6f8fc 0%,
-    #eef2f9 100%
-  );
+  background: #F8FAFC;
   padding: 40px 20px;
   box-sizing: border-box;
 }

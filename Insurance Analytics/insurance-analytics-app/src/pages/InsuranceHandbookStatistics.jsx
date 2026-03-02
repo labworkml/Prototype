@@ -39,15 +39,6 @@ export default function InsuranceHandbookStatistics() {
 
   return (
     <div className="analytics-wrapper">
-      {/* Breadcrumb Navigation */}
-      <div className="analytics-breadcrumb">
-        <button className="breadcrumb-link" onClick={() => navigate("/dashboard")}>
-          ← Dashboard
-        </button>
-        <span className="breadcrumb-separator">›</span>
-        <span className="breadcrumb-current">Insurance Handbook</span>
-      </div>
-
       <div className="analytics-container">
         {/* Main Title */}
         <h1 className="analytics-title">Insurance Handbook Statistics</h1>
@@ -71,7 +62,7 @@ export default function InsuranceHandbookStatistics() {
 
 function ModuleCard({ module, onClick }) {
   return (
-    <div className="module-card" onClick={onClick}>
+    <div className="module-card card" onClick={onClick}>
       <div className="module-card-icon">{module.icon}</div>
       <h3 className="module-card-title">{module.title}</h3>
       <p className="module-card-description">{module.description}</p>

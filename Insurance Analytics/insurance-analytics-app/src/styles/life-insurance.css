@@ -3,17 +3,43 @@
    INSPIRED BY STRIPE & LINEAR AESTHETICS
    ===================================================== */
 
+:root {
+  --life-bg: var(--bg-page);
+  --life-surface: var(--bg-surface);
+  --life-surface-solid: var(--bg-surface-solid);
+  --life-border: var(--border-default);
+  --life-text: var(--text-primary);
+  --life-text-subtle: var(--text-secondary);
+  --life-accent: var(--accent-primary);
+  --life-accent-dark: var(--accent-primary);
+  --life-shadow-xs: var(--shadow-xs);
+  --life-shadow-sm: var(--shadow-sm);
+  --life-shadow-md: var(--shadow-md);
+  --life-shadow-lg: var(--shadow-lg);
+}
+
 /* =====================================================
    MAIN VIEWPORT CONTAINER
    ===================================================== */
 
 .life-insurance-viewport {
-  height: 100vh;
+  height: calc(100vh - 56px);
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #fafafa 0%, #f5f5f7 50%, #fafafa 100%);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'SF Pro Display', sans-serif;
+  background: radial-gradient(
+      circle at 20% 0%,
+      rgba(14, 165, 164, 0.05),
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 90% 10%,
+      rgba(59, 130, 246, 0.05),
+      transparent 40%
+    ),
+    var(--life-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -23,41 +49,54 @@
    ===================================================== */
 
 .life-breadcrumb {
-  height: 52px;
+  height: 44px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 0 32px;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  background: var(--life-surface-solid);
+  border-bottom: 1px solid var(--life-border);
   flex-shrink: 0;
 }
 
 .breadcrumb-link {
   background: none;
   border: none;
-  color: #6b7280;
+  color: var(--life-text-subtle);
   cursor: pointer;
-  font-weight: 500;
-  font-size: 13px;
+  font-weight: 600;
+  font-size: inherit;
   transition: color 200ms cubic-bezier(0.4, 0, 0.2, 1);
   padding: 0;
 }
 
 .breadcrumb-link:hover {
-  color: #10b981;
+  color: var(--life-accent-dark);
 }
 
 .breadcrumb-separator {
   color: #d1d5db;
-  font-size: 12px;
+  font-size: inherit;
 }
 
 .breadcrumb-current {
-  color: #111827;
+  color: var(--life-text);
   font-weight: 600;
-  font-size: 13px;
+  font-size: inherit;
+}
+
+.breadcrumb {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--life-text);
+}
+
+.breadcrumb .breadcrumb-link,
+.breadcrumb .breadcrumb-separator,
+.breadcrumb .breadcrumb-current {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
 }
 
 /* =====================================================
@@ -65,7 +104,7 @@
    ===================================================== */
 
 .life-header {
-  height: 64px;
+  height: 48px;
   display: flex;
   align-items: center;
   padding: 0 32px;
@@ -94,11 +133,11 @@
 }
 
 .life-title {
-  font-size: 28px;
+  font-size: var(--font-size-h2);
   font-weight: 700;
-  color: #111827;
+  color: var(--life-text);
   margin: 0;
-  letter-spacing: -0.6px;
+  letter-spacing: -0.4px;
   line-height: 1;
 }
 
@@ -107,10 +146,10 @@
    ===================================================== */
 
 .life-tabs {
-  height: 72px;
+  min-height: 56px;
   display: flex;
-  gap: 6px;
-  padding: 12px 32px;
+  gap: 10px;
+  padding: 8px 32px;
   background: transparent;
   overflow-x: auto;
   overflow-y: hidden;
@@ -122,36 +161,35 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.5);
-  border: none;
+  padding: 9px 14px;
+  background: var(--life-surface-solid);
+  border: 1px solid var(--life-border);
   border-radius: 10px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-label);
   font-weight: 500;
-  color: #6b7280;
+  color: var(--life-text-subtle);
   transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   flex-shrink: 0;
-  height: 40px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  min-height: 42px;
+  box-shadow: none;
 }
 
 .life-tab:hover {
-  background: rgba(255, 255, 255, 0.8);
-  color: #374151;
+  background: #f8fafc;
+  color: #1e293b;
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
 }
 
 .life-tab.active {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, var(--life-accent), #06b6d4);
   color: white;
   font-weight: 600;
-  box-shadow: 
-    0 4px 12px rgba(16, 185, 129, 0.25),
-    0 1px 2px rgba(16, 185, 129, 0.1);
+  box-shadow: 0 8px 18px rgba(14, 165, 164, 0.25);
   transform: translateY(-1px);
+  border: none;
 }
 
 .life-tab-icon {
@@ -159,7 +197,7 @@
 }
 
 .life-tab-label {
-  font-size: 13px;
+  font-size: var(--font-size-label);
   font-weight: inherit;
 }
 
@@ -168,10 +206,10 @@
    ===================================================== */
 
 .life-submodules {
-  height: 110px;
+  min-height: 72px;
   display: flex;
-  gap: 12px;
-  padding: 20px 32px;
+  gap: 14px;
+  padding: 8px 32px 10px;
   overflow-x: auto;
   overflow-y: hidden;
   flex-shrink: 0;
@@ -179,69 +217,62 @@
 }
 
 .life-submodule {
-  min-width: 200px;
-  height: 76px;
+  min-width: 180px;
+  height: 40px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 16px;
-  background: white;
-  border: none;
-  border-radius: 12px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 14px;
+  background: var(--life-surface-solid);
+  border: 1px solid var(--life-border);
+  border-radius: 10px;
   cursor: pointer;
   transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
-  box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
+  box-shadow: none;
 }
 
 .life-submodule:hover {
-  box-shadow: 
-    0 8px 20px rgba(0, 0, 0, 0.08),
-    0 2px 6px rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(16, 185, 129, 0.1);
-  transform: translateY(-2px);
+  border-color: rgba(14, 165, 164, 0.35);
+  transform: translateY(-1px);
 }
 
 .life-submodule.selected {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  box-shadow: 
-    0 8px 20px rgba(16, 185, 129, 0.12),
-    0 2px 6px rgba(16, 185, 129, 0.06),
-    0 0 0 2px rgba(16, 185, 129, 0.2);
+  background: rgba(14, 165, 164, 0.08);
+  box-shadow: none;
   transform: translateY(-2px);
+  border-color: rgba(14, 165, 164, 0.4);
 }
 
 .submodule-icon {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #10b981;
+  color: var(--life-accent);
   border-radius: 8px;
-  background: rgba(16, 185, 129, 0.08);
+  background: rgba(14, 165, 164, 0.1);
   transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .life-submodule:hover .submodule-icon {
-  background: rgba(16, 185, 129, 0.12);
+  background: rgba(14, 165, 164, 0.14);
   transform: scale(1.05);
 }
 
 .life-submodule.selected .submodule-icon {
-  background: rgba(16, 185, 129, 0.15);
-  color: #059669;
+  background: rgba(14, 165, 164, 0.18);
+  color: #0f766e;
 }
 
 .submodule-name {
-  font-size: 12px;
+  font-size: var(--font-size-body);
   font-weight: 600;
-  color: #111827;
-  text-align: center;
+  color: var(--life-text);
+  text-align: left;
   line-height: 1.3;
 }
 
@@ -254,7 +285,7 @@
   display: grid;
   grid-template-columns: 280px 1fr 1fr;
   gap: 20px;
-  padding: 0 32px 32px 32px;
+  padding: 12px 32px 16px;
   overflow: hidden;
   min-height: 0;
 }
@@ -266,25 +297,29 @@
 .life-filters,
 .life-data-panel,
 .life-viz-panel {
-  background: white;
-  border-radius: 16px;
-  border: none;
+  background: var(--life-surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 14px;
+  border: 1px solid var(--life-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
-  transition: box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--life-shadow-sm);
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.life-filters.card,
+.life-data-panel.card,
+.life-viz-panel.card {
+  padding: 0 !important;
 }
 
 .life-filters:hover,
 .life-data-panel:hover,
 .life-viz-panel:hover {
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.06),
-    0 1px 3px rgba(0, 0, 0, 0.03),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
+  box-shadow: var(--life-shadow-md);
+  transform: translateY(-2px);
 }
 
 .panel-header {
@@ -292,9 +327,9 @@
   align-items: center;
   gap: 10px;
   margin: 0;
-  padding: 18px 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-  background: linear-gradient(180deg, rgba(249, 250, 251, 0.8) 0%, rgba(255, 255, 255, 0.8) 100%);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--life-border);
+  background: transparent;
   flex-shrink: 0;
 }
 
@@ -302,20 +337,83 @@
   width: 24px;
   height: 24px;
   border-radius: 6px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.08) 100%);
+  background: linear-gradient(135deg, rgba(14, 165, 164, 0.12) 0%, rgba(8, 145, 178, 0.1) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #10b981;
+  color: var(--life-accent-dark);
   flex-shrink: 0;
 }
 
 .panel-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--life-text);
   margin: 0;
   letter-spacing: -0.2px;
+}
+
+.filter-refresh-btn {
+  margin-left: auto;
+  width: 38px;
+  height: 34px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #0ea5a4, #06b6d4);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 14px rgba(14, 165, 164, 0.25);
+}
+
+.filter-refresh-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.filter-refresh-btn .refresh-icon {
+  stroke: #ffffff;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.filter-refresh-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(14, 165, 164, 0.3);
+}
+
+.filter-refresh-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.24);
+}
+
+.data-export-btn {
+  margin-left: auto;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #0ea5a4, #06b6d4);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.data-export-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(14, 165, 164, 0.3);
+}
+
+.data-export-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.24);
 }
 
 /* =====================================================
@@ -329,28 +427,28 @@
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .filter-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .filter-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
-  letter-spacing: -0.1px;
+  font-size: var(--font-size-label);
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: var(--letter-spacing-label);
 }
 
 .filter-select {
   padding: 10px 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 8px;
-  font-size: 13px;
-  color: #111827;
+  border: 1px solid var(--life-border);
+  border-radius: 10px;
+  font-size: var(--font-size-label);
+  color: var(--life-text);
   background: white;
   cursor: pointer;
   transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -358,14 +456,14 @@
 }
 
 .filter-select:hover {
-  border-color: rgba(0, 0, 0, 0.12);
-  background: rgba(249, 250, 251, 0.8);
+  border-color: #cbd5e1;
+  background: #f8fafc;
 }
 
 .filter-select:focus {
   outline: none;
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.08);
+  border-color: var(--life-accent);
+  box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.12);
   background: white;
 }
 
@@ -377,17 +475,51 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px;
+  padding: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .panel-placeholder {
-  color: #9ca3af;
-  font-size: 13px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-body);
   text-align: center;
+  font-weight: 400;
+}
+
+.panel-body.panel-body-details {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.data-fields-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.data-field-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.data-field-name {
+  font-size: var(--font-size-label);
   font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  word-break: break-word;
+}
+
+.data-field-value {
+  font-size: var(--font-size-body);
+  font-weight: 400;
+  color: var(--life-text);
+  word-break: break-word;
 }
 
 /* =====================================================
@@ -432,7 +564,7 @@
   .life-content {
     grid-template-columns: 260px 1fr;
     grid-template-rows: 1fr 1fr;
-    gap: 16px;
+    gap: 18px;
   }
 
   .life-filters {
@@ -452,14 +584,14 @@
 
 @media (max-width: 768px) {
   .life-insurance-viewport {
-    background: linear-gradient(135deg, #fafafa 0%, #f8f9fa 100%);
+    background: #F8FAFC;
   }
 
   .life-content {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto;
     overflow-y: auto;
-    gap: 16px;
+    gap: 14px;
     padding: 0 20px 24px 20px;
   }
 
@@ -475,7 +607,7 @@
   }
 
   .submodule-name {
-    font-size: 11px;
+    font-size: var(--font-size-body);
   }
 
   .life-submodule {
@@ -486,21 +618,7 @@
 @media (max-width: 640px) {
   .life-breadcrumb {
     padding: 0 20px;
-    height: 48px;
-  }
-
-  .life-header {
-    padding: 0 20px;
-    height: 60px;
-  }
-
-  .life-title {
-    font-size: 24px;
-  }
-
-  .life-icon-badge {
-    width: 32px;
-    height: 32px;
+    height: 44px;
   }
 
   .life-tabs {
@@ -513,5 +631,9 @@
 
   .life-content {
     padding: 0 16px 20px 16px;
+  }
+
+  .breadcrumb {
+    font-size: 16px;
   }
 }

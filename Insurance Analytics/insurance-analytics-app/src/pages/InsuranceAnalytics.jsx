@@ -38,7 +38,7 @@ export default function InsuranceAnalytics() {
           />
         </div>
 
-        <div className="content-section">
+        <div className="content-section card">
           <h2>Monthly Trend Analysis</h2>
           <div className="chart-placeholder">
             📈 Analytics chart with monthly trends visualization
@@ -46,7 +46,7 @@ export default function InsuranceAnalytics() {
         </div>
 
         <div className="analysis-grid">
-          <div className="analysis-box">
+          <div className="analysis-box card">
             <h3>Claims by Category</h3>
             <ul className="analysis-list">
               <li><span className="list-label">Medical Claims:</span> 34%</li>
@@ -55,7 +55,7 @@ export default function InsuranceAnalytics() {
               <li><span className="list-label">Other:</span> 16%</li>
             </ul>
           </div>
-          <div className="analysis-box">
+          <div className="analysis-box card">
             <h3>Top Performing Products</h3>
             <ul className="analysis-list">
               <li><span className="list-label">Premium Health Plan:</span> Growing</li>
@@ -72,7 +72,7 @@ export default function InsuranceAnalytics() {
 
 function AnalyticsCard({ title, metric, trend }) {
   return (
-    <div className="analytics-card">
+    <div className="analytics-card card">
       <div className="analytics-card-title">{title}</div>
       <div className="analytics-card-metric">{metric}</div>
       <div className="analytics-card-trend">{trend}</div>

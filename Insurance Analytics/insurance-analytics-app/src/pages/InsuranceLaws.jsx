@@ -38,7 +38,7 @@ export default function InsuranceLaws() {
           />
         </div>
 
-        <div className="content-section">
+        <div className="content-section card">
           <h2>Regulatory Framework</h2>
           <div className="regulation-list">
             <RegulationItem 
@@ -60,7 +60,7 @@ export default function InsuranceLaws() {
           </div>
         </div>
 
-        <div className="content-section">
+        <div className="content-section card">
           <h2>Compliance Checklist</h2>
           <div className="checklist">
             <ChecklistItem label="Annual compliance audit completed" />
@@ -78,7 +78,7 @@ export default function InsuranceLaws() {
 
 function LawCard({ title, status, regulation }) {
   return (
-    <div className="law-card">
+    <div className="law-card card">
       <div className="law-card-title">{title}</div>
       <div className="law-card-status">{status}</div>
       <div className="law-card-regulation">{regulation}</div>
@@ -88,7 +88,7 @@ function LawCard({ title, status, regulation }) {
 
 function RegulationItem({ title, description }) {
   return (
-    <div className="regulation-item">
+    <div className="regulation-item card">
       <div className="regulation-title">{title}</div>
       <div className="regulation-description">{description}</div>
     </div>
