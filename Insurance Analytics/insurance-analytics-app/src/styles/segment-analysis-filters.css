@@ -1,0 +1,221 @@
+/* ================================================
+   SEGMENT ANALYSIS FILTERS - MATCHES LIFE INSURANCE THEME
+   ================================================ */
+
+.segment-analysis-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* ================================================
+   FILTERS CONTAINER (DROPDOWNS)
+   ================================================ */
+
+.filters-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filter-group,
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.filter-label {
+  font-size: var(--font-size-label);
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: var(--letter-spacing-label);
+}
+
+/* ================================================
+   DROPDOWN STYLES
+   ================================================ */
+
+.dropdown-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.filter-dropdown,
+.filter-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  font-size: var(--font-size-label);
+  color: var(--text-primary);
+  background: white;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  outline: none;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-dropdown:hover,
+.filter-select:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.filter-dropdown:focus,
+.filter-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.12);
+  background: white;
+}
+
+.filter-dropdown option,
+.filter-select option {
+  background: white;
+  color: var(--text-primary);
+  padding: 8px;
+}
+
+/* ================================================
+   PREMIUM TYPE TOGGLE BUTTONS
+   ================================================ */
+
+.premium-type-section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.toggle-button-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.toggle-button {
+  padding: 8px 14px;
+  border: 1px solid var(--border-default);
+  background: white;
+  color: var(--text-primary);
+  border-radius: 10px;
+  font-size: var(--font-size-label);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.toggle-button:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: var(--accent-primary);
+}
+
+.toggle-button.active {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 12px rgba(14, 165, 164, 0.2);
+}
+
+.toggle-button.active:hover {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+/* ================================================
+   VIEW MODE RADIO TOGGLE
+   ================================================ */
+
+.view-mode-section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.radio-toggle-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.radio-input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent-primary);
+  margin: 0;
+}
+
+.radio-label {
+  font-size: var(--font-size-label);
+  color: var(--text-primary);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.radio-option:hover .radio-label {
+  color: var(--accent-primary);
+}
+
+/* ================================================
+   APPLY FILTERS BUTTON
+   ================================================ */
+
+.apply-filters-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--accent-primary);
+  color: white;
+  border: 1px solid var(--accent-primary);
+  border-radius: 10px;
+  font-size: var(--font-size-label);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  margin-top: 8px;
+  box-shadow: 0 4px 12px rgba(14, 165, 164, 0.2);
+}
+
+.apply-filters-btn:hover:not(:disabled) {
+  background: #0d9190;
+  border-color: #0d9190;
+  box-shadow: 0 6px 16px rgba(14, 165, 164, 0.3);
+  transform: translateY(-1px);
+}
+
+.apply-filters-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.apply-filters-btn:disabled {
+  background: #e5e7eb;
+  border-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.apply-icon {
+  flex-shrink: 0;
+}

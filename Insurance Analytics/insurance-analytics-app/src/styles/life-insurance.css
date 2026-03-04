@@ -355,40 +355,89 @@
 
 .filter-refresh-btn {
   margin-left: auto;
-  width: 38px;
-  height: 34px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(135deg, #0ea5a4, #06b6d4);
-  color: white;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(14, 165, 164, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(14, 165, 164, 0.08),
+    rgba(59, 130, 246, 0.06)
+  );
+  color: var(--accent-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 6px 14px rgba(14, 165, 164, 0.25);
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+}
+
+.filter-refresh-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 400ms ease;
+}
+
+.filter-refresh-btn:hover::before {
+  left: 100%;
 }
 
 .filter-refresh-btn svg {
   width: 18px;
   height: 18px;
+  flex-shrink: 0;
 }
 
 .filter-refresh-btn .refresh-icon {
-  stroke: #ffffff;
+  stroke: currentColor;
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .filter-refresh-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(14, 165, 164, 0.3);
+  border-color: rgba(14, 165, 164, 0.6);
+  background: linear-gradient(
+    135deg,
+    rgba(14, 165, 164, 0.12),
+    rgba(59, 130, 246, 0.1)
+  );
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(14, 165, 164, 0.15);
+}
+
+.filter-refresh-btn:active .refresh-icon {
+  animation: spin 0.6s ease-in-out;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .filter-refresh-btn:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.24);
+  box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.15);
 }
 
 .data-export-btn {
@@ -477,8 +526,18 @@
   overflow-x: hidden;
   padding: 18px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  min-height: 0;
+  background: var(--life-surface);
+}
+
+.panel-body .chart-wrapper {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  position: relative;
 }
 
 .panel-placeholder {
@@ -520,6 +579,196 @@
   font-weight: 400;
   color: var(--life-text);
   word-break: break-word;
+}
+
+/* =====================================================
+   DATA TABLE - SEGMENT ANALYSIS (ENHANCED)
+   ===================================================== */
+
+.data-table-container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: var(--life-surface);
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.segment-data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--font-size-body);
+  background: var(--life-surface);
+}
+
+.segment-data-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(
+    135deg,
+    rgba(14, 165, 164, 0.08),
+    rgba(59, 130, 246, 0.05)
+  );
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.segment-data-table thead tr {
+  box-shadow: 0 1px 0 0 rgba(148, 163, 184, 0.2);
+}
+
+.segment-data-table th {
+  padding: 16px 20px;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: left;
+  white-space: nowrap;
+  background: transparent;
+}
+
+.segment-data-table th.col-index {
+  width: 60px;
+  text-align: center;
+}
+
+.segment-data-table th.col-year {
+  width: 35%;
+}
+
+.segment-data-table th.col-value {
+  text-align: right;
+}
+
+.segment-data-table tbody tr {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.segment-data-table tbody tr:hover {
+  background: linear-gradient(
+    90deg,
+    rgba(14, 165, 164, 0.04),
+    rgba(14, 165, 164, 0.02)
+  );
+  transform: translateX(2px);
+}
+
+.segment-data-table tbody tr:nth-child(even) {
+  background: rgba(148, 163, 184, 0.02);
+}
+
+.segment-data-table tbody tr:nth-child(even):hover {
+  background: linear-gradient(
+    90deg,
+    rgba(14, 165, 164, 0.06),
+    rgba(14, 165, 164, 0.03)
+  );
+}
+
+.segment-data-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.segment-data-table td {
+  padding: 16px 20px;
+  color: var(--life-text);
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+.segment-data-table td.col-index {
+  text-align: center;
+}
+
+.segment-data-table td.col-value {
+  text-align: right;
+}
+
+/* Row Number Badge */
+.row-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.segment-data-table tbody tr:hover .row-number {
+  background: rgba(14, 165, 164, 0.15);
+  color: var(--accent-primary);
+  transform: scale(1.05);
+}
+
+/* Year Badge */
+.year-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: rgba(14, 165, 164, 0.08);
+  color: var(--life-text);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+}
+
+.segment-data-table tbody tr:hover .year-badge {
+  background: rgba(14, 165, 164, 0.15);
+  color: var(--accent-primary);
+  transform: translateX(3px);
+}
+
+/* Value Amount */
+.value-amount {
+  display: inline-block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--life-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.05);
+  transition: all 0.2s ease;
+}
+
+.segment-data-table tbody tr:hover .value-amount {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--accent-primary);
+  transform: translateX(-2px);
+}
+
+/* Data Table Container Scrollbar */
+.data-table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.data-table-container::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.05);
+  border-radius: 10px;
+}
+
+.data-table-container::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.data-table-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 164, 0.4);
 }
 
 /* =====================================================
@@ -636,4 +885,153 @@
   .breadcrumb {
     font-size: 16px;
   }
+}
+
+/* =====================================================
+   VISUALIZATION PANEL - DROPDOWN & CHARTS
+   ===================================================== */
+
+.viz-type-dropdown {
+  margin-left: auto;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 6px;
+  background: var(--bg-surface-solid);
+  color: var(--life-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.viz-type-dropdown:hover {
+  border-color: rgba(14, 165, 164, 0.45);
+}
+
+.viz-type-dropdown:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.15);
+}
+
+.viz-type-dropdown option {
+  background: var(--bg-surface-solid);
+  color: var(--life-text);
+  padding: 8px;
+}
+
+.viz-panel-body {
+  padding: 10px 12px 12px;
+  overflow: hidden;
+}
+
+/* Chart Wrapper */
+.chart-wrapper {
+  width: 100%;
+  height: 290px;
+  min-height: 290px;
+  position: relative;
+  background: linear-gradient(180deg, rgba(247, 250, 252, 0.95), rgba(241, 245, 249, 0.75));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+  padding: 8px 8px 2px;
+  overflow: hidden;
+}
+
+.chart-wrapper .recharts-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart-value-chip {
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  z-index: 3;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(14, 165, 164, 0.24);
+  background: rgba(14, 165, 164, 0.08);
+  color: var(--accent-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* Recharts Customization */
+.chart-wrapper .recharts-surface {
+  background: transparent;
+}
+
+.chart-wrapper .recharts-text {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+
+.chart-wrapper .recharts-tooltip-wrapper {
+  outline: none;
+}
+
+.chart-wrapper .recharts-default-tooltip {
+  background: var(--bg-surface-solid);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+}
+
+.chart-wrapper .recharts-tooltip-label {
+  color: var(--life-text);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.chart-wrapper .recharts-tooltip-item {
+  color: var(--accent-primary);
+}
+
+/* Line Chart Styling */
+.chart-wrapper .recharts-line {
+  filter: drop-shadow(0 1px 2px rgba(14, 165, 164, 0.18));
+}
+
+/* Bar Chart Styling */
+.chart-wrapper .recharts-bar-rectangles {
+  filter: drop-shadow(0 1px 2px rgba(14, 165, 164, 0.12));
+}
+
+/* Area Chart Styling */
+.chart-wrapper .recharts-area {
+  filter: drop-shadow(0 1px 2px rgba(14, 165, 164, 0.12));
+}
+
+/* Pie Chart Styling */
+.chart-wrapper .recharts-pie-sector {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
+  transition: all 200ms ease;
+}
+
+.chart-wrapper .recharts-pie-sector:hover {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.12));
+  opacity: 0.8;
+}
+
+/* Legend Styling */
+.chart-wrapper .recharts-legend {
+  display: none !important;
+}
+
+.chart-wrapper .recharts-legend-item {
+  color: var(--text-secondary) !important;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.chart-wrapper .recharts-legend-item:hover {
+  color: var(--accent-primary) !important;
+}
+
+.chart-wrapper .recharts-legend-item-text {
+  color: var(--text-secondary);
+  margin-left: 8px;
 }
