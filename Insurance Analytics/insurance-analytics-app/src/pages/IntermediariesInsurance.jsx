@@ -34,6 +34,12 @@ import {
   getMicroInsuranceInsurerTrend,
   getMicroInsuranceSectorAggregate,
   getSectorAggregate,
+  getAvgPoliciesInsurerTrend,
+  getAvgPoliciesSectorAggregate,
+  getAvgPremiumInsurerTrend,
+  getAvgPremiumSectorAggregate,
+  getAvgPremiumPerPolicyInsurerTrend,
+  getAvgPremiumPerPolicySectorAggregate,
 } from "../services/lifeAgentsService";
 import "../styles/life-insurance.css";
 
@@ -52,6 +58,30 @@ const DISTRIBUTION_AGENT_MODULE_CONFIG = {
     collectionName: "Microinsurance_agents_life_insurers",
     getInsurerTrend: getMicroInsuranceInsurerTrend,
     getSectorAggregate: getMicroInsuranceSectorAggregate,
+  },
+};
+
+const INTERMEDIARY_EFFICIENCY_MODULE_CONFIG = {
+  "avg-policies-sold": {
+    collectionName: "avg_individual_policies_agents",
+    getInsurerTrend: getAvgPoliciesInsurerTrend,
+    getSectorAggregate: getAvgPoliciesSectorAggregate,
+    requiresAgentType: true,
+    metricLabel: "Policies",
+  },
+  "avg-new-business-premium": {
+    collectionName: "avg_new_business_premium_income_per_agent",
+    getInsurerTrend: getAvgPremiumInsurerTrend,
+    getSectorAggregate: getAvgPremiumSectorAggregate,
+    requiresAgentType: true,
+    metricLabel: "Amount in Lakhs",
+  },
+  "avg-premium-per-policy": {
+    collectionName: "avg_premium_income_per_policy_per_agent",
+    getInsurerTrend: getAvgPremiumPerPolicyInsurerTrend,
+    getSectorAggregate: getAvgPremiumPerPolicySectorAggregate,
+    requiresAgentType: true,
+    metricLabel: "Amount in Rupees",
   },
 };
 
@@ -109,17 +139,17 @@ const SUB_MODULES = {
   "intermediary-efficiency": [
     {
       id: "avg-policies-sold",
-      title: "Average Number of Individual Policies Sold",
+      title: "Average Number of Individual Policies Sold per Agent",
       icon: BarChart2,
     },
     {
       id: "avg-new-business-premium",
-      title: "Average New Business Premium Income",
+      title: "Average New Business Premium Income per Agent",
       icon: LineChartIcon,
     },
     {
       id: "avg-premium-per-policy",
-      title: "Average Premium Income per Policy",
+      title: "Average Premium Income per Policy per Agent",
       icon: TrendingUp,
     },
   ],
@@ -166,6 +196,7 @@ export default function IntermediariesInsurance() {
   const [agentInsurerOptions, setAgentInsurerOptions] = useState(["All Insurers"]);
   const [selectedAgentInsurer, setSelectedAgentInsurer] = useState("");
   const [selectedAgentSector, setSelectedAgentSector] = useState("");
+  const [selectedAgentType, setSelectedAgentType] = useState("");
   const [rawData, setRawData] = useState([]);
   const [data, setData] = useState([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
@@ -184,6 +215,8 @@ export default function IntermediariesInsurance() {
   const distributionAgentModuleConfig =
     activeTab === "distribution-workforce"
       ? DISTRIBUTION_AGENT_MODULE_CONFIG[selectedModule] || null
+      : activeTab === "intermediary-efficiency"
+      ? INTERMEDIARY_EFFICIENCY_MODULE_CONFIG[selectedModule] || null
       : null;
 
   const isDistributionAgentsView = Boolean(distributionAgentModuleConfig);
@@ -195,6 +228,7 @@ export default function IntermediariesInsurance() {
 
     setSelectedAgentInsurer("");
     setSelectedAgentSector("");
+    setSelectedAgentType("");
     setShowTimelinePicker(false);
     setAgentsError("");
     setRawData([]);
@@ -207,12 +241,24 @@ export default function IntermediariesInsurance() {
         return;
       }
 
+      // For modules that require agent type selection, wait until an agent type is selected
+      if (distributionAgentModuleConfig.requiresAgentType && !selectedAgentType) {
+        setAgentInsurerOptions(["All Insurers"]);
+        return;
+      }
+
       try {
-        const snapshot = await getDocs(collection(db, distributionAgentModuleConfig.collectionName));
+        const collectionRef = collection(db, distributionAgentModuleConfig.collectionName);
+        const snapshot = await getDocs(collectionRef);
+
+        const relevantDocuments = distributionAgentModuleConfig.requiresAgentType
+          ? snapshot.docs.filter((item) => matchesAgentType(item.data(), selectedAgentType))
+          : snapshot.docs;
+
         const insurerNames = Array.from(
           new Set(
-            snapshot.docs
-              .map((item) => String(item.data()?.insurer || "").trim())
+            relevantDocuments
+              .map((item) => resolveInsurerName(item.data()))
               .filter(Boolean)
           )
         ).sort((first, second) => first.localeCompare(second));
@@ -224,7 +270,7 @@ export default function IntermediariesInsurance() {
     };
 
     fetchInsurers();
-  }, [distributionAgentModuleConfig]);
+  }, [distributionAgentModuleConfig, selectedAgentType]);
 
   useEffect(() => {
     if (rawData.length === 0) {
@@ -238,6 +284,15 @@ export default function IntermediariesInsurance() {
       .map((item) => Number(item.year))
       .filter((year) => Number.isFinite(year))
       .sort((first, second) => first - second);
+
+    // Some datasets use financial-year labels (for example, "2022-23").
+    // In that case, keep all rows visible and skip numeric timeline filtering.
+    if (yearValues.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      setData(rawData);
+      return;
+    }
 
     const minimumYear = String(yearValues[0]);
     const maximumYear = String(yearValues[yearValues.length - 1]);
@@ -321,10 +376,13 @@ export default function IntermediariesInsurance() {
   const selectedSubModuleTitle =
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
 
-  const hasDistributionFilterSelection = Boolean(selectedAgentInsurer || selectedAgentSector);
+  const hasDistributionFilterSelection = distributionAgentModuleConfig?.requiresAgentType
+    ? Boolean(selectedAgentType && (selectedAgentInsurer || selectedAgentSector))
+    : Boolean(selectedAgentInsurer || selectedAgentSector);
 
   const handleResetFilters = () => {
     if (isDistributionAgentsView) {
+        setSelectedAgentType("");
       setSelectedAgentInsurer("");
       setSelectedAgentSector("");
       setShowTimelinePicker(false);
@@ -347,6 +405,13 @@ export default function IntermediariesInsurance() {
       return;
     }
 
+    if (distributionAgentModuleConfig?.requiresAgentType && !selectedAgentType) {
+      setAgentsError("Please select an agent type first.");
+      setRawData([]);
+      setData([]);
+      return;
+    }
+
     if (!selectedAgentInsurer && !selectedAgentSector) {
       setAgentsError("Select at least one filter and click Apply Filters.");
       setRawData([]);
@@ -358,10 +423,16 @@ export default function IntermediariesInsurance() {
     setAgentsError("");
 
     try {
-      const result =
-        selectedAgentInsurer && selectedAgentInsurer !== "All Insurers"
-          ? await distributionAgentModuleConfig.getInsurerTrend(selectedAgentInsurer)
+      let result;
+      if (selectedAgentInsurer && selectedAgentInsurer !== "All Insurers") {
+        result = distributionAgentModuleConfig.requiresAgentType
+          ? await distributionAgentModuleConfig.getInsurerTrend(selectedAgentInsurer, selectedAgentType)
+          : await distributionAgentModuleConfig.getInsurerTrend(selectedAgentInsurer);
+      } else {
+        result = distributionAgentModuleConfig.requiresAgentType
+          ? await distributionAgentModuleConfig.getSectorAggregate(selectedAgentSector || "Both", selectedAgentType)
           : await distributionAgentModuleConfig.getSectorAggregate(selectedAgentSector || "Both");
+      }
 
       setRawData(result);
     } catch (error) {
@@ -375,11 +446,16 @@ export default function IntermediariesInsurance() {
   };
 
   const handleExportData = async () => {
+    const metricLabel = distributionAgentModuleConfig?.metricLabel || "Agents";
+
     if (!isDistributionAgentsView || data.length === 0) {
       return;
     }
 
     const activeFilters = [
+            ...(distributionAgentModuleConfig?.requiresAgentType 
+              ? [{ label: "Agent Type", value: selectedAgentType }] 
+              : []),
       { label: "Select Insurer", value: selectedAgentInsurer },
       { label: "Sector", value: selectedAgentSector },
     ];
@@ -392,7 +468,7 @@ export default function IntermediariesInsurance() {
       ["Applied Filters", "Value"],
       ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
       [],
-      ["Year", "Agents"],
+      ["Year", metricLabel],
       ...dataRows,
     ];
 
@@ -432,9 +508,13 @@ export default function IntermediariesInsurance() {
               className={`life-tab ${activeTab === tab.id ? "active" : ""}`}
               onClick={() => {
                 setActiveTab(tab.id);
-                setSelectedModule(
-                  tab.id === "distribution-workforce" ? "individual-agents-life" : null
-                );
+                if (tab.id === "distribution-workforce") {
+                  setSelectedModule("individual-agents-life");
+                } else if (tab.id === "intermediary-efficiency") {
+                  setSelectedModule("avg-policies-sold");
+                } else {
+                  setSelectedModule(null);
+                }
               }}
             >
               <IconComponent className="life-tab-icon" size={16} strokeWidth={2} />
@@ -482,18 +562,30 @@ export default function IntermediariesInsurance() {
           <div className="filters-body">
             {isDistributionAgentsView ? (
               <>
+                                {distributionAgentModuleConfig?.requiresAgentType && (
+                                  <FilterSelect
+                                    label="Select Agent"
+                                    options={["Individual Agent", "Corporate Agent"]}
+                                    value={selectedAgentType}
+                                    onChange={setSelectedAgentType}
+                                  />
+                                )}
                 <FilterSelect
                   label="Select Insurer"
                   options={agentInsurerOptions}
                   value={selectedAgentInsurer}
                   onChange={setSelectedAgentInsurer}
+                                  disabled={distributionAgentModuleConfig?.requiresAgentType && !selectedAgentType}
                 />
                 <FilterSelect
                   label="Sector"
                   options={["Both", "Public", "Private"]}
                   value={selectedAgentSector}
                   onChange={setSelectedAgentSector}
-                  disabled={Boolean(selectedAgentInsurer && selectedAgentInsurer !== "All Insurers")}
+                  disabled={
+                    (distributionAgentModuleConfig?.requiresAgentType && !selectedAgentType) ||
+                    Boolean(selectedAgentInsurer && selectedAgentInsurer !== "All Insurers")
+                  }
                 />
                 <button
                   type="button"
@@ -603,7 +695,9 @@ export default function IntermediariesInsurance() {
                       <thead>
                         <tr>
                           <th className="col-year">Year</th>
-                          <th className="col-value">Agents</th>
+                          <th className="col-value">
+                            {distributionAgentModuleConfig?.metricLabel || "Agents"}
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -714,6 +808,67 @@ function FilterSelect({ label, options, value, onChange, disabled = false }) {
       </select>
     </div>
   );
+}
+
+function matchesAgentType(data, selectedAgentType) {
+  if (!selectedAgentType) {
+    return true;
+  }
+
+  const normalizedSelectedAgentType = normalizeAgentType(selectedAgentType);
+
+  const candidateValues = [
+    data?.agent_type,
+    data?.agentType,
+    data?.agent,
+    data?.agent_category,
+    data?.category,
+    data?.type,
+  ].filter((value) => value !== undefined && value !== null && value !== "");
+
+  if (candidateValues.length === 0) {
+    return false;
+  }
+
+  return candidateValues.some((value) => normalizeAgentType(value) === normalizedSelectedAgentType);
+}
+
+function normalizeAgentType(value) {
+  const normalized = String(value || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (normalized.includes("corporate")) {
+    return "corporate";
+  }
+
+  if (normalized.includes("individual")) {
+    return "individual";
+  }
+
+  return normalized;
+}
+
+function resolveInsurerName(data) {
+  const candidates = [
+    data?.insurer,
+    data?.insurer_name,
+    data?.insurerName,
+    data?.company,
+    data?.company_name,
+    data?.name,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
 }
 
 function formatFieldValue(value) {

@@ -46,6 +46,16 @@ body {
   background: var(--bg-page);
 }
 
+::-moz-selection {
+  background: rgba(14, 165, 164, 0.28);
+  color: var(--text-primary);
+}
+
+::selection {
+  background: rgba(14, 165, 164, 0.28);
+  color: var(--text-primary);
+}
+
 h1,
 h2,
 h3 {

@@ -4,6 +4,9 @@ import { db } from "../firebase/firebaseConfig";
 const LIFE_INDIVIDUAL_AGENTS_COLLECTION = "life_individual_agents";
 const CORPORATE_AGENTS_COLLECTION = "corporate_agents_life_insurers";
 const MICRO_INSURANCE_AGENTS_COLLECTION = "Microinsurance_agents_life_insurers";
+const AVG_INDIVIDUAL_POLICIES_COLLECTION = "avg_individual_policies_agents";
+const AVG_NEW_BUSINESS_PREMIUM_COLLECTION = "avg_new_business_premium_income_per_agent";
+const AVG_PREMIUM_PER_POLICY_COLLECTION = "avg_premium_income_per_policy_per_agent";
 
 export function getInsurerTrend(insurer) {
   return getInsurerTrendByCollection(LIFE_INDIVIDUAL_AGENTS_COLLECTION, insurer);
@@ -27,6 +30,114 @@ export function getCorporateSectorAggregate(sector) {
 
 export function getMicroInsuranceSectorAggregate(sector) {
   return getSectorAggregateByCollection(MICRO_INSURANCE_AGENTS_COLLECTION, sector);
+}
+
+export function getAvgPoliciesInsurerTrend(insurer, agentType) {
+  return getDocs(collection(db, AVG_INDIVIDUAL_POLICIES_COLLECTION)).then((snapshot) => {
+    const filteredDocuments = snapshot.docs.filter((document) =>
+      matchesAgentType(document.data(), agentType) &&
+      matchesInsurerName(document.data(), insurer)
+    );
+
+    return aggregateByYearForPolicies(filteredDocuments);
+  });
+}
+
+export function getAvgPoliciesSectorAggregate(sector, agentType) {
+  const baseCollection = collection(db, AVG_INDIVIDUAL_POLICIES_COLLECTION);
+
+  const sectorQuery =
+    sector === "Both"
+      ? baseCollection
+      : query(baseCollection, where("sector", "==", sector));
+
+  return getDocs(sectorQuery).then((snapshot) => {
+    const filteredDocuments = snapshot.docs.filter((document) =>
+      matchesAgentType(document.data(), agentType)
+    );
+
+    return aggregateByYearForPolicies(filteredDocuments);
+  });
+}
+
+export function getAvgPremiumInsurerTrend(insurer, agentType) {
+  console.log('[getAvgPremiumInsurerTrend] Called with:', { insurer, agentType, collection: AVG_NEW_BUSINESS_PREMIUM_COLLECTION });
+  
+  return getDocs(collection(db, AVG_NEW_BUSINESS_PREMIUM_COLLECTION)).then((snapshot) => {
+    console.log('[getAvgPremiumInsurerTrend] Total documents fetched:', snapshot.docs.length);
+    
+    if (snapshot.docs.length > 0) {
+      console.log('[getAvgPremiumInsurerTrend] Sample document fields:', Object.keys(snapshot.docs[0].data()));
+    }
+    
+    const filteredDocuments = snapshot.docs.filter((document) =>
+      matchesAgentType(document.data(), agentType) &&
+      matchesInsurerName(document.data(), insurer)
+    );
+    
+    console.log('[getAvgPremiumInsurerTrend] Documents after filtering:', filteredDocuments.length);
+
+    const result = aggregateByYearForPremium(filteredDocuments);
+    console.log('[getAvgPremiumInsurerTrend] Aggregated result:', result);
+    return result;
+  });
+}
+
+export function getAvgPremiumSectorAggregate(sector, agentType) {
+  console.log('[getAvgPremiumSectorAggregate] Called with:', { sector, agentType, collection: AVG_NEW_BUSINESS_PREMIUM_COLLECTION });
+  
+  const baseCollection = collection(db, AVG_NEW_BUSINESS_PREMIUM_COLLECTION);
+
+  const sectorQuery =
+    sector === "Both"
+      ? baseCollection
+      : query(baseCollection, where("sector", "==", sector));
+
+  return getDocs(sectorQuery).then((snapshot) => {
+    console.log('[getAvgPremiumSectorAggregate] Total documents fetched:', snapshot.docs.length);
+    
+    if (snapshot.docs.length > 0) {
+      console.log('[getAvgPremiumSectorAggregate] Sample document fields:', Object.keys(snapshot.docs[0].data()));
+    }
+    
+    const filteredDocuments = snapshot.docs.filter((document) =>
+      matchesAgentType(document.data(), agentType)
+    );
+    
+    console.log('[getAvgPremiumSectorAggregate] Documents after agent type filtering:', filteredDocuments.length);
+
+    const result = aggregateByYearForPremium(filteredDocuments);
+    console.log('[getAvgPremiumSectorAggregate] Aggregated result:', result);
+    return result;
+  });
+}
+
+export function getAvgPremiumPerPolicyInsurerTrend(insurer, agentType) {
+  return getDocs(collection(db, AVG_PREMIUM_PER_POLICY_COLLECTION)).then((snapshot) => {
+    const filteredDocuments = snapshot.docs.filter((document) =>
+      matchesAgentType(document.data(), agentType) &&
+      matchesInsurerName(document.data(), insurer)
+    );
+
+    return aggregateByYearForPremiumPerPolicy(filteredDocuments);
+  });
+}
+
+export function getAvgPremiumPerPolicySectorAggregate(sector, agentType) {
+  const baseCollection = collection(db, AVG_PREMIUM_PER_POLICY_COLLECTION);
+
+  const sectorQuery =
+    sector === "Both"
+      ? baseCollection
+      : query(baseCollection, where("sector", "==", sector));
+
+  return getDocs(sectorQuery).then((snapshot) => {
+    const filteredDocuments = snapshot.docs.filter((document) =>
+      matchesAgentType(document.data(), agentType)
+    );
+
+    return aggregateByYearForPremiumPerPolicy(filteredDocuments);
+  });
 }
 
 function getInsurerTrendByCollection(collectionName, insurer) {
@@ -67,6 +178,127 @@ function aggregateByYear(documents) {
   return Array.from(yearTotals.entries())
     .map(([year, agents]) => ({ year, agents }))
     .sort((first, second) => first.year - second.year);
+}
+
+function aggregateByYearForPolicies(documents) {
+  const yearTotals = new Map();
+
+  documents.forEach((document) => {
+    const data = document.data();
+    const yearInfo = resolveYearInfo(data.year);
+    const policies = resolvePoliciesValue(data);
+
+    if (!yearInfo) {
+      return;
+    }
+
+    const existing = yearTotals.get(yearInfo.key);
+    if (existing) {
+      existing.agents += policies;
+      return;
+    }
+
+    yearTotals.set(yearInfo.key, {
+      year: yearInfo.label,
+      sortValue: yearInfo.sortValue,
+      agents: policies,
+    });
+  });
+
+  return Array.from(yearTotals.values())
+    .sort((first, second) => {
+      if (first.sortValue !== second.sortValue) {
+        return first.sortValue - second.sortValue;
+      }
+
+      return String(first.year).localeCompare(String(second.year));
+    })
+    .map(({ year, agents }) => ({ year, agents }));
+}
+
+function aggregateByYearForPremium(documents) {
+  console.log('[aggregateByYearForPremium] Processing', documents.length, 'documents');
+  
+  const yearTotals = new Map();
+
+  documents.forEach((document) => {
+    const data = document.data();
+    const yearInfo = resolveYearInfo(data.year);
+    const premium = resolvePremiumValue(data);
+
+    console.log('[aggregateByYearForPremium] Document:', { 
+      year: data.year, 
+      yearInfo, 
+      premium,
+      allFields: Object.keys(data) 
+    });
+
+    if (!yearInfo) {
+      console.warn('[aggregateByYearForPremium] Skipping document - no valid year');
+      return;
+    }
+
+    const existing = yearTotals.get(yearInfo.key);
+    if (existing) {
+      existing.agents += premium;
+      return;
+    }
+
+    yearTotals.set(yearInfo.key, {
+      year: yearInfo.label,
+      sortValue: yearInfo.sortValue,
+      agents: premium,
+    });
+  });
+
+  const result = Array.from(yearTotals.values())
+    .sort((first, second) => {
+      if (first.sortValue !== second.sortValue) {
+        return first.sortValue - second.sortValue;
+      }
+
+      return String(first.year).localeCompare(String(second.year));
+    })
+    .map(({ year, agents }) => ({ year, agents }));
+  
+  console.log('[aggregateByYearForPremium] Final aggregated result:', result);
+  return result;
+}
+
+function aggregateByYearForPremiumPerPolicy(documents) {
+  const yearTotals = new Map();
+
+  documents.forEach((document) => {
+    const data = document.data();
+    const yearInfo = resolveYearInfo(data.year);
+    const premiumPerPolicy = resolvePremiumPerPolicyValue(data);
+
+    if (!yearInfo) {
+      return;
+    }
+
+    const existing = yearTotals.get(yearInfo.key);
+    if (existing) {
+      existing.agents += premiumPerPolicy;
+      return;
+    }
+
+    yearTotals.set(yearInfo.key, {
+      year: yearInfo.label,
+      sortValue: yearInfo.sortValue,
+      agents: premiumPerPolicy,
+    });
+  });
+
+  return Array.from(yearTotals.values())
+    .sort((first, second) => {
+      if (first.sortValue !== second.sortValue) {
+        return first.sortValue - second.sortValue;
+      }
+
+      return String(first.year).localeCompare(String(second.year));
+    })
+    .map(({ year, agents }) => ({ year, agents }));
 }
 
 function resolveAgentsValue(data) {
@@ -124,4 +356,217 @@ function parseNumericValue(value) {
   }
 
   return null;
+}
+
+function resolvePoliciesValue(data) {
+  const preferredFields = [
+    "policies",
+    "avg_policies",
+    "average_policies",
+    "policies_sold",
+    "individual_policies",
+    "no_of_policies",
+    "number_of_policies",
+    "policy_count",
+    "count",
+    "value",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericValue(data?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/polic/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolvePremiumValue(data) {
+  const preferredFields = [
+    "premium",
+    "avg_premium",
+    "average_premium",
+    "premium_income",
+    "new_business_premium",
+    "new_business_premium_income",
+    "avg_new_business_premium",
+    "avg_new_business_premium_income",
+    "avg_new_business_premium_income_per_agent",
+    "business_premium",
+    "business_premium_income",
+    "amount",
+    "value",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericValue(data?.[fieldName]);
+    if (parsedValue !== null) {
+      console.log(`[resolvePremiumValue] Found value in field "${fieldName}":`, parsedValue);
+      return parsedValue;
+    }
+  }
+
+  // Fallback: try any field matching premium, income, business, or amount
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/premium|income|amount|business/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericValue(fieldValue);
+    if (parsedValue !== null) {
+      console.log(`[resolvePremiumValue] Found value in dynamic field "${fieldName}":`, parsedValue);
+      return parsedValue;
+    }
+  }
+
+  console.warn('[resolvePremiumValue] No premium value found in data:', Object.keys(data || {}));
+  return 0;
+}
+
+function resolvePremiumPerPolicyValue(data) {
+  const preferredFields = [
+    "premium_per_policy",
+    "avg_premium_per_policy",
+    "average_premium_per_policy",
+    "avg_premium_income_per_policy",
+    "premium_income_per_policy",
+    "avg_premium_income_per_policy_per_agent",
+    "premium",
+    "avg_premium",
+    "amount",
+    "value",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericValue(data?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/premium.*policy|per.*policy/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function matchesAgentType(data, selectedAgentType) {
+  if (!selectedAgentType) {
+    return true;
+  }
+
+  const normalizedSelectedAgentType = normalizeAgentType(selectedAgentType);
+
+  const candidateValues = [
+    data?.agent_type,
+    data?.agentType,
+    data?.agent,
+    data?.agent_category,
+    data?.category,
+    data?.type,
+  ].filter((value) => value !== undefined && value !== null && value !== "");
+
+  if (candidateValues.length === 0) {
+    return false;
+  }
+
+  return candidateValues.some((value) => normalizeAgentType(value) === normalizedSelectedAgentType);
+}
+
+function normalizeAgentType(value) {
+  const normalized = String(value || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (normalized.includes("corporate")) {
+    return "corporate";
+  }
+
+  if (normalized.includes("individual")) {
+    return "individual";
+  }
+
+  return normalized;
+}
+
+function resolveYearInfo(rawYearValue) {
+  if (rawYearValue === null || rawYearValue === undefined || rawYearValue === "") {
+    return null;
+  }
+
+  const numericYear = Number(rawYearValue);
+  if (Number.isFinite(numericYear)) {
+    const normalizedYear = String(Math.trunc(numericYear));
+    return {
+      key: normalizedYear,
+      label: normalizedYear,
+      sortValue: Math.trunc(numericYear),
+    };
+  }
+
+  const yearLabel = String(rawYearValue).trim();
+  if (!yearLabel) {
+    return null;
+  }
+
+  const match = yearLabel.match(/\d{4}/);
+  const sortValue = match ? Number(match[0]) : Number.MAX_SAFE_INTEGER;
+
+  return {
+    key: yearLabel,
+    label: yearLabel,
+    sortValue,
+  };
+}
+
+function matchesInsurerName(data, insurer) {
+  const normalizedSelectedInsurer = String(insurer || "").trim().toLowerCase();
+  if (!normalizedSelectedInsurer) {
+    return false;
+  }
+
+  const insurerName = resolveInsurerName(data);
+  return insurerName.toLowerCase() === normalizedSelectedInsurer;
+}
+
+function resolveInsurerName(data) {
+  const candidates = [
+    data?.insurer,
+    data?.insurer_name,
+    data?.insurerName,
+    data?.company,
+    data?.company_name,
+    data?.name,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
 }
