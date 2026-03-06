@@ -27,8 +27,33 @@ import {
   Users,
 } from "lucide-react";
 import { db } from "../firebase/firebaseConfig";
-import { getInsurerTrend, getSectorAggregate } from "../services/lifeAgentsService";
+import {
+  getCorporateInsurerTrend,
+  getCorporateSectorAggregate,
+  getInsurerTrend,
+  getMicroInsuranceInsurerTrend,
+  getMicroInsuranceSectorAggregate,
+  getSectorAggregate,
+} from "../services/lifeAgentsService";
 import "../styles/life-insurance.css";
+
+const DISTRIBUTION_AGENT_MODULE_CONFIG = {
+  "individual-agents-life": {
+    collectionName: "life_individual_agents",
+    getInsurerTrend,
+    getSectorAggregate,
+  },
+  "corporate-agents-life": {
+    collectionName: "corporate_agents_life_insurers",
+    getInsurerTrend: getCorporateInsurerTrend,
+    getSectorAggregate: getCorporateSectorAggregate,
+  },
+  "micro-insurance-agents-life": {
+    collectionName: "Microinsurance_agents_life_insurers",
+    getInsurerTrend: getMicroInsuranceInsurerTrend,
+    getSectorAggregate: getMicroInsuranceSectorAggregate,
+  },
+};
 
 const TABS = [
   { id: "distribution-workforce", label: "Distribution Workforce", icon: Users },
@@ -139,8 +164,8 @@ export default function IntermediariesInsurance() {
   const [selectedModule, setSelectedModule] = useState("individual-agents-life");
 
   const [agentInsurerOptions, setAgentInsurerOptions] = useState(["All Insurers"]);
-  const [selectedAgentInsurer, setSelectedAgentInsurer] = useState("All Insurers");
-  const [selectedAgentSector, setSelectedAgentSector] = useState("Both");
+  const [selectedAgentInsurer, setSelectedAgentInsurer] = useState("");
+  const [selectedAgentSector, setSelectedAgentSector] = useState("");
   const [rawData, setRawData] = useState([]);
   const [data, setData] = useState([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
@@ -149,20 +174,41 @@ export default function IntermediariesInsurance() {
   const [timelineStartYear, setTimelineStartYear] = useState("");
   const [timelineEndYear, setTimelineEndYear] = useState("");
 
-  const [selectedInsurer, setSelectedInsurer] = useState("All Insurers");
-  const [selectedFinancialYear, setSelectedFinancialYear] = useState("2024-25");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedSegment, setSelectedSegment] = useState("All");
-  const [selectedState, setSelectedState] = useState("All");
-  const [selectedMetric, setSelectedMetric] = useState("All");
+  const [selectedInsurer, setSelectedInsurer] = useState("");
+  const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSegment, setSelectedSegment] = useState("");
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedMetric, setSelectedMetric] = useState("");
 
-  const isIndividualAgentsView =
-    activeTab === "distribution-workforce" && selectedModule === "individual-agents-life";
+  const distributionAgentModuleConfig =
+    activeTab === "distribution-workforce"
+      ? DISTRIBUTION_AGENT_MODULE_CONFIG[selectedModule] || null
+      : null;
+
+  const isDistributionAgentsView = Boolean(distributionAgentModuleConfig);
+
+  useEffect(() => {
+    if (!isDistributionAgentsView) {
+      return;
+    }
+
+    setSelectedAgentInsurer("");
+    setSelectedAgentSector("");
+    setShowTimelinePicker(false);
+    setAgentsError("");
+    setRawData([]);
+    setData([]);
+  }, [distributionAgentModuleConfig?.collectionName, isDistributionAgentsView]);
 
   useEffect(() => {
     const fetchInsurers = async () => {
+      if (!distributionAgentModuleConfig) {
+        return;
+      }
+
       try {
-        const snapshot = await getDocs(collection(db, "life_individual_agents"));
+        const snapshot = await getDocs(collection(db, distributionAgentModuleConfig.collectionName));
         const insurerNames = Array.from(
           new Set(
             snapshot.docs
@@ -178,32 +224,7 @@ export default function IntermediariesInsurance() {
     };
 
     fetchInsurers();
-  }, []);
-
-  useEffect(() => {
-    const loadDefaultTrend = async () => {
-      if (!isIndividualAgentsView) {
-        return;
-      }
-
-      setAgentsLoading(true);
-      setAgentsError("");
-
-      try {
-        const result = await getSectorAggregate("Both");
-        setRawData(result);
-      } catch (error) {
-        console.error("Failed to load default agents trend:", error);
-        setAgentsError("Unable to load data.");
-        setRawData([]);
-        setData([]);
-      } finally {
-        setAgentsLoading(false);
-      }
-    };
-
-    loadDefaultTrend();
-  }, [isIndividualAgentsView]);
+  }, [distributionAgentModuleConfig]);
 
   useEffect(() => {
     if (rawData.length === 0) {
@@ -300,25 +321,36 @@ export default function IntermediariesInsurance() {
   const selectedSubModuleTitle =
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
 
+  const hasDistributionFilterSelection = Boolean(selectedAgentInsurer || selectedAgentSector);
+
   const handleResetFilters = () => {
-    if (isIndividualAgentsView) {
-      setSelectedAgentInsurer("All Insurers");
-      setSelectedAgentSector("Both");
+    if (isDistributionAgentsView) {
+      setSelectedAgentInsurer("");
+      setSelectedAgentSector("");
       setShowTimelinePicker(false);
       setAgentsError("");
+      setRawData([]);
+      setData([]);
       return;
     }
 
-    setSelectedInsurer("All Insurers");
-    setSelectedFinancialYear("2024-25");
-    setSelectedCategory("All");
-    setSelectedSegment("All");
-    setSelectedState("All");
-    setSelectedMetric("All");
+    setSelectedInsurer("");
+    setSelectedFinancialYear("");
+    setSelectedCategory("");
+    setSelectedSegment("");
+    setSelectedState("");
+    setSelectedMetric("");
   };
 
   const handleApplyFilters = async () => {
-    if (!isIndividualAgentsView) {
+    if (!isDistributionAgentsView) {
+      return;
+    }
+
+    if (!selectedAgentInsurer && !selectedAgentSector) {
+      setAgentsError("Select at least one filter and click Apply Filters.");
+      setRawData([]);
+      setData([]);
       return;
     }
 
@@ -327,9 +359,9 @@ export default function IntermediariesInsurance() {
 
     try {
       const result =
-        selectedAgentInsurer !== "All Insurers"
-          ? await getInsurerTrend(selectedAgentInsurer)
-          : await getSectorAggregate(selectedAgentSector);
+        selectedAgentInsurer && selectedAgentInsurer !== "All Insurers"
+          ? await distributionAgentModuleConfig.getInsurerTrend(selectedAgentInsurer)
+          : await distributionAgentModuleConfig.getSectorAggregate(selectedAgentSector || "Both");
 
       setRawData(result);
     } catch (error) {
@@ -343,7 +375,7 @@ export default function IntermediariesInsurance() {
   };
 
   const handleExportData = async () => {
-    if (!isIndividualAgentsView || data.length === 0) {
+    if (!isDistributionAgentsView || data.length === 0) {
       return;
     }
 
@@ -448,7 +480,7 @@ export default function IntermediariesInsurance() {
             </button>
           </div>
           <div className="filters-body">
-            {isIndividualAgentsView ? (
+            {isDistributionAgentsView ? (
               <>
                 <FilterSelect
                   label="Select Insurer"
@@ -461,12 +493,13 @@ export default function IntermediariesInsurance() {
                   options={["Both", "Public", "Private"]}
                   value={selectedAgentSector}
                   onChange={setSelectedAgentSector}
-                  disabled={selectedAgentInsurer !== "All Insurers"}
+                  disabled={Boolean(selectedAgentInsurer && selectedAgentInsurer !== "All Insurers")}
                 />
                 <button
                   type="button"
                   className="data-export-btn"
                   onClick={handleApplyFilters}
+                  disabled={!hasDistributionFilterSelection}
                   title="Apply Filters"
                 >
                   Apply Filters
@@ -492,7 +525,7 @@ export default function IntermediariesInsurance() {
               <BarChart3 size={14} strokeWidth={2} />
             </div>
             <h3 className="panel-title section-title">Data Panel</h3>
-            {isIndividualAgentsView && (
+            {isDistributionAgentsView && (
               <button
                 type="button"
                 className="data-export-btn"
@@ -512,7 +545,7 @@ export default function IntermediariesInsurance() {
             </button>
           </div>
           <div className="panel-body">
-            {isIndividualAgentsView ? (
+            {isDistributionAgentsView ? (
               agentsLoading ? (
                 <p className="panel-placeholder">Loading data...</p>
               ) : agentsError ? (
@@ -585,7 +618,11 @@ export default function IntermediariesInsurance() {
                   </div>
                 </>
               ) : (
-                <p className="panel-placeholder">No data found for selected filters.</p>
+                <p className="panel-placeholder">
+                  {hasDistributionFilterSelection
+                    ? "No data found for selected filters."
+                    : "Select filters and click Apply Filters to view data."}
+                </p>
               )
             ) : (
               <div className="data-table-container">
@@ -603,7 +640,7 @@ export default function IntermediariesInsurance() {
             <h3 className="panel-title section-title">Visualization Panel</h3>
           </div>
           <div className="panel-body viz-panel-body">
-            {isIndividualAgentsView ? (
+            {isDistributionAgentsView ? (
               agentsLoading ? (
                 <p className="panel-placeholder">Loading visualization...</p>
               ) : agentsError ? (
@@ -640,7 +677,11 @@ export default function IntermediariesInsurance() {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <p className="panel-placeholder">No data found for selected filters.</p>
+                <p className="panel-placeholder">
+                  {hasDistributionFilterSelection
+                    ? "No data found for selected filters."
+                    : "Select filters and click Apply Filters to view visualization."}
+                </p>
               )
             ) : (
               <div className="chart-wrapper">
@@ -664,8 +705,11 @@ function FilterSelect({ label, options, value, onChange, disabled = false }) {
         disabled={disabled}
         onChange={(event) => onChange?.(event.target.value)}
       >
+        <option value="">Select</option>
         {options.map((opt, idx) => (
-          <option key={idx}>{opt}</option>
+          <option key={idx} value={opt}>
+            {opt}
+          </option>
         ))}
       </select>
     </div>

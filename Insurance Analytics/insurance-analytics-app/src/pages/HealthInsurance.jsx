@@ -65,12 +65,12 @@ export default function HealthInsurance() {
   const [activeTab, setActiveTab] = useState("business-volume");
   const [selectedModule, setSelectedModule] = useState(null);
 
-  const [selectedInsurer, setSelectedInsurer] = useState("All Insurers");
-  const [selectedFinancialYear, setSelectedFinancialYear] = useState("2024-25");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedSegment, setSelectedSegment] = useState("All");
-  const [selectedMetric, setSelectedMetric] = useState("All");
-  const [selectedState, setSelectedState] = useState("All");
+  const [selectedInsurer, setSelectedInsurer] = useState("");
+  const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSegment, setSelectedSegment] = useState("");
+  const [selectedMetric, setSelectedMetric] = useState("");
+  const [selectedState, setSelectedState] = useState("");
 
   const filterConfig = useMemo(
     () => [
@@ -122,12 +122,12 @@ export default function HealthInsurance() {
   );
 
   const handleResetFilters = () => {
-    setSelectedInsurer("All Insurers");
-    setSelectedFinancialYear("2024-25");
-    setSelectedCategory("All");
-    setSelectedSegment("All");
-    setSelectedMetric("All");
-    setSelectedState("All");
+    setSelectedInsurer("");
+    setSelectedFinancialYear("");
+    setSelectedCategory("");
+    setSelectedSegment("");
+    setSelectedMetric("");
+    setSelectedState("");
   };
 
   const handleExportData = () => {
@@ -252,8 +252,11 @@ function FilterSelect({ label, options, value, onChange }) {
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
       >
+        <option value="">Select</option>
         {options.map((opt, idx) => (
-          <option key={idx}>{opt}</option>
+          <option key={idx} value={opt}>
+            {opt}
+          </option>
         ))}
       </select>
     </div>

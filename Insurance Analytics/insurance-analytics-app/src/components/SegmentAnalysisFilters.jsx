@@ -23,7 +23,7 @@ export default function SegmentAnalysisFilters({
     { value: "percentage", label: "Percentage %" },
   ];
 
-  const isApplyDisabled = !category || !segment || !participation || !premiumType;
+  const isApplyDisabled = !category || !segment || !participation || !premiumType || !viewMode;
 
   const handleApplyFilters = () => {
     if (onApply && !isApplyDisabled) {

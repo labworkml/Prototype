@@ -88,11 +88,12 @@ export default function LifeInsurance() {
   const [activeTab, setActiveTab] = useState("market-overview");
   const [selectedModule, setSelectedModule] = useState(null);
   const [lifeInsurerDocs, setLifeInsurerDocs] = useState([]);
-  const [selectedInsurer, setSelectedInsurer] = useState("All Insurers");
-  const [selectedFinancialYear, setSelectedFinancialYear] = useState("2024-25");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedSegment, setSelectedSegment] = useState("All");
-  const [selectedPremiumType, setSelectedPremiumType] = useState("Total");
+  const [selectedInsurer, setSelectedInsurer] = useState("");
+  const [appliedInsurer, setAppliedInsurer] = useState("");
+  const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSegment, setSelectedSegment] = useState("");
+  const [selectedPremiumType, setSelectedPremiumType] = useState("");
   const [insurersLoading, setInsurersLoading] = useState(false);
   const [insurersError, setInsurersError] = useState("");
   // Segment Analysis Filters
@@ -100,14 +101,14 @@ export default function LifeInsurance() {
   const [segmentType, setSegmentType] = useState("");
   const [segmentParticipation, setSegmentParticipation] = useState("");
   const [segmentPremiumType, setSegmentPremiumType] = useState("");
-  const [segmentViewMode, setSegmentViewMode] = useState("amount");
+  const [segmentViewMode, setSegmentViewMode] = useState("");
 
   // Applied Segment Analysis Filters (trigger data fetch)
   const [appliedSegmentCategory, setAppliedSegmentCategory] = useState("");
   const [appliedSegmentType, setAppliedSegmentType] = useState("");
   const [appliedSegmentParticipation, setAppliedSegmentParticipation] = useState("");
   const [appliedSegmentPremiumType, setAppliedSegmentPremiumType] = useState("");
-  const [appliedSegmentViewMode, setAppliedSegmentViewMode] = useState("amount");
+  const [appliedSegmentViewMode, setAppliedSegmentViewMode] = useState("");
 
   // Segment Analysis Data State
   const [segmentData, setSegmentData] = useState([]);
@@ -205,12 +206,12 @@ export default function LifeInsurance() {
   }, [lifeInsurerDocs]);
 
   const selectedInsurerDocument = useMemo(() => {
-    if (!showOnlyInsurerFilter || selectedInsurer === "All Insurers") {
+    if (!showOnlyInsurerFilter || !appliedInsurer || appliedInsurer === "All Insurers") {
       return null;
     }
 
-    return lifeInsurerDocs.find((document) => document.insurer_name === selectedInsurer) || null;
-  }, [showOnlyInsurerFilter, selectedInsurer, lifeInsurerDocs]);
+    return lifeInsurerDocs.find((document) => document.insurer_name === appliedInsurer) || null;
+  }, [showOnlyInsurerFilter, appliedInsurer, lifeInsurerDocs]);
 
   const selectedSubModuleTitle =
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
@@ -261,11 +262,12 @@ export default function LifeInsurance() {
       ];
 
   const handleResetFilters = () => {
-    setSelectedInsurer("All Insurers");
-    setSelectedFinancialYear("2024-25");
-    setSelectedCategory("All");
-    setSelectedSegment("All");
-    setSelectedPremiumType("Total");
+    setSelectedInsurer("");
+    setAppliedInsurer("");
+    setSelectedFinancialYear("");
+    setSelectedCategory("");
+    setSelectedSegment("");
+    setSelectedPremiumType("");
   };
 
   const handleResetSegmentAnalysisFilters = () => {
@@ -273,13 +275,17 @@ export default function LifeInsurance() {
     setSegmentType("");
     setSegmentParticipation("");
     setSegmentPremiumType("");
-    setSegmentViewMode("amount");
+    setSegmentViewMode("");
     // Also clear applied filters
     setAppliedSegmentCategory("");
     setAppliedSegmentType("");
     setAppliedSegmentParticipation("");
     setAppliedSegmentPremiumType("");
-    setAppliedSegmentViewMode("amount");
+    setAppliedSegmentViewMode("");
+  };
+
+  const handleApplyFilters = () => {
+    setAppliedInsurer(selectedInsurer);
   };
 
   const handleApplySegmentFilters = () => {
@@ -513,6 +519,14 @@ export default function LifeInsurance() {
                     onChange={filter.onChange}
                   />
                 ))}
+                <button
+                  type="button"
+                  className="data-export-btn"
+                  onClick={handleApplyFilters}
+                  title="Apply Filters"
+                >
+                  Apply Filters
+                </button>
               </>
             )}
           </div>
@@ -816,8 +830,11 @@ function FilterSelect({ label, options, value, onChange }) {
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
       >
+        <option value="">Select</option>
         {options.map((opt, idx) => (
-          <option key={idx}>{opt}</option>
+          <option key={idx} value={opt}>
+            {opt}
+          </option>
         ))}
       </select>
     </div>

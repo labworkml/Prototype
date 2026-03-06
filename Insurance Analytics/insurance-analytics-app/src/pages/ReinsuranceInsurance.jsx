@@ -87,11 +87,11 @@ export default function ReinsuranceInsurance() {
   const [activeTab, setActiveTab] = useState("market-overview");
   const [selectedModule, setSelectedModule] = useState(null);
 
-  const [selectedReinsurer, setSelectedReinsurer] = useState("All Reinsurers");
-  const [selectedFinancialYear, setSelectedFinancialYear] = useState("2024-25");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedSegment, setSelectedSegment] = useState("All");
-  const [selectedMetric, setSelectedMetric] = useState("All");
+  const [selectedReinsurer, setSelectedReinsurer] = useState("");
+  const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSegment, setSelectedSegment] = useState("");
+  const [selectedMetric, setSelectedMetric] = useState("");
 
   const isOperationalAnalysis =
     activeTab === "premium-underwriting" && selectedModule === "operational-analysis";
@@ -132,7 +132,7 @@ export default function ReinsuranceInsurance() {
       {
         label: "Metric",
         options: metricOptions,
-        value: metricOptions.includes(selectedMetric) ? selectedMetric : metricOptions[0],
+        value: metricOptions.includes(selectedMetric) ? selectedMetric : "",
         onChange: setSelectedMetric,
       },
     ],
@@ -147,11 +147,11 @@ export default function ReinsuranceInsurance() {
   );
 
   const handleResetFilters = () => {
-    setSelectedReinsurer("All Reinsurers");
-    setSelectedFinancialYear("2024-25");
-    setSelectedCategory("All");
-    setSelectedSegment("All");
-    setSelectedMetric(isOperationalAnalysis ? "Net Earned Premium" : "All");
+    setSelectedReinsurer("");
+    setSelectedFinancialYear("");
+    setSelectedCategory("");
+    setSelectedSegment("");
+    setSelectedMetric("");
   };
 
   const handleExportData = () => {
@@ -279,8 +279,11 @@ function FilterSelect({ label, options, value, onChange }) {
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
       >
+        <option value="">Select</option>
         {options.map((opt, idx) => (
-          <option key={idx}>{opt}</option>
+          <option key={idx} value={opt}>
+            {opt}
+          </option>
         ))}
       </select>
     </div>
