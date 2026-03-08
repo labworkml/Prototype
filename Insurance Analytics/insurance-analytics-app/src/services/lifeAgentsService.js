@@ -7,6 +7,7 @@ const MICRO_INSURANCE_AGENTS_COLLECTION = "Microinsurance_agents_life_insurers";
 const AVG_INDIVIDUAL_POLICIES_COLLECTION = "avg_individual_policies_agents";
 const AVG_NEW_BUSINESS_PREMIUM_COLLECTION = "avg_new_business_premium_income_per_agent";
 const AVG_PREMIUM_PER_POLICY_COLLECTION = "avg_premium_income_per_policy_per_agent";
+const LIFE_AGENTS_STATEWISE_COLLECTION = "sheet96_life_agents_statewise";
 
 export function getInsurerTrend(insurer) {
   return getInsurerTrendByCollection(LIFE_INDIVIDUAL_AGENTS_COLLECTION, insurer);
@@ -301,16 +302,70 @@ function aggregateByYearForPremiumPerPolicy(documents) {
     .map(({ year, agents }) => ({ year, agents }));
 }
 
+function aggregateByYearForAgents(documents) {
+  console.log('[aggregateByYearForAgents] Processing', documents.length, 'documents');
+  
+  const yearTotals = new Map();
+
+  documents.forEach((document) => {
+    const data = document.data();
+    const yearInfo = resolveYearInfo(data.year);
+    const agentCount = resolveAgentsValue(data);
+
+    console.log('[aggregateByYearForAgents] Document:', { 
+      year: data.year, 
+      yearInfo, 
+      agentCount,
+      allFields: Object.keys(data) 
+    });
+
+    if (!yearInfo) {
+      console.warn('[aggregateByYearForAgents] Skipping document - no valid year');
+      return;
+    }
+
+    const existing = yearTotals.get(yearInfo.key);
+    if (existing) {
+      existing.agents += agentCount;
+      return;
+    }
+
+    yearTotals.set(yearInfo.key, {
+      year: yearInfo.label,
+      sortValue: yearInfo.sortValue,
+      agents: agentCount,
+    });
+  });
+
+  const result = Array.from(yearTotals.values())
+    .sort((first, second) => {
+      if (first.sortValue !== second.sortValue) {
+        return first.sortValue - second.sortValue;
+      }
+
+      return String(first.year).localeCompare(String(second.year));
+    })
+    .map(({ year, agents }) => ({ year, agents }));
+  
+  console.log('[aggregateByYearForAgents] Final aggregated result:', result);
+  return result;
+}
+
 function resolveAgentsValue(data) {
   const preferredFields = [
     "agents",
+    "individual_agents",
+    "no_of_agents",
+    "total_agents",
+    "agent_count",
     "corporate_agents",
     "corporate_agent",
     "corporate_agents_count",
     "no_of_corporate_agents",
     "number_of_corporate_agents",
     "total_corporate_agents",
-    "agent_count",
+    "no_of_individual_agents",
+    "number_of_individual_agents",
     "count",
     "value",
   ];
@@ -548,7 +603,18 @@ function matchesInsurerName(data, insurer) {
   }
 
   const insurerName = resolveInsurerName(data);
-  return insurerName.toLowerCase() === normalizedSelectedInsurer;
+  const normalizedInsurerName = insurerName.toLowerCase();
+  
+  const matches = normalizedInsurerName === normalizedSelectedInsurer;
+  
+  if (!matches && normalizedInsurerName) {
+    console.log('[matchesInsurerName] No match:', { 
+      selected: normalizedSelectedInsurer, 
+      candidate: normalizedInsurerName 
+    });
+  }
+  
+  return matches;
 }
 
 function resolveInsurerName(data) {
@@ -569,4 +635,134 @@ function resolveInsurerName(data) {
   }
 
   return "";
+}
+
+// State-wise analysis functions
+export async function getStatewiseInsurers() {
+  console.log('[getStatewiseInsurers] Fetching insurers from:', LIFE_AGENTS_STATEWISE_COLLECTION);
+  
+  try {
+    const snapshot = await getDocs(collection(db, LIFE_AGENTS_STATEWISE_COLLECTION));
+    console.log('[getStatewiseInsurers] Total documents:', snapshot.docs.length);
+    
+    if (snapshot.docs.length > 0) {
+      console.log('[getStatewiseInsurers] Sample document:', snapshot.docs[0].data());
+    }
+    
+    const insurerNames = Array.from(
+      new Set(
+        snapshot.docs
+          .map((doc) => resolveInsurerName(doc.data()))
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+
+    console.log('[getStatewiseInsurers] Found insurers:', insurerNames);
+    return insurerNames;
+  } catch (error) {
+    console.error("Failed to fetch statewise insurers:", error);
+    return [];
+  }
+}
+
+export async function getStatewiseStates() {
+  console.log('[getStatewiseStates] Fetching states from:', LIFE_AGENTS_STATEWISE_COLLECTION);
+  
+  try {
+    const snapshot = await getDocs(collection(db, LIFE_AGENTS_STATEWISE_COLLECTION));
+    console.log('[getStatewiseStates] Total documents:', snapshot.docs.length);
+    
+    const stateNames = Array.from(
+      new Set(
+        snapshot.docs
+          .map((doc) => resolveStateName(doc.data()))
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+
+    console.log('[getStatewiseStates] Found states:', stateNames);
+    return stateNames;
+  } catch (error) {
+    console.error("Failed to fetch statewise states:", error);
+    return [];
+  }
+}
+
+export async function getStatewiseData(insurer, state) {
+  console.log('[getStatewiseData] Called with:', { insurer, state });
+  
+  try {
+    const snapshot = await getDocs(collection(db, LIFE_AGENTS_STATEWISE_COLLECTION));
+    console.log('[getStatewiseData] Total documents fetched:', snapshot.docs.length);
+    
+    if (snapshot.docs.length > 0) {
+      console.log('[getStatewiseData] Sample document:', snapshot.docs[0].data());
+    }
+    
+    const filteredDocuments = snapshot.docs.filter((doc) => {
+      const data = doc.data();
+      const matchesInsurer = matchesInsurerName(data, insurer);
+      const matchesState = matchesStateName(data, state);
+      
+      if (matchesInsurer && matchesState) {
+        console.log('[getStatewiseData] Matched document:', data);
+      }
+      
+      return matchesInsurer && matchesState;
+    });
+
+    console.log('[getStatewiseData] Filtered documents:', filteredDocuments.length);
+
+    const result = aggregateByYearForAgents(filteredDocuments);
+    console.log('[getStatewiseData] Aggregated result:', result);
+    
+    return result;
+  } catch (error) {
+    console.error("Failed to fetch statewise data:", error);
+    return [];
+  }
+}
+
+function resolveStateName(data) {
+  const candidates = [
+    data?.state,
+    data?.state_name,
+    data?.stateName,
+    data?.State,
+    data?.State_Name,
+    data?.State_name,
+    data?.STATE,
+    data?.location,
+    data?.region,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value && value !== "") {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function matchesStateName(data, state) {
+  const normalizedSelectedState = String(state || "").trim().toLowerCase();
+  if (!normalizedSelectedState) {
+    return false;
+  }
+
+  const stateName = resolveStateName(data);
+  const normalizedStateName = stateName.toLowerCase();
+  
+  const matches = normalizedStateName === normalizedSelectedState;
+  
+  if (!matches && normalizedStateName) {
+    console.log('[matchesStateName] No match:', { 
+      selected: normalizedSelectedState, 
+      candidate: normalizedStateName 
+    });
+  }
+  
+  return matches;
 }

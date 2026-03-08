@@ -40,6 +40,9 @@ import {
   getAvgPremiumSectorAggregate,
   getAvgPremiumPerPolicyInsurerTrend,
   getAvgPremiumPerPolicySectorAggregate,
+  getStatewiseInsurers,
+  getStatewiseStates,
+  getStatewiseData,
 } from "../services/lifeAgentsService";
 import "../styles/life-insurance.css";
 
@@ -82,6 +85,17 @@ const INTERMEDIARY_EFFICIENCY_MODULE_CONFIG = {
     getSectorAggregate: getAvgPremiumPerPolicySectorAggregate,
     requiresAgentType: true,
     metricLabel: "Amount in Rupees",
+  },
+};
+
+const STATE_WISE_MODULE_CONFIG = {
+  "distribution-individual-agents-life": {
+    collectionName: "life_agents_statewise",
+    getInsurers: getStatewiseInsurers,
+    getStates: getStatewiseStates,
+    getData: getStatewiseData,
+    requiresInsurerAndState: true,
+    metricLabel: "Agents",
   },
 };
 
@@ -212,11 +226,19 @@ export default function IntermediariesInsurance() {
   const [selectedState, setSelectedState] = useState("");
   const [selectedMetric, setSelectedMetric] = useState("");
 
+  // State-wise analysis states
+  const [statewiseInsurerOptions, setStatewiseInsurerOptions] = useState([]);
+  const [statewiseStateOptions, setStatewiseStateOptions] = useState([]);
+  const [selectedStatewiseInsurer, setSelectedStatewiseInsurer] = useState("");
+  const [selectedStatewiseState, setSelectedStatewiseState] = useState("");
+
   const distributionAgentModuleConfig =
     activeTab === "distribution-workforce"
       ? DISTRIBUTION_AGENT_MODULE_CONFIG[selectedModule] || null
       : activeTab === "intermediary-efficiency"
       ? INTERMEDIARY_EFFICIENCY_MODULE_CONFIG[selectedModule] || null
+      : activeTab === "state-wise-analysis"
+      ? STATE_WISE_MODULE_CONFIG[selectedModule] || null
       : null;
 
   const isDistributionAgentsView = Boolean(distributionAgentModuleConfig);
@@ -272,6 +294,37 @@ export default function IntermediariesInsurance() {
     fetchInsurers();
   }, [distributionAgentModuleConfig, selectedAgentType]);
 
+  // Fetch insurers and states for state-wise analysis
+  useEffect(() => {
+    const fetchStatewiseOptions = async () => {
+      if (!distributionAgentModuleConfig?.requiresInsurerAndState) {
+        setStatewiseInsurerOptions([]);
+        setStatewiseStateOptions([]);
+        return;
+      }
+
+      try {
+        console.log('[fetchStatewiseOptions] Starting fetch for:', distributionAgentModuleConfig?.collectionName);
+        const [insurers, states] = await Promise.all([
+          distributionAgentModuleConfig.getInsurers(),
+          distributionAgentModuleConfig.getStates()
+        ]);
+
+        console.log('[fetchStatewiseOptions] Received insurers:', insurers);
+        console.log('[fetchStatewiseOptions] Received states:', states);
+
+        setStatewiseInsurerOptions(insurers);
+        setStatewiseStateOptions(states);
+      } catch (error) {
+        console.error("Failed to fetch statewise options:", error);
+        setStatewiseInsurerOptions([]);
+        setStatewiseStateOptions([]);
+      }
+    };
+
+    fetchStatewiseOptions();
+  }, [activeTab, selectedModule, distributionAgentModuleConfig?.requiresInsurerAndState]);
+
   useEffect(() => {
     if (rawData.length === 0) {
       setTimelineStartYear("");
@@ -280,13 +333,30 @@ export default function IntermediariesInsurance() {
       return;
     }
 
+    // Extract numeric years from all formats
     const yearValues = rawData
-      .map((item) => Number(item.year))
-      .filter((year) => Number.isFinite(year))
+      .map((item) => {
+        const yearValue = item.year;
+        
+        // Try direct numeric conversion
+        const numericYear = Number(yearValue);
+        if (Number.isFinite(numericYear)) {
+          return numericYear;
+        }
+        
+        // Extract first 4-digit year from strings like "2020-21"
+        const yearString = String(yearValue || "");
+        const match = yearString.match(/\d{4}/);
+        if (match) {
+          return Number(match[0]);
+        }
+        
+        return null;
+      })
+      .filter((year) => year !== null && Number.isFinite(year))
       .sort((first, second) => first - second);
 
-    // Some datasets use financial-year labels (for example, "2022-23").
-    // In that case, keep all rows visible and skip numeric timeline filtering.
+    // If no valid years found, show all data without filtering
     if (yearValues.length === 0) {
       setTimelineStartYear("");
       setTimelineEndYear("");
@@ -312,17 +382,48 @@ export default function IntermediariesInsurance() {
     const endYear = Number(effectiveEnd);
 
     const filteredData = rawData.filter((item) => {
-      const itemYear = Number(item.year);
-      return itemYear >= startYear && itemYear <= endYear;
+      const yearValue = item.year;
+      
+      // Try direct numeric conversion
+      let itemYear = Number(yearValue);
+      
+      // If not numeric, extract from financial year format
+      if (!Number.isFinite(itemYear)) {
+        const yearString = String(yearValue || "");
+        const match = yearString.match(/\d{4}/);
+        if (match) {
+          itemYear = Number(match[0]);
+        }
+      }
+      
+      return Number.isFinite(itemYear) && itemYear >= startYear && itemYear <= endYear;
     });
 
     setData(filteredData);
   }, [rawData, timelineStartYear, timelineEndYear]);
 
-  const timelineYearOptions = useMemo(
-    () => rawData.map((item) => Number(item.year)).filter((year) => Number.isFinite(year)),
-    [rawData]
-  );
+  const timelineYearOptions = useMemo(() => {
+    return rawData
+      .map((item) => {
+        const yearValue = item.year;
+        
+        // Try direct numeric conversion first
+        const numericYear = Number(yearValue);
+        if (Number.isFinite(numericYear)) {
+          return numericYear;
+        }
+        
+        // Extract first 4-digit year from strings like "2020-21" or "2020-2021"
+        const yearString = String(yearValue || "");
+        const match = yearString.match(/\d{4}/);
+        if (match) {
+          return Number(match[0]);
+        }
+        
+        return null;
+      })
+      .filter((year) => year !== null && Number.isFinite(year));
+  }, [rawData]);
 
   const filterConfig = useMemo(
     () => [
@@ -376,15 +477,19 @@ export default function IntermediariesInsurance() {
   const selectedSubModuleTitle =
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
 
-  const hasDistributionFilterSelection = distributionAgentModuleConfig?.requiresAgentType
+  const hasDistributionFilterSelection = distributionAgentModuleConfig?.requiresInsurerAndState
+    ? Boolean(selectedStatewiseInsurer && selectedStatewiseState)
+    : distributionAgentModuleConfig?.requiresAgentType
     ? Boolean(selectedAgentType && (selectedAgentInsurer || selectedAgentSector))
     : Boolean(selectedAgentInsurer || selectedAgentSector);
 
   const handleResetFilters = () => {
     if (isDistributionAgentsView) {
-        setSelectedAgentType("");
+      setSelectedAgentType("");
       setSelectedAgentInsurer("");
       setSelectedAgentSector("");
+      setSelectedStatewiseInsurer("");
+      setSelectedStatewiseState("");
       setShowTimelinePicker(false);
       setAgentsError("");
       setRawData([]);
@@ -402,6 +507,35 @@ export default function IntermediariesInsurance() {
 
   const handleApplyFilters = async () => {
     if (!isDistributionAgentsView) {
+      return;
+    }
+
+    // Handle state-wise analysis
+    if (distributionAgentModuleConfig?.requiresInsurerAndState) {
+      if (!selectedStatewiseInsurer || !selectedStatewiseState) {
+        setAgentsError("Please select both Insurer and State.");
+        setRawData([]);
+        setData([]);
+        return;
+      }
+
+      setAgentsLoading(true);
+      setAgentsError("");
+
+      try {
+        const result = await distributionAgentModuleConfig.getData(
+          selectedStatewiseInsurer,
+          selectedStatewiseState
+        );
+        setRawData(result);
+      } catch (error) {
+        console.error("Failed to apply statewise filters:", error);
+        setAgentsError("Unable to load data for selected filters.");
+        setRawData([]);
+        setData([]);
+      } finally {
+        setAgentsLoading(false);
+      }
       return;
     }
 
@@ -452,13 +586,18 @@ export default function IntermediariesInsurance() {
       return;
     }
 
-    const activeFilters = [
-            ...(distributionAgentModuleConfig?.requiresAgentType 
-              ? [{ label: "Agent Type", value: selectedAgentType }] 
-              : []),
-      { label: "Select Insurer", value: selectedAgentInsurer },
-      { label: "Sector", value: selectedAgentSector },
-    ];
+    const activeFilters = distributionAgentModuleConfig?.requiresInsurerAndState
+      ? [
+          { label: "Insurer", value: selectedStatewiseInsurer },
+          { label: "State", value: selectedStatewiseState },
+        ]
+      : [
+          ...(distributionAgentModuleConfig?.requiresAgentType 
+            ? [{ label: "Agent Type", value: selectedAgentType }] 
+            : []),
+          { label: "Select Insurer", value: selectedAgentInsurer },
+          { label: "Sector", value: selectedAgentSector },
+        ];
 
     const dataRows = data.map((row) => [row.year, Number(row.agents || 0).toLocaleString("en-IN")]);
 
@@ -512,6 +651,8 @@ export default function IntermediariesInsurance() {
                   setSelectedModule("individual-agents-life");
                 } else if (tab.id === "intermediary-efficiency") {
                   setSelectedModule("avg-policies-sold");
+                } else if (tab.id === "state-wise-analysis") {
+                  setSelectedModule("distribution-individual-agents-life");
                 } else {
                   setSelectedModule(null);
                 }
@@ -562,31 +703,50 @@ export default function IntermediariesInsurance() {
           <div className="filters-body">
             {isDistributionAgentsView ? (
               <>
-                                {distributionAgentModuleConfig?.requiresAgentType && (
-                                  <FilterSelect
-                                    label="Select Agent"
-                                    options={["Individual Agent", "Corporate Agent"]}
-                                    value={selectedAgentType}
-                                    onChange={setSelectedAgentType}
-                                  />
-                                )}
-                <FilterSelect
-                  label="Select Insurer"
-                  options={agentInsurerOptions}
-                  value={selectedAgentInsurer}
-                  onChange={setSelectedAgentInsurer}
-                                  disabled={distributionAgentModuleConfig?.requiresAgentType && !selectedAgentType}
-                />
-                <FilterSelect
-                  label="Sector"
-                  options={["Both", "Public", "Private"]}
-                  value={selectedAgentSector}
-                  onChange={setSelectedAgentSector}
-                  disabled={
-                    (distributionAgentModuleConfig?.requiresAgentType && !selectedAgentType) ||
-                    Boolean(selectedAgentInsurer && selectedAgentInsurer !== "All Insurers")
-                  }
-                />
+                {distributionAgentModuleConfig?.requiresInsurerAndState ? (
+                  <>
+                    <FilterSelect
+                      label="Select Insurer"
+                      options={statewiseInsurerOptions}
+                      value={selectedStatewiseInsurer}
+                      onChange={setSelectedStatewiseInsurer}
+                    />
+                    <FilterSelect
+                      label="Select State"
+                      options={statewiseStateOptions}
+                      value={selectedStatewiseState}
+                      onChange={setSelectedStatewiseState}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {distributionAgentModuleConfig?.requiresAgentType && (
+                      <FilterSelect
+                        label="Select Agent"
+                        options={["Individual Agent", "Corporate Agent"]}
+                        value={selectedAgentType}
+                        onChange={setSelectedAgentType}
+                      />
+                    )}
+                    <FilterSelect
+                      label="Select Insurer"
+                      options={agentInsurerOptions}
+                      value={selectedAgentInsurer}
+                      onChange={setSelectedAgentInsurer}
+                      disabled={distributionAgentModuleConfig?.requiresAgentType && !selectedAgentType}
+                    />
+                    <FilterSelect
+                      label="Sector"
+                      options={["Both", "Public", "Private"]}
+                      value={selectedAgentSector}
+                      onChange={setSelectedAgentSector}
+                      disabled={
+                        (distributionAgentModuleConfig?.requiresAgentType && !selectedAgentType) ||
+                        Boolean(selectedAgentInsurer && selectedAgentInsurer !== "All Insurers")
+                      }
+                    />
+                  </>
+                )}
                 <button
                   type="button"
                   className="data-export-btn"
@@ -799,7 +959,7 @@ function FilterSelect({ label, options, value, onChange, disabled = false }) {
         disabled={disabled}
         onChange={(event) => onChange?.(event.target.value)}
       >
-        <option value="">Select</option>
+        <option value="">--------</option>
         {options.map((opt, idx) => (
           <option key={idx} value={opt}>
             {opt}
