@@ -96,6 +96,17 @@ export default function LifeInsurance() {
   const [selectedPremiumType, setSelectedPremiumType] = useState("");
   const [insurersLoading, setInsurersLoading] = useState(false);
   const [insurersError, setInsurersError] = useState("");
+  const [insurerPremiumFilterType, setInsurerPremiumFilterType] = useState("");
+  const [selectedPerformanceInsurer, setSelectedPerformanceInsurer] = useState("");
+  const [appliedPerformancePremiumType, setAppliedPerformancePremiumType] = useState("");
+  const [appliedPerformanceInsurer, setAppliedPerformanceInsurer] = useState("");
+  const [totalPremiumDocs, setTotalPremiumDocs] = useState([]);
+  const [newBusinessPremiumDocs, setNewBusinessPremiumDocs] = useState([]);
+  const [performancePremiumLoading, setPerformancePremiumLoading] = useState(false);
+  const [performancePremiumError, setPerformancePremiumError] = useState("");
+  const [showPerformanceTimelinePicker, setShowPerformanceTimelinePicker] = useState(false);
+  const [performanceTimelineStartYear, setPerformanceTimelineStartYear] = useState("");
+  const [performanceTimelineEndYear, setPerformanceTimelineEndYear] = useState("");
   // Segment Analysis Filters
   const [segmentCategory, setSegmentCategory] = useState("");
   const [segmentType, setSegmentType] = useState("");
@@ -168,6 +179,8 @@ export default function LifeInsurance() {
   ]);
 
   const showOnlyInsurerFilter = activeTab === "market-overview" && selectedModule === 1;
+  const isTotalNewBusinessPremiumModule =
+    activeTab === "insurer-performance" && selectedModule === 1;
 
   useEffect(() => {
     if (!showOnlyInsurerFilter || lifeInsurerDocs.length > 0) {
@@ -196,6 +209,77 @@ export default function LifeInsurance() {
     fetchInsurers();
   }, [showOnlyInsurerFilter, lifeInsurerDocs.length]);
 
+  useEffect(() => {
+    if (!isTotalNewBusinessPremiumModule) {
+      return;
+    }
+
+    setPerformancePremiumError("");
+
+    if (!insurerPremiumFilterType) {
+      return;
+    }
+
+    const isTotalPremiumSelected = insurerPremiumFilterType === "Total Premium";
+    const hasCachedDocs = isTotalPremiumSelected
+      ? totalPremiumDocs.length > 0
+      : newBusinessPremiumDocs.length > 0;
+
+    if (hasCachedDocs) {
+      return;
+    }
+
+    const fetchPremiumDocs = async () => {
+      setPerformancePremiumLoading(true);
+      setPerformancePremiumError("");
+
+      try {
+        const collectionName = isTotalPremiumSelected
+          ? "sheet2_total_premium_life_insurers"
+          : "sheet3_new_business_premium_life_insurers";
+
+        const snapshot = await getDocs(collection(db, collectionName));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        if (isTotalPremiumSelected) {
+          setTotalPremiumDocs(documents);
+        } else {
+          setNewBusinessPremiumDocs(documents);
+        }
+      } catch (error) {
+        console.error("Failed to fetch premium insurer data:", error);
+        setPerformancePremiumError("Unable to load premium data.");
+
+        if (isTotalPremiumSelected) {
+          setTotalPremiumDocs([]);
+        } else {
+          setNewBusinessPremiumDocs([]);
+        }
+      } finally {
+        setPerformancePremiumLoading(false);
+      }
+    };
+
+    fetchPremiumDocs();
+  }, [
+    isTotalNewBusinessPremiumModule,
+    insurerPremiumFilterType,
+    totalPremiumDocs.length,
+    newBusinessPremiumDocs.length,
+  ]);
+
+  useEffect(() => {
+    if (!isTotalNewBusinessPremiumModule) {
+      return;
+    }
+
+    // Keep insurer selection scoped to current premium type selection.
+    setSelectedPerformanceInsurer("");
+  }, [isTotalNewBusinessPremiumModule, insurerPremiumFilterType]);
+
   const insurerOptions = useMemo(() => {
     const names = lifeInsurerDocs
       .map((document) => document.insurer_name)
@@ -215,6 +299,142 @@ export default function LifeInsurance() {
 
   const selectedSubModuleTitle =
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
+
+  const selectedPerformancePremiumDocs = useMemo(() => {
+    if (insurerPremiumFilterType === "Total Premium") {
+      return totalPremiumDocs;
+    }
+
+    if (insurerPremiumFilterType === "New Business Premium") {
+      return newBusinessPremiumDocs;
+    }
+
+    return [];
+  }, [insurerPremiumFilterType, totalPremiumDocs, newBusinessPremiumDocs]);
+
+  const appliedPerformancePremiumDocs = useMemo(() => {
+    if (appliedPerformancePremiumType === "Total Premium") {
+      return totalPremiumDocs;
+    }
+
+    if (appliedPerformancePremiumType === "New Business Premium") {
+      return newBusinessPremiumDocs;
+    }
+
+    return [];
+  }, [appliedPerformancePremiumType, totalPremiumDocs, newBusinessPremiumDocs]);
+
+  const performanceInsurerOptions = useMemo(() => {
+    const insurers = Array.from(
+      new Set(
+        selectedPerformancePremiumDocs
+          .map((document) => resolveInsurerNameFromDoc(document))
+          .filter(Boolean)
+      )
+    ).sort((first, second) => first.localeCompare(second));
+
+    return insurers;
+  }, [selectedPerformancePremiumDocs]);
+
+  const performancePremiumRows = useMemo(() => {
+    if (
+      !isTotalNewBusinessPremiumModule ||
+      !appliedPerformancePremiumType ||
+      !appliedPerformanceInsurer
+    ) {
+      return [];
+    }
+
+    const yearTotals = new Map();
+    const normalizedInsurer = normalizeText(appliedPerformanceInsurer);
+
+    appliedPerformancePremiumDocs.forEach((document) => {
+      if (normalizeText(resolveInsurerNameFromDoc(document)) !== normalizedInsurer) {
+        return;
+      }
+
+      const year = resolveYearLabel(document);
+      if (!year) {
+        return;
+      }
+
+      const premiumInCrores = resolvePremiumCroresValue(document, appliedPerformancePremiumType);
+      yearTotals.set(year, (yearTotals.get(year) || 0) + premiumInCrores);
+    });
+
+    return Array.from(yearTotals.entries())
+      .map(([year, premiumInCrores]) => ({ year, premiumInCrores }))
+      .sort(
+        (first, second) => resolveYearSortValue(first.year) - resolveYearSortValue(second.year)
+      );
+  }, [
+    isTotalNewBusinessPremiumModule,
+    appliedPerformancePremiumType,
+    appliedPerformanceInsurer,
+    appliedPerformancePremiumDocs,
+  ]);
+
+  useEffect(() => {
+    if (!isTotalNewBusinessPremiumModule || performancePremiumRows.length === 0) {
+      setPerformanceTimelineStartYear("");
+      setPerformanceTimelineEndYear("");
+      return;
+    }
+
+    const years = performancePremiumRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    if (years.length === 0) {
+      setPerformanceTimelineStartYear("");
+      setPerformanceTimelineEndYear("");
+      return;
+    }
+
+    const minimumYear = String(years[0]);
+    const maximumYear = String(years[years.length - 1]);
+
+    if (!performanceTimelineStartYear) {
+      setPerformanceTimelineStartYear(minimumYear);
+    }
+
+    if (!performanceTimelineEndYear) {
+      setPerformanceTimelineEndYear(maximumYear);
+    }
+  }, [
+    isTotalNewBusinessPremiumModule,
+    performancePremiumRows,
+    performanceTimelineStartYear,
+    performanceTimelineEndYear,
+  ]);
+
+  const performanceTimelineYearOptions = useMemo(() => {
+    const years = performancePremiumRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    return Array.from(new Set(years));
+  }, [performancePremiumRows]);
+
+  const performanceVisibleRows = useMemo(() => {
+    if (!performancePremiumRows.length) {
+      return [];
+    }
+
+    if (!performanceTimelineStartYear || !performanceTimelineEndYear) {
+      return performancePremiumRows;
+    }
+
+    const startYear = Number(performanceTimelineStartYear);
+    const endYear = Number(performanceTimelineEndYear);
+
+    return performancePremiumRows.filter((row) => {
+      const rowYear = resolveYearSortValue(row.year);
+      return rowYear >= startYear && rowYear <= endYear;
+    });
+  }, [performancePremiumRows, performanceTimelineStartYear, performanceTimelineEndYear]);
 
   const displayedDataRows = showOnlyInsurerFilter && selectedInsurerDocument
     ? [
@@ -264,6 +484,14 @@ export default function LifeInsurance() {
   const handleResetFilters = () => {
     setSelectedInsurer("");
     setAppliedInsurer("");
+    setInsurerPremiumFilterType("");
+    setSelectedPerformanceInsurer("");
+    setAppliedPerformancePremiumType("");
+    setAppliedPerformanceInsurer("");
+    setPerformancePremiumError("");
+    setShowPerformanceTimelinePicker(false);
+    setPerformanceTimelineStartYear("");
+    setPerformanceTimelineEndYear("");
     setSelectedFinancialYear("");
     setSelectedCategory("");
     setSelectedSegment("");
@@ -285,6 +513,15 @@ export default function LifeInsurance() {
   };
 
   const handleApplyFilters = () => {
+    if (isTotalNewBusinessPremiumModule) {
+      setAppliedPerformancePremiumType(insurerPremiumFilterType);
+      setAppliedPerformanceInsurer(selectedPerformanceInsurer);
+      setShowPerformanceTimelinePicker(false);
+      setPerformanceTimelineStartYear("");
+      setPerformanceTimelineEndYear("");
+      return;
+    }
+
     setAppliedInsurer(selectedInsurer);
   };
 
@@ -367,6 +604,7 @@ export default function LifeInsurance() {
 
   const handleExportData = async () => {
     const isSegmentAnalysis = selectedModule === 2;
+    const isPerformancePremiumModule = isTotalNewBusinessPremiumModule;
 
     const activeFilters = isSegmentAnalysis
       ? [
@@ -378,6 +616,11 @@ export default function LifeInsurance() {
             label: "View Mode",
             value: appliedSegmentViewMode === "percentage" ? "Percentage %" : "Amount ₹",
           },
+        ]
+      : isPerformancePremiumModule
+      ? [
+          { label: "Premium Type", value: appliedPerformancePremiumType || "-" },
+          { label: "Select Insurer", value: appliedPerformanceInsurer || "-" },
         ]
       : filterConfig.map((filter) => ({
           label: filter.label,
@@ -396,6 +639,14 @@ export default function LifeInsurance() {
             maximumFractionDigits: 2,
           }),
         ])
+      : isPerformancePremiumModule
+      ? performanceVisibleRows.map((row) => [
+          row.year,
+          Number(row.premiumInCrores || 0).toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }),
+        ])
       : displayedDataRows.map((row) => [row.label, formatFieldValue(row.value)]);
 
     const exportRows = [
@@ -404,7 +655,16 @@ export default function LifeInsurance() {
       ["Applied Filters", "Value"],
       ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
       [],
-      isSegmentAnalysis ? ["Year", dataHeaderLabel] : ["Data Panel Fields", "Value"],
+      isSegmentAnalysis
+        ? ["Year", dataHeaderLabel]
+        : isPerformancePremiumModule
+        ? [
+            "Year",
+            appliedPerformancePremiumType === "New Business Premium"
+              ? "New Business Premium in Cr (₹)"
+              : "Total Premium in Cr (₹)",
+          ]
+        : ["Data Panel Fields", "Value"],
       ...dataRows,
     ];
 
@@ -508,6 +768,47 @@ export default function LifeInsurance() {
                 setViewMode={setSegmentViewMode}
                 onApply={handleApplySegmentFilters}
               />
+            ) : isTotalNewBusinessPremiumModule ? (
+              <>
+                <div className="filter-item">
+                  <label className="filter-label label-text">Premium Type</label>
+                  <div className="premium-toggle-group">
+                    {["Total Premium", "New Business Premium"].map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`premium-toggle-btn ${
+                          insurerPremiumFilterType === option ? "active" : ""
+                        }`}
+                        onClick={() => setInsurerPremiumFilterType(option)}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {insurerPremiumFilterType && (
+                  <FilterSelect
+                    label="Select Insurer"
+                    options={performanceInsurerOptions}
+                    value={selectedPerformanceInsurer}
+                    onChange={setSelectedPerformanceInsurer}
+                  />
+                )}
+                <button
+                  type="button"
+                  className="data-export-btn"
+                  onClick={handleApplyFilters}
+                  disabled={
+                    !insurerPremiumFilterType ||
+                    !selectedPerformanceInsurer
+                  }
+                  title="Apply Filters"
+                >
+                  Apply Filters
+                </button>
+              </>
             ) : (
               <>
                 {filterConfig.map((filter) => (
@@ -539,9 +840,20 @@ export default function LifeInsurance() {
               <BarChart3 size={14} strokeWidth={2} />
             </div>
             <h3 className="panel-title section-title">Data Panel</h3>
+            {isTotalNewBusinessPremiumModule && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowPerformanceTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
+                disabled={performanceVisibleRows.length === 0}
+              >
+                Select Timeline
+              </button>
+            )}
             <button
               type="button"
-              className="data-export-btn"
+              className="data-export-btn panel-action-btn"
               onClick={handleExportData}
               title="Export to Excel"
             >
@@ -562,6 +874,100 @@ export default function LifeInsurance() {
                 </div>
               ) : (
                 <p className="panel-placeholder">Select an insurer to view details.</p>
+              )
+            ) : isTotalNewBusinessPremiumModule ? (
+              performancePremiumLoading ? (
+                <p className="panel-placeholder">Loading data...</p>
+              ) : performancePremiumError ? (
+                <p className="panel-placeholder">{performancePremiumError}</p>
+              ) : !appliedPerformancePremiumType ? (
+                <p className="panel-placeholder">Select Premium Type to continue.</p>
+              ) : !appliedPerformanceInsurer ? (
+                <p className="panel-placeholder">Select Insurer and click Apply Filters to view year-wise data.</p>
+              ) : performanceVisibleRows.length > 0 ? (
+                <>
+                  {showPerformanceTimelinePicker && performanceTimelineYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={performanceTimelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setPerformanceTimelineStartYear(nextStartYear);
+
+                            if (
+                              performanceTimelineEndYear &&
+                              Number(nextStartYear) > Number(performanceTimelineEndYear)
+                            ) {
+                              setPerformanceTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {performanceTimelineYearOptions.map((year) => (
+                            <option key={`perf-start-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={performanceTimelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setPerformanceTimelineEndYear(nextEndYear);
+
+                            if (
+                              performanceTimelineStartYear &&
+                              Number(nextEndYear) < Number(performanceTimelineStartYear)
+                            ) {
+                              setPerformanceTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {performanceTimelineYearOptions.map((year) => (
+                            <option key={`perf-end-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Year</th>
+                          <th className="col-value">
+                            {appliedPerformancePremiumType === "New Business Premium"
+                              ? "New Business Premium in Cr (₹)"
+                              : "Total Premium in Cr (₹)"}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {performanceVisibleRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">{row.year}</td>
+                            <td className="col-value">
+                              {Number(row.premiumInCrores || 0).toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <p className="panel-placeholder">No data found for selected insurer.</p>
               )
             ) : selectedModule === 2 ? (
               // Segment Analysis Module
@@ -811,6 +1217,51 @@ export default function LifeInsurance() {
               ) : (
                 <p className="panel-placeholder">Apply filters to view visualization.</p>
               )
+            ) : isTotalNewBusinessPremiumModule ? (
+              performanceVisibleRows.length > 0 ? (
+                <div className="chart-wrapper">
+                  <ResponsiveContainer width="100%" height={250}>
+                    <LineChart data={performanceVisibleRows} margin={{ top: 24, right: 16, left: 4, bottom: 8 }}>
+                      <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.22)" />
+                      <XAxis dataKey="year" tickLine={false} axisLine={false} stroke="var(--text-secondary)" />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        width={56}
+                        tickFormatter={(value) => Number(value).toLocaleString("en-IN")}
+                        stroke="var(--text-secondary)"
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "var(--bg-surface-solid)",
+                          border: "1px solid var(--border-default)",
+                          borderRadius: "8px",
+                        }}
+                        formatter={(value) =>
+                          Number(value).toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        }
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="premiumInCrores"
+                        stroke="var(--accent-primary)"
+                        dot={{ fill: "#ffffff", stroke: "var(--accent-primary)", strokeWidth: 2, r: 3 }}
+                        activeDot={{ r: 5 }}
+                        strokeWidth={2.2}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <p className="panel-placeholder">
+                  {appliedPerformancePremiumType && appliedPerformanceInsurer
+                    ? "No data found for selected insurer."
+                    : "Select filters and click Apply Filters to view visualization."}
+                </p>
+              )
             ) : (
               <p className="panel-placeholder">Select an insurer to view analytics.</p>
             )}
@@ -888,4 +1339,129 @@ function slugifyValue(value) {
 function escapeCsvValue(value) {
   const stringValue = value === undefined ? "" : String(value);
   return `"${stringValue.replace(/"/g, '""')}"`;
+}
+
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function resolveInsurerNameFromDoc(document) {
+  const candidates = [
+    document?.insurer,
+    document?.insurer_name,
+    document?.insurerName,
+    document?.company,
+    document?.company_name,
+    document?.name,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function resolveYearLabel(document) {
+  const candidates = [document?.year, document?.financial_year, document?.financialYear, document?.fy];
+
+  for (const candidate of candidates) {
+    if (candidate === null || candidate === undefined || candidate === "") {
+      continue;
+    }
+
+    const yearValue = String(candidate).trim();
+    if (yearValue) {
+      return yearValue;
+    }
+  }
+
+  return "";
+}
+
+function resolvePremiumCroresValue(document, premiumType) {
+  const totalPremiumFields = [
+    "total_premium_in_cr",
+    "total_premium_in_crores",
+    "total_premium_cr",
+    "total_premium",
+  ];
+
+  const newBusinessPremiumFields = [
+    "new_business_premium_in_cr",
+    "new_business_premium_in_crores",
+    "new_business_premium_cr",
+    "new_business_premium",
+    "first_year_premium_in_cr",
+    "first_year_premium_in_crores",
+    "first_year_premium",
+  ];
+
+  const commonPremiumFields = [
+    "premium_in_cr",
+    "premium_in_crores",
+    "premium",
+    "value",
+    "amount",
+  ];
+
+  const preferredFields =
+    premiumType === "New Business Premium"
+      ? [...newBusinessPremiumFields, ...commonPremiumFields]
+      : [...totalPremiumFields, ...commonPremiumFields];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericFieldValue(document?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/premium/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function parseNumericFieldValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.replace(/,/g, "").trim();
+    if (!normalized) {
+      return null;
+    }
+
+    const parsedValue = Number(normalized);
+    return Number.isFinite(parsedValue) ? parsedValue : null;
+  }
+
+  return null;
+}
+
+function resolveYearSortValue(yearLabel) {
+  const match = String(yearLabel || "").match(/\d{4}/);
+  if (!match) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const parsedYear = Number(match[0]);
+  return Number.isFinite(parsedYear) ? parsedYear : Number.MAX_SAFE_INTEGER;
 }

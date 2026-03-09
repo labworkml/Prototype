@@ -86,8 +86,23 @@ export default function GeneralInsurance() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState("");
 
+  const [aumRawDocs, setAumRawDocs] = useState([]);
+  const [aumLoading, setAumLoading] = useState(false);
+  const [aumError, setAumError] = useState("");
+  const [selectedAumInsurer, setSelectedAumInsurer] = useState("");
+  const [selectedAumSector, setSelectedAumSector] = useState("");
+  const [selectedInvestmentCategory, setSelectedInvestmentCategory] = useState("");
+  const [appliedAumInsurer, setAppliedAumInsurer] = useState("");
+  const [appliedAumSector, setAppliedAumSector] = useState("");
+  const [appliedInvestmentCategory, setAppliedInvestmentCategory] = useState("");
+  const [showTimelinePicker, setShowTimelinePicker] = useState(false);
+  const [timelineStartYear, setTimelineStartYear] = useState("");
+  const [timelineEndYear, setTimelineEndYear] = useState("");
+
   const isInsurerDetailsView =
     activeTab === "market-overview" && selectedModule === "insurer-details";
+  const isAumInsurerWiseView =
+    activeTab === "financials" && selectedModule === "aum-insurer-wise";
 
   useEffect(() => {
     const fetchInsurers = async () => {
@@ -153,21 +168,248 @@ export default function GeneralInsurance() {
     fetchSelectedInsurer();
   }, [selectedInsurerRegNo]);
 
+  useEffect(() => {
+    if (!isAumInsurerWiseView || aumRawDocs.length > 0) {
+      return;
+    }
+
+    const fetchAumDocs = async () => {
+      setAumLoading(true);
+      setAumError("");
+
+      try {
+        const snapshot = await getDocs(collection(db, "sheet47_aum_insurerwise"));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setAumRawDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch AUM insurer-wise data:", error);
+        setAumError("Unable to load AUM insurer-wise data.");
+        setAumRawDocs([]);
+      } finally {
+        setAumLoading(false);
+      }
+    };
+
+    fetchAumDocs();
+  }, [isAumInsurerWiseView, aumRawDocs.length]);
+
+  useEffect(() => {
+    if (!isAumInsurerWiseView) {
+      return;
+    }
+
+    setSelectedAumInsurer("");
+    setSelectedInvestmentCategory("");
+  }, [isAumInsurerWiseView, selectedAumSector]);
+
   const insurerOptions = useMemo(
     () => insurers.map((insurer) => ({ label: insurer.insurerName, value: insurer.regNo })),
     [insurers]
   );
 
+  const aumInsurerOptions = useMemo(() => {
+    const normalizedSector = normalizeText(selectedAumSector);
+
+    return Array.from(
+      new Set(
+        aumRawDocs
+          .filter((document) => {
+            if (!normalizedSector) {
+              return true;
+            }
+
+            return normalizeText(resolveSector(document)) === normalizedSector;
+          })
+          .map((document) => resolveInsurerName(document))
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((insurerName) => ({ label: insurerName, value: insurerName }));
+  }, [aumRawDocs, selectedAumSector]);
+
+  const aumSectorOptions = useMemo(() => {
+    return Array.from(
+      new Set(aumRawDocs.map((document) => resolveSector(document)).filter(Boolean))
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((sector) => ({ label: sector, value: sector }));
+  }, [aumRawDocs]);
+
+  const investmentCategoryOptions = useMemo(() => {
+    const normalizedSector = normalizeText(selectedAumSector);
+
+    return Array.from(
+      new Set(
+        aumRawDocs
+          .filter((document) => {
+            if (!normalizedSector) {
+              return true;
+            }
+
+            return normalizeText(resolveSector(document)) === normalizedSector;
+          })
+          .map((document) => resolveInvestmentCategory(document))
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((category) => ({
+        label: formatInvestmentCategoryLabel(category),
+        value: category,
+      }));
+  }, [aumRawDocs, selectedAumSector]);
+
+  const aumAppliedRows = useMemo(() => {
+    if (!isAumInsurerWiseView || !appliedAumSector || !appliedAumInsurer || !appliedInvestmentCategory) {
+      return [];
+    }
+
+    const normalizedSector = normalizeText(appliedAumSector);
+    const normalizedInsurer = normalizeText(appliedAumInsurer);
+    const normalizedCategory = normalizeText(appliedInvestmentCategory);
+    const yearTotals = new Map();
+
+    aumRawDocs.forEach((document) => {
+      if (normalizeText(resolveSector(document)) !== normalizedSector) {
+        return;
+      }
+
+      if (normalizeText(resolveInsurerName(document)) !== normalizedInsurer) {
+        return;
+      }
+
+      if (normalizeText(resolveInvestmentCategory(document)) !== normalizedCategory) {
+        return;
+      }
+
+      const yearLabel = resolveYearLabel(document);
+      if (!yearLabel) {
+        return;
+      }
+
+      const aumValue = resolveAumValue(document);
+      yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + aumValue);
+    });
+
+    return Array.from(yearTotals.entries())
+      .map(([year, value]) => ({ year, value }))
+      .sort((first, second) => resolveYearSortValue(first.year) - resolveYearSortValue(second.year));
+  }, [
+    isAumInsurerWiseView,
+    appliedAumSector,
+    appliedAumInsurer,
+    appliedInvestmentCategory,
+    aumRawDocs,
+  ]);
+
+  useEffect(() => {
+    if (!isAumInsurerWiseView || aumAppliedRows.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const timelineYears = aumAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    if (timelineYears.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const minimumYear = String(timelineYears[0]);
+    const maximumYear = String(timelineYears[timelineYears.length - 1]);
+
+    if (!timelineStartYear) {
+      setTimelineStartYear(minimumYear);
+    }
+
+    if (!timelineEndYear) {
+      setTimelineEndYear(maximumYear);
+    }
+  }, [isAumInsurerWiseView, aumAppliedRows, timelineStartYear, timelineEndYear]);
+
+  const timelineYearOptions = useMemo(() => {
+    const years = aumAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    return Array.from(new Set(years));
+  }, [aumAppliedRows]);
+
+  const visibleAumRows = useMemo(() => {
+    if (!aumAppliedRows.length) {
+      return [];
+    }
+
+    if (!timelineStartYear || !timelineEndYear) {
+      return aumAppliedRows;
+    }
+
+    const startYear = Number(timelineStartYear);
+    const endYear = Number(timelineEndYear);
+
+    return aumAppliedRows.filter((row) => {
+      const rowYear = resolveYearSortValue(row.year);
+      return rowYear >= startYear && rowYear <= endYear;
+    });
+  }, [aumAppliedRows, timelineStartYear, timelineEndYear]);
+
   const filterConfig = useMemo(
-    () => [
-      {
-        label: "Select Insurer",
-        options: insurerOptions,
-        value: selectedInsurerRegNo,
-        onChange: setSelectedInsurerRegNo,
-      },
-    ],
-    [insurerOptions, selectedInsurerRegNo]
+    () =>
+      isAumInsurerWiseView
+        ? [
+            {
+              label: "Sector",
+              options: aumSectorOptions,
+              value: selectedAumSector,
+              onChange: setSelectedAumSector,
+              placeholder: "Select Sector",
+            },
+            {
+              label: "Select Insurer",
+              options: aumInsurerOptions,
+              value: selectedAumInsurer,
+              onChange: setSelectedAumInsurer,
+              placeholder: "Select Insurer",
+            },
+            {
+              label: "Category of Investment",
+              options: investmentCategoryOptions,
+              value: selectedInvestmentCategory,
+              onChange: setSelectedInvestmentCategory,
+              placeholder: "Select Category of Investment",
+            },
+          ]
+        : [
+            {
+              label: "Select Insurer",
+              options: insurerOptions,
+              value: selectedInsurerRegNo,
+              onChange: setSelectedInsurerRegNo,
+              placeholder: "Select Insurer",
+            },
+          ],
+    [
+      isAumInsurerWiseView,
+      aumSectorOptions,
+      selectedAumSector,
+      aumInsurerOptions,
+      selectedAumInsurer,
+      investmentCategoryOptions,
+      selectedInvestmentCategory,
+      insurerOptions,
+      selectedInsurerRegNo,
+    ]
   );
 
   const insurerDetailRows = useMemo(() => {
@@ -198,12 +440,93 @@ export default function GeneralInsurance() {
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
 
   const handleResetFilters = () => {
+    if (isAumInsurerWiseView) {
+      setSelectedAumSector("");
+      setSelectedAumInsurer("");
+      setSelectedInvestmentCategory("");
+      setAppliedAumSector("");
+      setAppliedAumInsurer("");
+      setAppliedInvestmentCategory("");
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      setAumError("");
+      return;
+    }
+
     setSelectedInsurerRegNo("");
     setSelectedInsurerDetails(null);
     setDetailsError("");
   };
 
+  const handleApplyFilters = () => {
+    if (isAumInsurerWiseView) {
+      setAppliedAumSector(selectedAumSector);
+      setAppliedAumInsurer(selectedAumInsurer);
+      setAppliedInvestmentCategory(selectedInvestmentCategory);
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+  };
+
   const handleExportData = async () => {
+    if (isAumInsurerWiseView) {
+      if (!appliedAumInsurer || !appliedInvestmentCategory || visibleAumRows.length === 0) {
+        return;
+      }
+
+      const activeFilters = [
+        { label: "Sector", value: appliedAumSector },
+        { label: "Select Insurer", value: appliedAumInsurer },
+        { label: "Category of Investment", value: appliedInvestmentCategory },
+      ];
+
+      const dataRows = visibleAumRows.map((row) => [
+        row.year,
+        Number(row.value || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      ]);
+
+      const exportRows = [
+        ["Sub Module", selectedSubModuleTitle],
+        [],
+        ["Applied Filters", "Value"],
+        ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
+        [],
+        ["Year", "AUM"],
+        ...dataRows,
+      ];
+
+      const fileBaseName = buildExportFileName(selectedSubModuleTitle, activeFilters);
+
+      try {
+        const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        XLSX.writeFile(workbook, `${fileBaseName}.xlsx`);
+        return;
+      } catch (error) {
+        const csvContent = exportRows
+          .map((row) => row.map(escapeCsvValue).join(","))
+          .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${fileBaseName}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+
     if (!isInsurerDetailsView || !selectedInsurerRegNo || insurerDetailRows.length === 0) {
       return;
     }
@@ -320,11 +643,31 @@ export default function GeneralInsurance() {
                 options={filter.options}
                 value={filter.value}
                 onChange={filter.onChange}
+                placeholder={filter.placeholder}
               />
             ))}
-            {insurersLoading && <p className="panel-placeholder">Loading insurers...</p>}
-            {insurersError && !insurersLoading && (
+            {isAumInsurerWiseView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={handleApplyFilters}
+                disabled={!selectedAumSector || !selectedAumInsurer || !selectedInvestmentCategory}
+                title="Apply Filters"
+              >
+                Apply Filters
+              </button>
+            )}
+            {insurersLoading && !isAumInsurerWiseView && (
+              <p className="panel-placeholder">Loading insurers...</p>
+            )}
+            {insurersError && !insurersLoading && !isAumInsurerWiseView && (
               <p className="panel-placeholder">{insurersError}</p>
+            )}
+            {aumLoading && isAumInsurerWiseView && (
+              <p className="panel-placeholder">Loading filters...</p>
+            )}
+            {aumError && !aumLoading && isAumInsurerWiseView && (
+              <p className="panel-placeholder">{aumError}</p>
             )}
           </div>
         </div>
@@ -335,9 +678,20 @@ export default function GeneralInsurance() {
               <BarChart3 size={14} strokeWidth={2} />
             </div>
             <h3 className="panel-title section-title">Data Panel</h3>
+            {isAumInsurerWiseView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
+                disabled={visibleAumRows.length === 0}
+              >
+                Select Timeline
+              </button>
+            )}
             <button
               type="button"
-              className="data-export-btn"
+              className="data-export-btn panel-action-btn"
               onClick={handleExportData}
               title="Export to Excel"
             >
@@ -360,6 +714,93 @@ export default function GeneralInsurance() {
                 </div>
               ) : (
                 <p className="panel-placeholder">Select an insurer to view details.</p>
+              )
+            ) : isAumInsurerWiseView ? (
+              aumLoading ? (
+                <p className="panel-placeholder">Loading data...</p>
+              ) : aumError ? (
+                <p className="panel-placeholder">{aumError}</p>
+              ) : !appliedAumSector || !appliedAumInsurer || !appliedInvestmentCategory ? (
+                <p className="panel-placeholder">Select filters and click Apply Filters to view data.</p>
+              ) : visibleAumRows.length > 0 ? (
+                <>
+                  {showTimelinePicker && timelineYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setTimelineStartYear(nextStartYear);
+
+                            if (timelineEndYear && Number(nextStartYear) > Number(timelineEndYear)) {
+                              setTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {timelineYearOptions.map((year) => (
+                            <option key={`start-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setTimelineEndYear(nextEndYear);
+
+                            if (timelineStartYear && Number(nextEndYear) < Number(timelineStartYear)) {
+                              setTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {timelineYearOptions.map((year) => (
+                            <option key={`end-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Year</th>
+                          <th className="col-value">
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                              Assets under Management in Cr
+                              <IndianRupeeIcon size={13} strokeWidth={2.2} />
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleAumRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">{row.year}</td>
+                            <td className="col-value">
+                              {Number(row.value || 0).toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <p className="panel-placeholder">No data found for selected filters.</p>
               )
             ) : (
               <div className="data-table-container">
@@ -387,7 +828,7 @@ export default function GeneralInsurance() {
   );
 }
 
-function FilterSelect({ label, options, value, onChange }) {
+function FilterSelect({ label, options, value, onChange, placeholder = "Select" }) {
   return (
     <div className="filter-item">
       <label className="filter-label label-text">{label}</label>
@@ -396,7 +837,7 @@ function FilterSelect({ label, options, value, onChange }) {
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
       >
-        <option value="">Select insurer</option>
+        <option value="">{placeholder}</option>
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
@@ -447,6 +888,153 @@ function getForeignPartnersValue(insurerDetails) {
     insurerDetails.foreign_partner_investor ??
     "-"
   );
+}
+
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function resolveInsurerName(document) {
+  const candidates = [
+    document?.insurer,
+    document?.insurer_name,
+    document?.insurerName,
+    document?.company,
+    document?.company_name,
+    document?.name,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function resolveInvestmentCategory(document) {
+  const candidates = [
+    document?.category_of_investment,
+    document?.investment_category,
+    document?.category,
+    document?.category_name,
+    document?.investment_type,
+    document?.investment,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function resolveSector(document) {
+  const candidates = [document?.sector, document?.insurer_sector, document?.type_of_sector];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function resolveYearLabel(document) {
+  const candidates = [document?.year, document?.financial_year, document?.financialYear, document?.fy];
+
+  for (const candidate of candidates) {
+    if (candidate === null || candidate === undefined || candidate === "") {
+      continue;
+    }
+
+    const yearValue = String(candidate).trim();
+    if (yearValue) {
+      return yearValue;
+    }
+  }
+
+  return "";
+}
+
+function resolveAumValue(document) {
+  const preferredFields = [
+    "aum",
+    "aum_in_crore",
+    "aum_in_crores",
+    "assets_under_management",
+    "assets_under_management_aum",
+    "amount",
+    "value",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericFieldValue(document?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/aum|asset/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function parseNumericFieldValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.replace(/,/g, "").trim();
+    if (!normalized) {
+      return null;
+    }
+
+    const parsedValue = Number(normalized);
+    return Number.isFinite(parsedValue) ? parsedValue : null;
+  }
+
+  return null;
+}
+
+function resolveYearSortValue(yearLabel) {
+  const match = String(yearLabel || "").match(/\d{4}/);
+  if (!match) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const parsedYear = Number(match[0]);
+  return Number.isFinite(parsedYear) ? parsedYear : Number.MAX_SAFE_INTEGER;
+}
+
+function formatInvestmentCategoryLabel(value) {
+  return String(value || "")
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 function buildExportFileName(subModuleTitle, filters) {

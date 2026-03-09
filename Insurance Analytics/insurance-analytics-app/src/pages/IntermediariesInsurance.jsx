@@ -43,6 +43,10 @@ import {
   getStatewiseInsurers,
   getStatewiseStates,
   getStatewiseData,
+  getRegisteredBrokersStates,
+  getRegisteredBrokersData,
+  getImfStates,
+  getImfData,
 } from "../services/lifeAgentsService";
 import "../styles/life-insurance.css";
 
@@ -96,6 +100,20 @@ const STATE_WISE_MODULE_CONFIG = {
     getData: getStatewiseData,
     requiresInsurerAndState: true,
     metricLabel: "Agents",
+  },
+  "registered-brokers": {
+    collectionName: "sheet97_statewise_registered_brokers",
+    getStates: getRegisteredBrokersStates,
+    getData: getRegisteredBrokersData,
+    requiresStateOnly: true,
+    metricLabel: "Registered Brokers",
+  },
+  "insurance-marketing-firms": {
+    collectionName: "sheet98_statewise_number_of_imfs",
+    getStates: getImfStates,
+    getData: getImfData,
+    requiresStateOnly: true,
+    metricLabel: "Insurance Marketing Firms",
   },
 };
 
@@ -297,23 +315,29 @@ export default function IntermediariesInsurance() {
   // Fetch insurers and states for state-wise analysis
   useEffect(() => {
     const fetchStatewiseOptions = async () => {
-      if (!distributionAgentModuleConfig?.requiresInsurerAndState) {
+      if (
+        !distributionAgentModuleConfig?.requiresInsurerAndState &&
+        !distributionAgentModuleConfig?.requiresStateOnly
+      ) {
         setStatewiseInsurerOptions([]);
         setStatewiseStateOptions([]);
         return;
       }
 
       try {
-        console.log('[fetchStatewiseOptions] Starting fetch for:', distributionAgentModuleConfig?.collectionName);
-        const [insurers, states] = await Promise.all([
-          distributionAgentModuleConfig.getInsurers(),
-          distributionAgentModuleConfig.getStates()
-        ]);
+        if (distributionAgentModuleConfig?.requiresInsurerAndState) {
+          const [insurers, states] = await Promise.all([
+            distributionAgentModuleConfig.getInsurers(),
+            distributionAgentModuleConfig.getStates(),
+          ]);
 
-        console.log('[fetchStatewiseOptions] Received insurers:', insurers);
-        console.log('[fetchStatewiseOptions] Received states:', states);
+          setStatewiseInsurerOptions(insurers);
+          setStatewiseStateOptions(states);
+          return;
+        }
 
-        setStatewiseInsurerOptions(insurers);
+        const states = await distributionAgentModuleConfig.getStates();
+        setStatewiseInsurerOptions([]);
         setStatewiseStateOptions(states);
       } catch (error) {
         console.error("Failed to fetch statewise options:", error);
@@ -323,7 +347,44 @@ export default function IntermediariesInsurance() {
     };
 
     fetchStatewiseOptions();
-  }, [activeTab, selectedModule, distributionAgentModuleConfig?.requiresInsurerAndState]);
+  }, [
+    activeTab,
+    selectedModule,
+    distributionAgentModuleConfig?.requiresInsurerAndState,
+    distributionAgentModuleConfig?.requiresStateOnly,
+  ]);
+
+  useEffect(() => {
+    if (!distributionAgentModuleConfig?.requiresStateOnly) {
+      return;
+    }
+
+    if (!selectedStatewiseState) {
+      setRawData([]);
+      setData([]);
+      setAgentsError("");
+      return;
+    }
+
+    const fetchStateOnlyData = async () => {
+      setAgentsLoading(true);
+      setAgentsError("");
+
+      try {
+        const result = await distributionAgentModuleConfig.getData(selectedStatewiseState);
+        setRawData(result);
+      } catch (error) {
+        console.error("Failed to fetch state-only data:", error);
+        setAgentsError("Unable to load data for selected state.");
+        setRawData([]);
+        setData([]);
+      } finally {
+        setAgentsLoading(false);
+      }
+    };
+
+    fetchStateOnlyData();
+  }, [distributionAgentModuleConfig, selectedStatewiseState]);
 
   useEffect(() => {
     if (rawData.length === 0) {
@@ -425,6 +486,17 @@ export default function IntermediariesInsurance() {
       .filter((year) => year !== null && Number.isFinite(year));
   }, [rawData]);
 
+  const visualizationData = useMemo(
+    () =>
+      data
+        .map((item) => ({
+          year: item.year,
+          value: toNumericValue(item.agents),
+        }))
+        .filter((item) => Number.isFinite(item.value)),
+    [data]
+  );
+
   const filterConfig = useMemo(
     () => [
       {
@@ -479,6 +551,8 @@ export default function IntermediariesInsurance() {
 
   const hasDistributionFilterSelection = distributionAgentModuleConfig?.requiresInsurerAndState
     ? Boolean(selectedStatewiseInsurer && selectedStatewiseState)
+    : distributionAgentModuleConfig?.requiresStateOnly
+    ? Boolean(selectedStatewiseState)
     : distributionAgentModuleConfig?.requiresAgentType
     ? Boolean(selectedAgentType && (selectedAgentInsurer || selectedAgentSector))
     : Boolean(selectedAgentInsurer || selectedAgentSector);
@@ -539,6 +613,10 @@ export default function IntermediariesInsurance() {
       return;
     }
 
+    if (distributionAgentModuleConfig?.requiresStateOnly) {
+      return;
+    }
+
     if (distributionAgentModuleConfig?.requiresAgentType && !selectedAgentType) {
       setAgentsError("Please select an agent type first.");
       setRawData([]);
@@ -591,6 +669,8 @@ export default function IntermediariesInsurance() {
           { label: "Insurer", value: selectedStatewiseInsurer },
           { label: "State", value: selectedStatewiseState },
         ]
+      : distributionAgentModuleConfig?.requiresStateOnly
+      ? [{ label: "Select State", value: selectedStatewiseState }]
       : [
           ...(distributionAgentModuleConfig?.requiresAgentType 
             ? [{ label: "Agent Type", value: selectedAgentType }] 
@@ -718,6 +798,13 @@ export default function IntermediariesInsurance() {
                       onChange={setSelectedStatewiseState}
                     />
                   </>
+                ) : distributionAgentModuleConfig?.requiresStateOnly ? (
+                  <FilterSelect
+                    label="Select State"
+                    options={statewiseStateOptions}
+                    value={selectedStatewiseState}
+                    onChange={setSelectedStatewiseState}
+                  />
                 ) : (
                   <>
                     {distributionAgentModuleConfig?.requiresAgentType && (
@@ -747,15 +834,17 @@ export default function IntermediariesInsurance() {
                     />
                   </>
                 )}
-                <button
-                  type="button"
-                  className="data-export-btn"
-                  onClick={handleApplyFilters}
-                  disabled={!hasDistributionFilterSelection}
-                  title="Apply Filters"
-                >
-                  Apply Filters
-                </button>
+                {!distributionAgentModuleConfig?.requiresStateOnly && (
+                  <button
+                    type="button"
+                    className="data-export-btn"
+                    onClick={handleApplyFilters}
+                    disabled={!hasDistributionFilterSelection}
+                    title="Apply Filters"
+                  >
+                    Apply Filters
+                  </button>
+                )}
               </>
             ) : (
               filterConfig.map((filter) => (
@@ -875,6 +964,8 @@ export default function IntermediariesInsurance() {
                 <p className="panel-placeholder">
                   {hasDistributionFilterSelection
                     ? "No data found for selected filters."
+                    : distributionAgentModuleConfig?.requiresStateOnly
+                    ? "Select State to view year-wise data."
                     : "Select filters and click Apply Filters to view data."}
                 </p>
               )
@@ -899,20 +990,23 @@ export default function IntermediariesInsurance() {
                 <p className="panel-placeholder">Loading visualization...</p>
               ) : agentsError ? (
                 <p className="panel-placeholder">{agentsError}</p>
-              ) : data.length > 0 ? (
+              ) : visualizationData.length > 0 ? (
                 <div className="chart-wrapper">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsLineChart data={data} margin={{ top: 16, right: 16, left: 8, bottom: 8 }}>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <RechartsLineChart
+                      data={visualizationData}
+                      margin={{ top: 16, right: 16, left: 8, bottom: 8 }}
+                    >
                       <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.22)" />
                       <XAxis dataKey="year" tickLine={false} axisLine={false} stroke="var(--text-secondary)" />
                       <YAxis
                         tickLine={false}
                         axisLine={false}
                         stroke="var(--text-secondary)"
-                        tickFormatter={(value) => Number(value).toLocaleString("en-IN")}
+                        tickFormatter={(value) => toNumericValue(value).toLocaleString("en-IN")}
                       />
                       <Tooltip
-                        formatter={(value) => Number(value).toLocaleString("en-IN")}
+                        formatter={(value) => toNumericValue(value).toLocaleString("en-IN")}
                         contentStyle={{
                           backgroundColor: "var(--bg-surface-solid)",
                           border: "1px solid var(--border-default)",
@@ -921,7 +1015,7 @@ export default function IntermediariesInsurance() {
                       />
                       <Line
                         type="monotone"
-                        dataKey="agents"
+                        dataKey="value"
                         stroke="var(--accent-primary)"
                         strokeWidth={2.2}
                         dot={{ fill: "#ffffff", stroke: "var(--accent-primary)", strokeWidth: 2, r: 3 }}
@@ -934,6 +1028,8 @@ export default function IntermediariesInsurance() {
                 <p className="panel-placeholder">
                   {hasDistributionFilterSelection
                     ? "No data found for selected filters."
+                    : distributionAgentModuleConfig?.requiresStateOnly
+                    ? "Select State to view visualization."
                     : "Select filters and click Apply Filters to view visualization."}
                 </p>
               )
@@ -1061,4 +1157,22 @@ function slugifyValue(value) {
 function escapeCsvValue(value) {
   const stringValue = value === undefined ? "" : String(value);
   return `"${stringValue.replace(/"/g, '""')}"`;
+}
+
+function toNumericValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  const normalized = String(value).replace(/,/g, "").trim();
+  if (!normalized) {
+    return 0;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
 }

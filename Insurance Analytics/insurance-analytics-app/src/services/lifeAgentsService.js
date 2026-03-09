@@ -8,6 +8,8 @@ const AVG_INDIVIDUAL_POLICIES_COLLECTION = "avg_individual_policies_agents";
 const AVG_NEW_BUSINESS_PREMIUM_COLLECTION = "avg_new_business_premium_income_per_agent";
 const AVG_PREMIUM_PER_POLICY_COLLECTION = "avg_premium_income_per_policy_per_agent";
 const LIFE_AGENTS_STATEWISE_COLLECTION = "sheet96_life_agents_statewise";
+const REGISTERED_BROKERS_STATEWISE_COLLECTION = "sheet97_statewise_registered_brokers";
+const IMFS_STATEWISE_COLLECTION = "sheet98_statewise_number_of_imfs";
 
 export function getInsurerTrend(insurer) {
   return getInsurerTrendByCollection(LIFE_INDIVIDUAL_AGENTS_COLLECTION, insurer);
@@ -721,6 +723,208 @@ export async function getStatewiseData(insurer, state) {
     console.error("Failed to fetch statewise data:", error);
     return [];
   }
+}
+
+export async function getRegisteredBrokersStates() {
+  try {
+    const snapshot = await getDocs(collection(db, REGISTERED_BROKERS_STATEWISE_COLLECTION));
+
+    return Array.from(
+      new Set(
+        snapshot.docs
+          .map((doc) => resolveStateName(doc.data()))
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  } catch (error) {
+    console.error("Failed to fetch registered broker states:", error);
+    return [];
+  }
+}
+
+export async function getRegisteredBrokersData(state) {
+  try {
+    const snapshot = await getDocs(collection(db, REGISTERED_BROKERS_STATEWISE_COLLECTION));
+
+    const filteredDocuments = snapshot.docs.filter((doc) =>
+      matchesStateName(doc.data(), state)
+    );
+
+    return aggregateByYearForBrokers(filteredDocuments);
+  } catch (error) {
+    console.error("Failed to fetch registered brokers data:", error);
+    return [];
+  }
+}
+
+export async function getImfStates() {
+  try {
+    const snapshot = await getDocs(collection(db, IMFS_STATEWISE_COLLECTION));
+
+    return Array.from(
+      new Set(
+        snapshot.docs
+          .map((doc) => resolveStateName(doc.data()))
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  } catch (error) {
+    console.error("Failed to fetch IMF states:", error);
+    return [];
+  }
+}
+
+export async function getImfData(state) {
+  try {
+    const snapshot = await getDocs(collection(db, IMFS_STATEWISE_COLLECTION));
+
+    const filteredDocuments = snapshot.docs.filter((doc) =>
+      matchesStateName(doc.data(), state)
+    );
+
+    return aggregateByYearForImfs(filteredDocuments);
+  } catch (error) {
+    console.error("Failed to fetch IMF data:", error);
+    return [];
+  }
+}
+
+function aggregateByYearForBrokers(documents) {
+  const yearTotals = new Map();
+
+  documents.forEach((document) => {
+    const data = document.data();
+    const yearInfo = resolveYearInfo(data.year);
+    const brokerCount = resolveBrokersValue(data);
+
+    if (!yearInfo) {
+      return;
+    }
+
+    const existing = yearTotals.get(yearInfo.key);
+    if (existing) {
+      existing.agents += brokerCount;
+      return;
+    }
+
+    yearTotals.set(yearInfo.key, {
+      year: yearInfo.label,
+      sortValue: yearInfo.sortValue,
+      agents: brokerCount,
+    });
+  });
+
+  return Array.from(yearTotals.values())
+    .sort((first, second) => {
+      if (first.sortValue !== second.sortValue) {
+        return first.sortValue - second.sortValue;
+      }
+
+      return String(first.year).localeCompare(String(second.year));
+    })
+    .map(({ year, agents }) => ({ year, agents }));
+}
+
+function resolveBrokersValue(data) {
+  const preferredFields = [
+    "registered_brokers",
+    "registered_broker",
+    "number_of_registered_brokers",
+    "no_of_registered_brokers",
+    "brokers",
+    "broker_count",
+    "count",
+    "value",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericValue(data?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/broker/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function aggregateByYearForImfs(documents) {
+  const yearTotals = new Map();
+
+  documents.forEach((document) => {
+    const data = document.data();
+    const yearInfo = resolveYearInfo(data.year);
+    const imfCount = resolveImfValue(data);
+
+    if (!yearInfo) {
+      return;
+    }
+
+    const existing = yearTotals.get(yearInfo.key);
+    if (existing) {
+      existing.agents += imfCount;
+      return;
+    }
+
+    yearTotals.set(yearInfo.key, {
+      year: yearInfo.label,
+      sortValue: yearInfo.sortValue,
+      agents: imfCount,
+    });
+  });
+
+  return Array.from(yearTotals.values())
+    .sort((first, second) => {
+      if (first.sortValue !== second.sortValue) {
+        return first.sortValue - second.sortValue;
+      }
+
+      return String(first.year).localeCompare(String(second.year));
+    })
+    .map(({ year, agents }) => ({ year, agents }));
+}
+
+function resolveImfValue(data) {
+  const preferredFields = [
+    "imfs",
+    "imf",
+    "number_of_imfs",
+    "no_of_imfs",
+    "insurance_marketing_firms",
+    "marketing_firms",
+    "count",
+    "value",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericValue(data?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/imf|marketing.*firm/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
 }
 
 function resolveStateName(data) {
