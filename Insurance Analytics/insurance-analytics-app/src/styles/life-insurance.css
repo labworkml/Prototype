@@ -490,6 +490,31 @@
   max-width: 170px;
 }
 
+.timeline-apply-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #0ea5a4, #06b6d4);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.timeline-apply-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(14, 165, 164, 0.24);
+}
+
+.timeline-apply-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.24);
+}
+
 /* =====================================================
    FILTERS PANEL
    ===================================================== */
@@ -950,52 +975,51 @@
    VISUALIZATION PANEL - DROPDOWN & CHARTS
    ===================================================== */
 
-.viz-type-dropdown {
-  margin-left: auto;
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 6px;
-  background: var(--bg-surface-solid);
-  color: var(--life-text);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-}
-
-.viz-type-dropdown:hover {
-  border-color: rgba(14, 165, 164, 0.45);
-}
-
-.viz-type-dropdown:focus {
-  outline: none;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.15);
-}
-
-.viz-type-dropdown option {
-  background: var(--bg-surface-solid);
-  color: var(--life-text);
-  padding: 8px;
-}
-
 .viz-panel-body {
   padding: 20px;
   overflow: hidden;
+}
+
+.viz-export-btn {
+  margin-left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.viz-export-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Chart Wrapper */
 .chart-wrapper {
   width: 100%;
   height: 100%;
-  min-height: 290px;
+  min-height: 0;
   position: relative;
   background: linear-gradient(180deg, rgba(250, 252, 255, 0.96), rgba(243, 247, 252, 0.78));
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 12px;
-  padding: 10px 10px 4px;
+  padding: 8px 8px 4px;
   overflow: hidden;
+}
+
+.plotly-chart-wrapper {
+  min-height: 320px;
+}
+
+.chart-type-picker-row {
+  margin-bottom: 12px;
+}
+
+.plotly-chart-wrapper .js-plotly-plot,
+.plotly-chart-wrapper .plot-container,
+.plotly-chart-wrapper .svg-container {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .chart-wrapper .recharts-wrapper {

@@ -1,19 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import * as XLSX from "xlsx";
-import {
-  CartesianGrid,
-  Line,
-  LineChart as RechartsLineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import PlotComponentModule from "react-plotly.js";
+import PlotlyModule from "plotly.js-dist-min";
 import {
   BarChart2,
   BarChart3,
   Building2,
+  Download,
   FileText,
   Globe,
   Handshake,
@@ -49,6 +43,9 @@ import {
   getImfData,
 } from "../services/lifeAgentsService";
 import "../styles/life-insurance.css";
+
+const Plot = PlotComponentModule?.default || PlotComponentModule;
+const Plotly = PlotlyModule?.default || PlotlyModule;
 
 const DISTRIBUTION_AGENT_MODULE_CONFIG = {
   "individual-agents-life": {
@@ -236,6 +233,11 @@ export default function IntermediariesInsurance() {
   const [showTimelinePicker, setShowTimelinePicker] = useState(false);
   const [timelineStartYear, setTimelineStartYear] = useState("");
   const [timelineEndYear, setTimelineEndYear] = useState("");
+  const [visualizationType, setVisualizationType] = useState("line");
+  const [pendingVisualizationType, setPendingVisualizationType] = useState("line");
+  const [showChartTypePicker, setShowChartTypePicker] = useState(false);
+  const [chartGraphDiv, setChartGraphDiv] = useState(null);
+  const [isExportingImage, setIsExportingImage] = useState(false);
 
   const [selectedInsurer, setSelectedInsurer] = useState("");
   const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
@@ -270,10 +272,15 @@ export default function IntermediariesInsurance() {
     setSelectedAgentSector("");
     setSelectedAgentType("");
     setShowTimelinePicker(false);
+    setShowChartTypePicker(false);
     setAgentsError("");
     setRawData([]);
     setData([]);
   }, [distributionAgentModuleConfig?.collectionName, isDistributionAgentsView]);
+
+  useEffect(() => {
+    setPendingVisualizationType(visualizationType);
+  }, [visualizationType]);
 
   useEffect(() => {
     const fetchInsurers = async () => {
@@ -497,6 +504,214 @@ export default function IntermediariesInsurance() {
     [data]
   );
 
+  const selectedSubModuleTitle =
+    SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
+
+  const metricLabel = distributionAgentModuleConfig?.metricLabel || "Agents";
+
+  const chartTitle = useMemo(() => {
+    const activeTabLabel = TABS.find((tab) => tab.id === activeTab)?.label || "Overview";
+    const titleSegments = [activeTabLabel, selectedSubModuleTitle];
+
+    if (distributionAgentModuleConfig?.requiresInsurerAndState) {
+      if (selectedStatewiseInsurer) {
+        titleSegments.push(selectedStatewiseInsurer);
+      }
+      if (selectedStatewiseState) {
+        titleSegments.push(selectedStatewiseState);
+      }
+    } else if (distributionAgentModuleConfig?.requiresStateOnly) {
+      if (selectedStatewiseState) {
+        titleSegments.push(selectedStatewiseState);
+      }
+    } else {
+      if (distributionAgentModuleConfig?.requiresAgentType && selectedAgentType) {
+        titleSegments.push(selectedAgentType);
+      }
+
+      if (selectedAgentInsurer && selectedAgentInsurer !== "All Insurers") {
+        titleSegments.push(selectedAgentInsurer);
+      }
+
+      if (selectedAgentSector && selectedAgentSector !== "Both") {
+        titleSegments.push(selectedAgentSector);
+      }
+    }
+
+    return titleSegments.filter(Boolean).join(" : ");
+  }, [
+    activeTab,
+    selectedSubModuleTitle,
+    distributionAgentModuleConfig,
+    selectedStatewiseInsurer,
+    selectedStatewiseState,
+    selectedAgentType,
+    selectedAgentInsurer,
+    selectedAgentSector,
+  ]);
+
+  const chartExportFileName = useMemo(
+    () =>
+      `${buildExportFileName(selectedSubModuleTitle, [
+        { label: "module", value: selectedSubModuleTitle },
+      ])}_chart`,
+    [selectedSubModuleTitle]
+  );
+
+  const formattedChartTitle = useMemo(() => {
+    const wrappedTitle = wrapChartTitle(chartTitle);
+
+    if (wrappedTitle.lineCount === 2) {
+      return {
+        text: wrappedTitle.text,
+        fontSize: 15,
+        topMargin: 68,
+      };
+    }
+
+    return {
+      text: wrappedTitle.text,
+      fontSize: 16,
+      topMargin: 62,
+    };
+  }, [chartTitle]);
+
+  const plotTraces = useMemo(() => {
+    const xValues = visualizationData.map((item) => String(item.year));
+    const yValues = visualizationData.map((item) => toNumericValue(item.value));
+
+    if (visualizationType === "bar") {
+      return [
+        {
+          type: "bar",
+          name: metricLabel,
+          x: xValues,
+          y: yValues,
+          marker: {
+            color: "rgba(14, 165, 164, 0.88)",
+            line: { color: "rgba(15, 118, 110, 0.95)", width: 1 },
+          },
+          hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+        },
+      ];
+    }
+
+    if (visualizationType === "area") {
+      return [
+        {
+          type: "scatter",
+          mode: "lines+markers",
+          name: metricLabel,
+          x: xValues,
+          y: yValues,
+          line: { color: "#0ea5a4", width: 3 },
+          marker: { color: "#0ea5a4", size: 8 },
+          fill: "tozeroy",
+          fillcolor: "rgba(14, 165, 164, 0.14)",
+          hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+        },
+      ];
+    }
+
+    return [
+      {
+        type: "scatter",
+        mode: "lines+markers",
+        name: metricLabel,
+        x: xValues,
+        y: yValues,
+        line: { color: "#0ea5a4", width: 3 },
+        marker: { color: "#0ea5a4", size: 8 },
+        hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+      },
+    ];
+  }, [visualizationData, visualizationType, metricLabel]);
+
+  const plotLayout = useMemo(
+    () => ({
+      autosize: true,
+      paper_bgcolor: "rgba(0, 0, 0, 0)",
+      plot_bgcolor: "rgba(0, 0, 0, 0)",
+      margin: { l: 60, r: 18, t: formattedChartTitle.topMargin, b: 52 },
+      title: {
+        text: formattedChartTitle.text,
+        x: 0.5,
+        xanchor: "center",
+        y: 0.98,
+        yanchor: "top",
+        font: {
+          size: formattedChartTitle.fontSize,
+          color: "#0f172a",
+          family: "Segoe UI, Arial, sans-serif",
+        },
+      },
+      xaxis: {
+        title: { text: "Year", font: { size: 12, color: "#475569" } },
+        showgrid: true,
+        gridcolor: "rgba(148, 163, 184, 0.16)",
+        zeroline: false,
+        tickfont: { size: 12, color: "#334155" },
+      },
+      yaxis: {
+        title: { text: metricLabel, font: { size: 12, color: "#475569" } },
+        showgrid: true,
+        gridcolor: "rgba(148, 163, 184, 0.16)",
+        zeroline: false,
+        tickfont: { size: 12, color: "#334155" },
+        separatethousands: true,
+      },
+      legend: {
+        orientation: "h",
+        x: 0,
+        y: -0.16,
+        font: { size: 14, color: "#334155" },
+      },
+      hoverlabel: {
+        bgcolor: "#ffffff",
+        bordercolor: "rgba(148, 163, 184, 0.4)",
+        font: { color: "#0f172a", size: 12 },
+      },
+    }),
+    [formattedChartTitle, metricLabel]
+  );
+
+  const plotConfig = useMemo(
+    () => ({
+      responsive: true,
+      displaylogo: false,
+      toImageButtonOptions: {
+        format: "png",
+        filename: chartExportFileName,
+        width: 1280,
+        height: 720,
+        scale: 2,
+      },
+      modeBarButtonsToRemove: ["select2d", "lasso2d", "toggleSpikelines", "autoScale2d"],
+    }),
+    [chartExportFileName]
+  );
+
+  const handleExportImage = async () => {
+    if (!chartGraphDiv || isExportingImage) {
+      return;
+    }
+
+    setIsExportingImage(true);
+    try {
+      await Plotly.downloadImage(chartGraphDiv, {
+        format: "png",
+        filename: chartExportFileName,
+        width: 1280,
+        height: 720,
+        scale: 2,
+      });
+    } catch (error) {
+      console.error("Failed to export chart image:", error);
+    } finally {
+      setIsExportingImage(false);
+    }
+  };
+
   const filterConfig = useMemo(
     () => [
       {
@@ -546,9 +761,6 @@ export default function IntermediariesInsurance() {
     ]
   );
 
-  const selectedSubModuleTitle =
-    SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
-
   const hasDistributionFilterSelection = distributionAgentModuleConfig?.requiresInsurerAndState
     ? Boolean(selectedStatewiseInsurer && selectedStatewiseState)
     : distributionAgentModuleConfig?.requiresStateOnly
@@ -565,6 +777,7 @@ export default function IntermediariesInsurance() {
       setSelectedStatewiseInsurer("");
       setSelectedStatewiseState("");
       setShowTimelinePicker(false);
+      setShowChartTypePicker(false);
       setAgentsError("");
       setRawData([]);
       setData([]);
@@ -937,6 +1150,14 @@ export default function IntermediariesInsurance() {
                           ))}
                         </select>
                       </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setShowTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
                     </div>
                   )}
                   <div className="data-table-container">
@@ -983,6 +1204,28 @@ export default function IntermediariesInsurance() {
               <TrendingUp size={14} strokeWidth={2} />
             </div>
             <h3 className="panel-title section-title">Visualization Panel</h3>
+            {isDistributionAgentsView && visualizationData.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  className="data-export-btn"
+                  onClick={() => setShowChartTypePicker((previous) => !previous)}
+                  title="Select chart type"
+                >
+                  Select Chart Type
+                </button>
+                <button
+                  type="button"
+                  className="data-export-btn panel-action-btn viz-export-btn"
+                  onClick={handleExportImage}
+                  disabled={isExportingImage}
+                  title="Export chart as image"
+                >
+                  <Download size={14} strokeWidth={2.2} />
+                  {isExportingImage ? "Exporting..." : "Export Image"}
+                </button>
+              </>
+            )}
           </div>
           <div className="panel-body viz-panel-body">
             {isDistributionAgentsView ? (
@@ -991,39 +1234,46 @@ export default function IntermediariesInsurance() {
               ) : agentsError ? (
                 <p className="panel-placeholder">{agentsError}</p>
               ) : visualizationData.length > 0 ? (
-                <div className="chart-wrapper">
-                  <ResponsiveContainer width="100%" height={320}>
-                    <RechartsLineChart
-                      data={visualizationData}
-                      margin={{ top: 16, right: 16, left: 8, bottom: 8 }}
-                    >
-                      <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.22)" />
-                      <XAxis dataKey="year" tickLine={false} axisLine={false} stroke="var(--text-secondary)" />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        stroke="var(--text-secondary)"
-                        tickFormatter={(value) => toNumericValue(value).toLocaleString("en-IN")}
-                      />
-                      <Tooltip
-                        formatter={(value) => toNumericValue(value).toLocaleString("en-IN")}
-                        contentStyle={{
-                          backgroundColor: "var(--bg-surface-solid)",
-                          border: "1px solid var(--border-default)",
-                          borderRadius: "8px",
+                <>
+                  {showChartTypePicker && (
+                    <div className="timeline-filter-row chart-type-picker-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">Chart Type</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={pendingVisualizationType}
+                          onChange={(event) => setPendingVisualizationType(event.target.value)}
+                        >
+                          <option value="line">Line Chart</option>
+                          <option value="area">Area Chart</option>
+                          <option value="bar">Bar Chart</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => {
+                          setVisualizationType(pendingVisualizationType);
+                          setShowChartTypePicker(false);
                         }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="value"
-                        stroke="var(--accent-primary)"
-                        strokeWidth={2.2}
-                        dot={{ fill: "#ffffff", stroke: "var(--accent-primary)", strokeWidth: 2, r: 3 }}
-                        activeDot={{ r: 5 }}
-                      />
-                    </RechartsLineChart>
-                  </ResponsiveContainer>
-                </div>
+                        title="Apply chart type"
+                      >
+                        Apply Chart Type
+                      </button>
+                    </div>
+                  )}
+                  <div className="chart-wrapper plotly-chart-wrapper">
+                    <Plot
+                      data={plotTraces}
+                      layout={plotLayout}
+                      config={plotConfig}
+                      style={{ width: "100%", height: "100%" }}
+                      useResizeHandler
+                      onInitialized={(_, graphDiv) => setChartGraphDiv(graphDiv)}
+                      onUpdate={(_, graphDiv) => setChartGraphDiv(graphDiv)}
+                    />
+                  </div>
+                </>
               ) : (
                 <p className="panel-placeholder">
                   {hasDistributionFilterSelection
@@ -1175,4 +1425,49 @@ function toNumericValue(value) {
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function wrapChartTitle(title) {
+  const safeTitle = String(title || "").trim();
+  if (!safeTitle) {
+    return { text: "", lineCount: 1 };
+  }
+
+  const segments = safeTitle.split(" : ").filter(Boolean);
+  const maxLineLength = 80;
+  const maxLines = 2;
+  const lines = [];
+  let currentLine = "";
+
+  for (const segment of segments) {
+    const nextValue = currentLine ? `${currentLine} : ${segment}` : segment;
+
+    if (nextValue.length <= maxLineLength || !currentLine) {
+      currentLine = nextValue;
+      continue;
+    }
+
+    lines.push(currentLine);
+    currentLine = segment;
+
+    if (lines.length === maxLines - 1) {
+      break;
+    }
+  }
+
+  if (currentLine && lines.length < maxLines) {
+    lines.push(currentLine);
+  }
+
+  const consumedLength = lines.join(" : ").length;
+  const hasRemainingText = safeTitle.length > consumedLength;
+
+  if (hasRemainingText && lines.length > 0) {
+    lines[lines.length - 1] = `${lines[lines.length - 1]} ...`;
+  }
+
+  return {
+    text: lines.join("<br>"),
+    lineCount: lines.length || 1,
+  };
 }
