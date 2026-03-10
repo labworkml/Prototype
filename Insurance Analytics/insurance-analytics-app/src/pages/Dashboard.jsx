@@ -8,19 +8,19 @@ export default function Dashboard() {
   const modules = [
     {
       id: 1,
-      title: "Insurance Handbook Statistics",
+      title: "Dashboard for Insurance Handbook Statistics",
       icon: "📚",
       color: "#4A90E2",
     },
     {
       id: 2,
-      title: "Insurance Analytics",
+      title: "Analytics for Insurance Handbook Statistics",
       icon: "📊",
       color: "#50C878",
     },
     {
       id: 3,
-      title: "Insurance Laws",
+      title: "Insurance Knowledge Repository",
       icon: "⚖️",
       color: "#FF6B6B",
     },

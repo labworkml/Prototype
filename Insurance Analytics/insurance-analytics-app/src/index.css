@@ -1,17 +1,11 @@
 @import "tailwindcss";
 
-body {
-  background: #F8FAFC;
-  margin: 0;
-  font-family: Inter, sans-serif;
-}
-
 #root {
   min-height: 100vh;
 }
 
 .app-container {
-  background: #F8FAFC;
+  background: var(--bg-secondary);
   min-height: 100vh;
   padding: 0 24px 24px;
 }

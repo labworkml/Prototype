@@ -1,81 +1,59 @@
-import { useNavigate } from "react-router-dom";
-import "../styles/module-page.css";
+import "../styles/analytics.css";
 
 export default function InsuranceAnalytics() {
-  const navigate = useNavigate();
+  const modules = [
+    {
+      id: "life",
+      title: "Life",
+      icon: "👨‍👩‍👧",
+      description: "",
+    },
+    {
+      id: "general",
+      title: "General",
+      icon: "🏢",
+      description: "",
+    },
+    {
+      id: "health",
+      title: "Health",
+      icon: "💊",
+      description: "",
+    },
+    {
+      id: "reinsurance",
+      title: "Reinsurance",
+      icon: "📦",
+      description: "",
+    },
+    {
+      id: "intermediaries",
+      title: "Intermediaries",
+      icon: "💛",
+      description: "",
+    },
+  ];
 
   return (
-    <div className="module-page-wrapper">
-      <div className="module-page-header">
-        <button className="module-back-btn" onClick={() => navigate("/dashboard")}>
-          ← Back to Dashboard
-        </button>
-        <h1 className="module-page-title">Insurance Analytics</h1>
-        <p className="module-page-subtitle">Deep dive analytics and insights into insurance trends and performance</p>
-      </div>
-
-      <div className="module-page-container">
-        <div className="analytics-grid">
-          <AnalyticsCard 
-            title="Claims Processing Time" 
-            metric="3.2 days" 
-            trend="↓ 8% faster"
-          />
-          <AnalyticsCard 
-            title="Customer Satisfaction" 
-            metric="94.3%" 
-            trend="↑ 2.1% higher"
-          />
-          <AnalyticsCard 
-            title="Renewal Rate" 
-            metric="87.6%" 
-            trend="↑ 4.5% higher"
-          />
-          <AnalyticsCard 
-            title="Claim Approval Rate" 
-            metric="96.8%" 
-            trend="↑ 1.2% higher"
-          />
-        </div>
-
-        <div className="content-section card">
-          <h2>Monthly Trend Analysis</h2>
-          <div className="chart-placeholder">
-            📈 Analytics chart with monthly trends visualization
-          </div>
-        </div>
-
-        <div className="analysis-grid">
-          <div className="analysis-box card">
-            <h3>Claims by Category</h3>
-            <ul className="analysis-list">
-              <li><span className="list-label">Medical Claims:</span> 34%</li>
-              <li><span className="list-label">Auto Claims:</span> 28%</li>
-              <li><span className="list-label">Property Claims:</span> 22%</li>
-              <li><span className="list-label">Other:</span> 16%</li>
-            </ul>
-          </div>
-          <div className="analysis-box card">
-            <h3>Top Performing Products</h3>
-            <ul className="analysis-list">
-              <li><span className="list-label">Premium Health Plan:</span> Growing</li>
-              <li><span className="list-label">Auto Premium Plus:</span> Growing</li>
-              <li><span className="list-label">Home Comprehensive:</span> Stable</li>
-              <li><span className="list-label">Life Whole Plan:</span> Growing</li>
-            </ul>
+    <div className="analytics-wrapper">
+      <div className="analytics-container">
+        <h1 className="analytics-title">Analytics for Insurance Handbook Data</h1>
+        <div className="modules-container">
+          <div className="modules-grid">
+          {modules.map((module) => (
+            <div key={module.id} className="module-card" style={{ cursor: "default" }}>
+              <div className="module-card-icon">
+                {module.icon}
+              </div>
+              <h3 className="module-card-title">
+                {module.title}
+              </h3>
+              <p className="module-card-description">{module.description || " "}</p>
+            </div>
+          ))}
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function AnalyticsCard({ title, metric, trend }) {
-  return (
-    <div className="analytics-card card">
-      <div className="analytics-card-title">{title}</div>
-      <div className="analytics-card-metric">{metric}</div>
-      <div className="analytics-card-trend">{trend}</div>
     </div>
   );
 }

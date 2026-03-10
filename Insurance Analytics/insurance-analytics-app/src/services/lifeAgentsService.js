@@ -10,6 +10,1007 @@ const AVG_PREMIUM_PER_POLICY_COLLECTION = "avg_premium_income_per_policy_per_age
 const LIFE_AGENTS_STATEWISE_COLLECTION = "sheet96_life_agents_statewise";
 const REGISTERED_BROKERS_STATEWISE_COLLECTION = "sheet97_statewise_registered_brokers";
 const IMFS_STATEWISE_COLLECTION = "sheet98_statewise_number_of_imfs";
+const LIFE_CHANNEL_INDIVIDUAL_NEW_BUSINESS_COLLECTION =
+  "Sheet99_Channel_Wise_Individual_New_Business_Life_Insurance";
+const LIFE_CHANNEL_GROUP_NEW_BUSINESS_COLLECTION =
+  "Sheet101_Channel_Wise_Group_New_Business_Life_Insurance";
+const LIFE_INSURER_INDIVIDUAL_NEW_BUSINESS_COLLECTION =
+  "Sheet100_Channel_Wise_Insurer_Wise_Individual_New_Business_Premium_for_Life";
+const LIFE_INSURER_GROUP_NEW_BUSINESS_COLLECTION =
+  "Sheet102_CHANNEL_WISE_INSURER_WISE_LIFE_INSURANCE_GROUP_NEW_BUSINESS";
+const NON_LIFE_GENERAL_INSURANCE_CHANNEL_WISE_COLLECTION =
+  "Sheet103_General_Insurance_Business_Channel_Wise";
+const NON_LIFE_HEALTH_INSURANCE_CHANNEL_WISE_COLLECTION =
+  "Sheet104_CHANNEL_WISE_HEALTH_INSURANCE_BUSINESS";
+
+const HEALTH_CATEGORY_DISPLAY_ORDER = [
+  "Individual Business",
+  "Individual Insurance including Family/Floater",
+  "Group Business (Excluding Government Business)",
+  "Group Business (Including Government Sponsored Insurance Schemes & RBSY)",
+  "Government Business (Including RBSY & Other Government Sponsored Schemes)",
+  "Grand Total",
+];
+
+export function getDefaultNonLifeGeneralCollectionName() {
+  return NON_LIFE_GENERAL_INSURANCE_CHANNEL_WISE_COLLECTION;
+}
+
+export function getDefaultNonLifeHealthCollectionName() {
+  return NON_LIFE_HEALTH_INSURANCE_CHANNEL_WISE_COLLECTION;
+}
+
+export async function getHealthBusinessChannels(collectionName) {
+  if (!collectionName) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, collectionName));
+
+    return Array.from(
+      new Set(snapshot.docs.map((document) => resolveChannelName(document.data())).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b));
+  } catch (error) {
+    console.error("Failed to fetch health business channels:", error);
+    return [];
+  }
+}
+
+export async function getHealthBusinessCategories(collectionName, channel) {
+  if (!collectionName || !channel) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, collectionName));
+
+    const discoveredCategories = Array.from(
+      new Set(
+        snapshot.docs
+          .filter((document) => matchesChannelName(document.data(), channel))
+          .map((document) => resolveCategoryName(document.data()))
+          .filter(Boolean)
+      )
+    );
+
+    const canonicalFoundSet = new Set();
+    const remainingCategories = [];
+
+    discoveredCategories.forEach((category) => {
+      const canonicalCategory = getCanonicalHealthCategoryLabel(category);
+      if (canonicalCategory) {
+        canonicalFoundSet.add(canonicalCategory);
+        return;
+      }
+
+      remainingCategories.push(category);
+    });
+
+    const orderedCanonicalCategories = HEALTH_CATEGORY_DISPLAY_ORDER.filter((displayLabel) =>
+      canonicalFoundSet.has(displayLabel)
+    );
+
+    const uniqueRemainingCategories = Array.from(new Set(remainingCategories)).sort((a, b) =>
+      a.localeCompare(b)
+    );
+
+    return [...orderedCanonicalCategories, ...uniqueRemainingCategories];
+  } catch (error) {
+    console.error("Failed to fetch health business categories:", error);
+    return [];
+  }
+}
+
+export async function getHealthBusinessMetrics(collectionName, channel, category) {
+  if (!collectionName || !channel || !category) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, collectionName));
+    const metricValueLabels = new Map();
+    const metricFields = new Map();
+
+    snapshot.docs.forEach((document) => {
+      const data = document.data();
+
+      if (!matchesChannelName(data, channel) || !matchesCategoryName(data, category)) {
+        return;
+      }
+
+      // Schema 1: metric name stored as data value (e.g. metric: "No.of policies Issued")
+      const metricName = resolveMetricName(data);
+      if (metricName) {
+        const normalizedMetricName = normalizeComparableText(metricName);
+        if (!metricValueLabels.has(normalizedMetricName)) {
+          metricValueLabels.set(normalizedMetricName, metricName);
+        }
+      }
+
+      Object.entries(data || {}).forEach(([fieldName, fieldValue]) => {
+        if (isNonMetricField(fieldName)) {
+          return;
+        }
+
+        if (!hasNumericSignal(fieldValue)) {
+          return;
+        }
+
+        if (!metricFields.has(fieldName)) {
+          metricFields.set(fieldName, formatMetricFieldLabel(fieldName));
+        }
+      });
+    });
+
+    if (metricValueLabels.size > 0) {
+      return Array.from(metricValueLabels.values())
+        .sort((a, b) => a.localeCompare(b))
+        .map((metricLabel) => ({ value: metricLabel, label: metricLabel }));
+    }
+
+    return Array.from(metricFields.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  } catch (error) {
+    console.error("Failed to fetch health business metrics:", error);
+    return [];
+  }
+}
+
+export async function getHealthBusinessYearwiseData(collectionName, channel, category, metricField) {
+  if (!collectionName || !channel || !category || !metricField) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, collectionName));
+
+    const filteredDocuments = snapshot.docs.filter((document) => {
+      const data = document.data();
+      return matchesChannelName(data, channel) && matchesCategoryName(data, category);
+    });
+
+    const hasMetricValueSchema = filteredDocuments.some((document) =>
+      Boolean(resolveMetricName(document.data()))
+    );
+
+    if (hasMetricValueSchema) {
+      const metricMatchedDocuments = filteredDocuments.filter((document) =>
+        matchesMetricName(document.data(), metricField)
+      );
+
+      return aggregateByYearForHealthMetricDocuments(metricMatchedDocuments);
+    }
+
+    return aggregateByYearForHealthBusiness(filteredDocuments, metricField);
+  } catch (error) {
+    console.error("Failed to fetch health business yearwise data:", error);
+    return [];
+  }
+}
+
+export async function getNonLifeBusinessSegments(collectionName) {
+  if (!collectionName) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, collectionName));
+
+    return Array.from(
+      new Set(
+        snapshot.docs
+          .map((document) => resolveSegmentName(document.data()))
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  } catch (error) {
+    console.error("Failed to fetch non-life business segments:", error);
+    return [];
+  }
+}
+
+export async function getNonLifeBusinessChannels(collectionName, segment) {
+  if (!collectionName || !segment) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, collectionName));
+
+    return Array.from(
+      new Set(
+        snapshot.docs
+          .filter((document) => matchesSegmentName(document.data(), segment))
+          .map((document) => resolveChannelName(document.data()))
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  } catch (error) {
+    console.error("Failed to fetch non-life business channels:", error);
+    return [];
+  }
+}
+
+export async function getNonLifeBusinessYearwiseData(collectionName, segment, channel) {
+  if (!collectionName || !segment || !channel) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, collectionName));
+
+    const filteredDocuments = snapshot.docs.filter((document) => {
+      const data = document.data();
+      return matchesSegmentName(data, segment) && matchesChannelName(data, channel);
+    });
+
+    return aggregateByYearForNonLifeBusiness(filteredDocuments);
+  } catch (error) {
+    console.error("Failed to fetch non-life business yearwise data:", error);
+    return [];
+  }
+}
+
+export async function getLifeBusinessInsurers(businessType) {
+  const targetCollection = resolveLifeBusinessInsurerCollection(businessType);
+  if (!targetCollection) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, targetCollection));
+
+    return Array.from(
+      new Set(
+        snapshot.docs
+          .map((document) => resolveInsurerName(document.data()))
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  } catch (error) {
+    console.error("Failed to fetch life business insurers:", error);
+    return [];
+  }
+}
+
+export async function getLifeBusinessInsurerChannelData(businessType, insurer) {
+  const targetCollection = resolveLifeBusinessInsurerCollection(businessType);
+  if (!targetCollection || !insurer) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, targetCollection));
+
+    const filteredDocuments = snapshot.docs.filter((document) =>
+      matchesInsurerName(document.data(), insurer)
+    );
+
+    return aggregateByChannelForInsurerBusiness(filteredDocuments, businessType);
+  } catch (error) {
+    console.error("Failed to fetch insurer-wise life business data:", error);
+    return [];
+  }
+}
+
+export async function getLifeBusinessChannels(businessType) {
+  const targetCollection = resolveLifeBusinessCollection(businessType);
+  if (!targetCollection) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, targetCollection));
+
+    return Array.from(
+      new Set(
+        snapshot.docs
+          .map((document) => resolveChannelName(document.data()))
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  } catch (error) {
+    console.error("Failed to fetch life business channels:", error);
+    return [];
+  }
+}
+
+export async function getLifeBusinessYearwiseData(businessType, channel, metric) {
+  const targetCollection = resolveLifeBusinessCollection(businessType);
+  if (!targetCollection || !channel || !metric) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, targetCollection));
+
+    const filteredDocuments = snapshot.docs.filter((document) =>
+      matchesChannelName(document.data(), channel)
+    );
+
+    return aggregateByYearForBusinessMetric(filteredDocuments, metric);
+  } catch (error) {
+    console.error("Failed to fetch life business yearwise data:", error);
+    return [];
+  }
+}
+
+function resolveLifeBusinessCollection(businessType) {
+  if (businessType === "Individual New Business") {
+    return LIFE_CHANNEL_INDIVIDUAL_NEW_BUSINESS_COLLECTION;
+  }
+
+  if (businessType === "Group New Business") {
+    return LIFE_CHANNEL_GROUP_NEW_BUSINESS_COLLECTION;
+  }
+
+  return "";
+}
+
+function resolveLifeBusinessInsurerCollection(businessType) {
+  if (businessType === "Individual New Business") {
+    return LIFE_INSURER_INDIVIDUAL_NEW_BUSINESS_COLLECTION;
+  }
+
+  if (businessType === "Group New Business") {
+    return LIFE_INSURER_GROUP_NEW_BUSINESS_COLLECTION;
+  }
+
+  return "";
+}
+
+function aggregateByChannelForInsurerBusiness(documents, businessType) {
+  const channelTotals = new Map();
+
+  documents.forEach((document) => {
+    const data = document.data();
+    const channel = resolveChannelName(data);
+
+    if (!channel) {
+      return;
+    }
+
+    const existing =
+      channelTotals.get(channel) ||
+      {
+        channel,
+        premium_crore: 0,
+        policies: 0,
+        lives_covered: 0,
+        scheme: 0,
+      };
+
+    existing.premium_crore += resolvePremiumCroreValue(data);
+
+    if (businessType === "Individual New Business") {
+      existing.policies += resolvePoliciesValue(data);
+    } else {
+      existing.lives_covered += resolveLivesCoveredValue(data);
+      existing.scheme += resolveSchemeValue(data);
+    }
+
+    channelTotals.set(channel, existing);
+  });
+
+  return Array.from(channelTotals.values()).sort((first, second) =>
+    first.channel.localeCompare(second.channel)
+  );
+}
+
+function aggregateByYearForBusinessMetric(documents, metric) {
+  const yearTotals = new Map();
+
+  documents.forEach((document) => {
+    const data = document.data();
+    const yearInfo = resolveYearInfo(data.year);
+    const metricValue = resolveBusinessMetricValue(data, metric);
+
+    if (!yearInfo) {
+      return;
+    }
+
+    const existing = yearTotals.get(yearInfo.key);
+    if (existing) {
+      existing.agents += metricValue;
+      return;
+    }
+
+    yearTotals.set(yearInfo.key, {
+      year: yearInfo.label,
+      sortValue: yearInfo.sortValue,
+      agents: metricValue,
+    });
+  });
+
+  return Array.from(yearTotals.values())
+    .sort((first, second) => {
+      if (first.sortValue !== second.sortValue) {
+        return first.sortValue - second.sortValue;
+      }
+
+      return String(first.year).localeCompare(String(second.year));
+    })
+    .map(({ year, agents }) => ({ year, agents }));
+}
+
+function resolveBusinessMetricValue(data, metric) {
+  if (metric === "policies") {
+    return resolvePoliciesValue(data);
+  }
+
+  if (metric === "premium_crore") {
+    return resolvePremiumCroreValue(data);
+  }
+
+  if (metric === "lives_covered") {
+    return resolveLivesCoveredValue(data);
+  }
+
+  if (metric === "scheme") {
+    return resolveSchemeValue(data);
+  }
+
+  return 0;
+}
+
+function resolvePremiumCroreValue(data) {
+  const preferredFields = [
+    "premium_crore",
+    "premium_in_crore",
+    "premium",
+    "new_business_premium",
+    "new_business_premium_crore",
+    "business_premium",
+    "premium_income",
+    "value",
+    "amount",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericValue(data?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/premium|crore|amount/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolveLivesCoveredValue(data) {
+  const preferredFields = [
+    "lives_covered",
+    "lives",
+    "covered_lives",
+    "no_of_lives",
+    "number_of_lives",
+    "total_lives_covered",
+    "value",
+    "count",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericValue(data?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/lives|covered/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolveSchemeValue(data) {
+  const preferredFields = [
+    "scheme",
+    "schemes",
+    "scheme_count",
+    "no_of_schemes",
+    "number_of_schemes",
+    "total_schemes",
+    "value",
+    "count",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericValue(data?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/scheme/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolveChannelName(data) {
+  const candidates = [
+    data?.channel,
+    data?.channel_name,
+    data?.channelName,
+    data?.distribution_channel,
+    data?.distributionChannel,
+    data?.business_channel,
+    data?.businessChannel,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/channel/i.test(fieldName)) {
+      continue;
+    }
+
+    const value = String(fieldValue || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function resolveSegmentName(data) {
+  const candidates = [
+    data?.segment,
+    data?.segment_name,
+    data?.segmentName,
+    data?.business_segment,
+    data?.businessSegment,
+    data?.line_of_business,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/segment|line.*business/i.test(fieldName)) {
+      continue;
+    }
+
+    const value = String(fieldValue || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function resolveCategoryName(data) {
+  const candidates = [
+    data?.category,
+    data?.category_name,
+    data?.categoryName,
+    data?.business_category,
+    data?.businessCategory,
+    data?.type,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/category|type/i.test(fieldName)) {
+      continue;
+    }
+
+    const value = String(fieldValue || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function resolveMetricName(data) {
+  const candidates = [
+    data?.metric,
+    data?.Metric,
+    data?.metric_name,
+    data?.metricName,
+    data?.measure,
+    data?.measure_name,
+    data?.kpi,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/metric|measure|kpi/i.test(fieldName)) {
+      continue;
+    }
+
+    const value = String(fieldValue || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function matchesSegmentName(data, selectedSegment) {
+  const normalizedSelectedSegment = normalizeComparableText(selectedSegment);
+  if (!normalizedSelectedSegment) {
+    return false;
+  }
+
+  const candidateSegment = normalizeComparableText(resolveSegmentName(data));
+  return candidateSegment === normalizedSelectedSegment;
+}
+
+function matchesCategoryName(data, selectedCategory) {
+  const normalizedSelectedCategory = normalizeComparableText(selectedCategory);
+  if (!normalizedSelectedCategory) {
+    return false;
+  }
+
+  const candidateCategory = resolveCategoryName(data);
+  const normalizedCandidateCategory = normalizeComparableText(candidateCategory);
+
+  const canonicalSelectedCategory = getCanonicalHealthCategoryLabel(selectedCategory);
+  const canonicalCandidateCategory = getCanonicalHealthCategoryLabel(candidateCategory);
+
+  if (canonicalSelectedCategory && canonicalCandidateCategory) {
+    return canonicalSelectedCategory === canonicalCandidateCategory;
+  }
+
+  return normalizedCandidateCategory === normalizedSelectedCategory;
+}
+
+function matchesMetricName(data, selectedMetric) {
+  const normalizedSelectedMetric = normalizeComparableText(selectedMetric);
+  if (!normalizedSelectedMetric) {
+    return false;
+  }
+
+  const normalizedCandidateMetric = normalizeComparableText(resolveMetricName(data));
+  return normalizedCandidateMetric === normalizedSelectedMetric;
+}
+
+function matchesChannelName(data, selectedChannel) {
+  const normalizedSelectedChannel = normalizeComparableText(selectedChannel);
+  if (!normalizedSelectedChannel) {
+    return false;
+  }
+
+  const candidateChannel = normalizeComparableText(resolveChannelName(data));
+  return candidateChannel === normalizedSelectedChannel;
+}
+
+function normalizeComparableText(value) {
+  return String(value || "")
+    .replace(/[\u00A0\u2007\u202F]/g, " ")
+    .replace(/&/g, " and ")
+    .replace(/[()./,]/g, " ")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function aggregateByYearForNonLifeBusiness(documents) {
+  const yearTotals = new Map();
+
+  documents.forEach((document) => {
+    const data = document.data();
+    const yearInfo = resolveYearInfoFromData(data);
+    const metricValue = resolvePremiumCroreValue(data);
+
+    if (!yearInfo) {
+      return;
+    }
+
+    const existing = yearTotals.get(yearInfo.key);
+    if (existing) {
+      existing.agents += metricValue;
+      return;
+    }
+
+    yearTotals.set(yearInfo.key, {
+      year: yearInfo.label,
+      sortValue: yearInfo.sortValue,
+      agents: metricValue,
+    });
+  });
+
+  return Array.from(yearTotals.values())
+    .sort((first, second) => {
+      if (first.sortValue !== second.sortValue) {
+        return first.sortValue - second.sortValue;
+      }
+
+      return String(first.year).localeCompare(String(second.year));
+    })
+    .map(({ year, agents }) => ({ year, agents }));
+}
+
+function aggregateByYearForHealthBusiness(documents, metricField) {
+  const yearTotals = new Map();
+
+  documents.forEach((document) => {
+    const data = document.data();
+    const yearInfo = resolveYearInfoFromData(data);
+    const metricValue = resolveMetricValueByField(data, metricField);
+
+    if (!yearInfo) {
+      return;
+    }
+
+    const existing = yearTotals.get(yearInfo.key);
+    if (existing) {
+      existing.agents += metricValue;
+      return;
+    }
+
+    yearTotals.set(yearInfo.key, {
+      year: yearInfo.label,
+      sortValue: yearInfo.sortValue,
+      agents: metricValue,
+    });
+  });
+
+  return Array.from(yearTotals.values())
+    .sort((first, second) => {
+      if (first.sortValue !== second.sortValue) {
+        return first.sortValue - second.sortValue;
+      }
+
+      return String(first.year).localeCompare(String(second.year));
+    })
+    .map(({ year, agents }) => ({ year, agents }));
+}
+
+function aggregateByYearForHealthMetricDocuments(documents) {
+  const yearTotals = new Map();
+
+  documents.forEach((document) => {
+    const data = document.data();
+    const yearInfo = resolveYearInfoFromData(data);
+    const metricValue = resolveMetricDataValue(data);
+
+    if (!yearInfo) {
+      return;
+    }
+
+    const existing = yearTotals.get(yearInfo.key);
+    if (existing) {
+      existing.agents += metricValue;
+      return;
+    }
+
+    yearTotals.set(yearInfo.key, {
+      year: yearInfo.label,
+      sortValue: yearInfo.sortValue,
+      agents: metricValue,
+    });
+  });
+
+  return Array.from(yearTotals.values())
+    .sort((first, second) => {
+      if (first.sortValue !== second.sortValue) {
+        return first.sortValue - second.sortValue;
+      }
+
+      return String(first.year).localeCompare(String(second.year));
+    })
+    .map(({ year, agents }) => ({ year, agents }));
+}
+
+function resolveMetricValueByField(data, metricField) {
+  const directValue = parseNumericValue(data?.[metricField]);
+  if (directValue !== null) {
+    return directValue;
+  }
+
+  const normalizedMetricField = normalizeComparableText(metricField);
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (normalizeComparableText(fieldName) !== normalizedMetricField) {
+      continue;
+    }
+
+    const parsedValue = parseNumericValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolveMetricDataValue(data) {
+  const preferredFields = [
+    "value",
+    "metric_value",
+    "metricValue",
+    "amount",
+    "count",
+    "number",
+    "total",
+    "premium",
+    "policies",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericValue(data?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (isNonMetricField(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function isNonMetricField(fieldName) {
+  return /year|fy|financial|channel|category|segment|insurer|state|id|sno|sr\.?no|index/i.test(
+    String(fieldName || "")
+  );
+}
+
+function hasNumericSignal(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const normalized = value.replace(/,/g, "").trim();
+  if (!normalized) {
+    return false;
+  }
+
+  return /\d/.test(normalized);
+}
+
+function formatMetricFieldLabel(fieldName) {
+  return String(fieldName || "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function getCanonicalHealthCategoryLabel(categoryValue) {
+  const normalized = normalizeComparableText(categoryValue);
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized.includes("grand total")) {
+    return "Grand Total";
+  }
+
+  if (normalized.includes("individual business")) {
+    return "Individual Business";
+  }
+
+  if (
+    normalized.includes("individual insurance") &&
+    (normalized.includes("family") || normalized.includes("floater"))
+  ) {
+    return "Individual Insurance including Family/Floater";
+  }
+
+  if (
+    normalized.includes("group business") &&
+    (normalized.includes("excluding") || normalized.includes("excluding government"))
+  ) {
+    return "Group Business (Excluding Government Business)";
+  }
+
+  if (
+    normalized.includes("group business") &&
+    (normalized.includes("including") || normalized.includes("government sponsored") || normalized.includes("rbsy") || normalized.includes("rsby"))
+  ) {
+    return "Group Business (Including Government Sponsored Insurance Schemes & RBSY)";
+  }
+
+  if (
+    normalized.includes("government business") ||
+    (normalized.includes("government") && (normalized.includes("rbsy") || normalized.includes("rsby") || normalized.includes("sponsored")))
+  ) {
+    return "Government Business (Including RBSY & Other Government Sponsored Schemes)";
+  }
+
+  return "";
+}
+
+function resolveYearInfoFromData(data) {
+  const candidateValues = [
+    data?.year,
+    data?.Year,
+    data?.financial_year,
+    data?.financialYear,
+    data?.fy,
+    data?.FY,
+  ];
+
+  for (const candidateValue of candidateValues) {
+    const yearInfo = resolveYearInfo(candidateValue);
+    if (yearInfo) {
+      return yearInfo;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(data || {})) {
+    if (!/year|fy|financial/i.test(fieldName)) {
+      continue;
+    }
+
+    const yearInfo = resolveYearInfo(fieldValue);
+    if (yearInfo) {
+      return yearInfo;
+    }
+  }
+
+  return null;
+}
 
 export function getInsurerTrend(insurer) {
   return getInsurerTrendByCollection(LIFE_INDIVIDUAL_AGENTS_COLLECTION, insurer);

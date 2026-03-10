@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import * as XLSX from "xlsx";
+import PlotComponentModule from "react-plotly.js";
+import PlotlyModule from "plotly.js-dist-min";
 import {
   AlertTriangle,
   BarChart2,
@@ -9,11 +11,14 @@ import {
   Building2,
   CheckCircle,
   CreditCard,
+  Download,
   FileText,
   Globe,
+  Info,
   IndianRupeeIcon,
   Landmark,
   LayoutGrid,
+  Loader2,
   MapPin,
   PieChart,
   RefreshCw,
@@ -25,6 +30,9 @@ import {
 } from "lucide-react";
 import { db } from "../firebase/firebaseConfig";
 import "../styles/life-insurance.css";
+
+const Plot = PlotComponentModule?.default || PlotComponentModule;
+const Plotly = PlotlyModule?.default || PlotlyModule;
 
 const TABS = [
   { id: "market-overview", label: "Market Overview", icon: BarChart3 },
@@ -98,6 +106,11 @@ export default function GeneralInsurance() {
   const [showTimelinePicker, setShowTimelinePicker] = useState(false);
   const [timelineStartYear, setTimelineStartYear] = useState("");
   const [timelineEndYear, setTimelineEndYear] = useState("");
+  const [visualizationType, setVisualizationType] = useState("line");
+  const [pendingVisualizationType, setPendingVisualizationType] = useState("line");
+  const [showChartTypePicker, setShowChartTypePicker] = useState(false);
+  const [chartGraphDiv, setChartGraphDiv] = useState(null);
+  const [isExportingImage, setIsExportingImage] = useState(false);
 
   const isInsurerDetailsView =
     activeTab === "market-overview" && selectedModule === "insurer-details";
@@ -204,7 +217,14 @@ export default function GeneralInsurance() {
 
     setSelectedAumInsurer("");
     setSelectedInvestmentCategory("");
+    setShowChartTypePicker(false);
+    setShowTimelinePicker(false);
+    setPendingVisualizationType(visualizationType);
   }, [isAumInsurerWiseView, selectedAumSector]);
+
+  useEffect(() => {
+    setPendingVisualizationType(visualizationType);
+  }, [visualizationType]);
 
   const insurerOptions = useMemo(
     () => insurers.map((insurer) => ({ label: insurer.insurerName, value: insurer.regNo })),
@@ -438,6 +458,176 @@ export default function GeneralInsurance() {
 
   const selectedSubModuleTitle =
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
+
+  const visualizationData = useMemo(() => {
+    if (!isAumInsurerWiseView) {
+      return [];
+    }
+
+    return visibleAumRows
+      .map((row) => ({ year: row.year, value: Number(row.value || 0) }))
+      .filter((row) => row.year && Number.isFinite(row.value));
+  }, [isAumInsurerWiseView, visibleAumRows]);
+
+  const chartTitle = useMemo(() => {
+    if (!isAumInsurerWiseView) {
+      return selectedSubModuleTitle;
+    }
+
+    return [
+      selectedSubModuleTitle,
+      appliedAumSector,
+      appliedAumInsurer,
+      formatInvestmentCategoryLabel(appliedInvestmentCategory),
+    ]
+      .filter(Boolean)
+      .join(" : ");
+  }, [
+    isAumInsurerWiseView,
+    selectedSubModuleTitle,
+    appliedAumSector,
+    appliedAumInsurer,
+    appliedInvestmentCategory,
+  ]);
+
+  const plotTraces = useMemo(() => {
+    const xValues = visualizationData.map((item) => String(item.year));
+    const yValues = visualizationData.map((item) => Number(item.value || 0));
+
+    if (visualizationType === "bar") {
+      return [
+        {
+          type: "bar",
+          name: "AUM",
+          x: xValues,
+          y: yValues,
+          marker: {
+            color: "rgba(14, 165, 164, 0.88)",
+            line: { color: "rgba(15, 118, 110, 0.95)", width: 1 },
+          },
+          hovertemplate: "%{x}<br>AUM: %{y:,}<extra></extra>",
+        },
+      ];
+    }
+
+    if (visualizationType === "area") {
+      return [
+        {
+          type: "scatter",
+          mode: "lines+markers",
+          name: "AUM",
+          x: xValues,
+          y: yValues,
+          line: { color: "#0ea5a4", width: 3 },
+          marker: { color: "#0ea5a4", size: 8 },
+          fill: "tozeroy",
+          fillcolor: "rgba(14, 165, 164, 0.14)",
+          hovertemplate: "%{x}<br>AUM: %{y:,}<extra></extra>",
+        },
+      ];
+    }
+
+    return [
+      {
+        type: "scatter",
+        mode: "lines+markers",
+        name: "AUM",
+        x: xValues,
+        y: yValues,
+        line: { color: "#0ea5a4", width: 3 },
+        marker: { color: "#0ea5a4", size: 8 },
+        hovertemplate: "%{x}<br>AUM: %{y:,}<extra></extra>",
+      },
+    ];
+  }, [visualizationData, visualizationType]);
+
+  const plotLayout = useMemo(
+    () => ({
+      autosize: true,
+      paper_bgcolor: "rgba(0, 0, 0, 0)",
+      plot_bgcolor: "rgba(0, 0, 0, 0)",
+      margin: { l: 60, r: 18, t: 82, b: 52 },
+      title: {
+        text: wrapChartTitle(chartTitle).text,
+        x: 0.5,
+        xanchor: "center",
+        y: 0.96,
+        yanchor: "top",
+        automargin: true,
+        font: {
+          size: 13,
+          color: "#0f172a",
+          family: "Segoe UI, Arial, sans-serif",
+        },
+      },
+      xaxis: {
+        title: {
+          text: "Year",
+          font: { size: 12, color: "#475569" },
+        },
+        showgrid: true,
+        gridcolor: "rgba(148, 163, 184, 0.16)",
+        zeroline: false,
+        tickfont: { size: 12, color: "#334155" },
+      },
+      yaxis: {
+        title: { text: "Assets under Management in Cr", font: { size: 12, color: "#475569" } },
+        showgrid: true,
+        gridcolor: "rgba(148, 163, 184, 0.16)",
+        zeroline: false,
+        tickfont: { size: 12, color: "#334155" },
+        separatethousands: true,
+      },
+      legend: {
+        orientation: "h",
+        x: 0,
+        y: -0.16,
+        font: { size: 14, color: "#334155" },
+      },
+    }),
+    [chartTitle]
+  );
+
+  const plotConfig = useMemo(
+    () => ({
+      responsive: true,
+      displaylogo: false,
+      toImageButtonOptions: {
+        format: "png",
+        filename: `${buildExportFileName(selectedSubModuleTitle, [
+          { label: "Sector", value: appliedAumSector },
+          { label: "Select Insurer", value: appliedAumInsurer },
+          { label: "Category", value: appliedInvestmentCategory },
+        ])}_chart`,
+        width: 1280,
+        height: 720,
+        scale: 2,
+      },
+      modeBarButtonsToRemove: ["select2d", "lasso2d", "toggleSpikelines", "autoScale2d"],
+    }),
+    [selectedSubModuleTitle, appliedAumSector, appliedAumInsurer, appliedInvestmentCategory]
+  );
+
+  const handleExportImage = async () => {
+    if (!chartGraphDiv || isExportingImage) {
+      return;
+    }
+
+    setIsExportingImage(true);
+    try {
+      await Plotly.downloadImage(chartGraphDiv, {
+        format: "png",
+        filename: `${slugifyValue(selectedSubModuleTitle)}_chart`,
+        width: 1280,
+        height: 720,
+        scale: 2,
+      });
+    } catch (error) {
+      console.error("Failed to export chart image:", error);
+    } finally {
+      setIsExportingImage(false);
+    }
+  };
 
   const handleResetFilters = () => {
     if (isAumInsurerWiseView) {
@@ -701,11 +891,15 @@ export default function GeneralInsurance() {
           <div className={`panel-body ${isInsurerDetailsView ? "panel-body-details" : ""}`}>
             {isInsurerDetailsView ? (
               detailsLoading ? (
-                <p className="panel-placeholder">Loading insurer details...</p>
+                <PanelState variant="loading" message="Loading insurer details..." />
               ) : detailsError ? (
-                <p className="panel-placeholder">{detailsError}</p>
+                <PanelState variant="error" message={detailsError} />
               ) : !selectedInsurerRegNo ? (
-                <p className="panel-placeholder">Select an insurer to view details.</p>
+                <PanelState
+                  variant="empty"
+                  message="Select an insurer to view details."
+                  hint="Results will appear here after selecting an insurer."
+                />
               ) : insurerDetailRows.length > 0 ? (
                 <div className="data-fields-list">
                   {insurerDetailRows.map((row) => (
@@ -713,15 +907,23 @@ export default function GeneralInsurance() {
                   ))}
                 </div>
               ) : (
-                <p className="panel-placeholder">Select an insurer to view details.</p>
+                <PanelState
+                  variant="empty"
+                  message="Select an insurer to view details."
+                  hint="Results will appear here after selecting an insurer."
+                />
               )
             ) : isAumInsurerWiseView ? (
               aumLoading ? (
-                <p className="panel-placeholder">Loading data...</p>
+                <PanelState variant="loading" message="Loading data..." />
               ) : aumError ? (
-                <p className="panel-placeholder">{aumError}</p>
+                <PanelState variant="error" message={aumError} />
               ) : !appliedAumSector || !appliedAumInsurer || !appliedInvestmentCategory ? (
-                <p className="panel-placeholder">Select filters and click Apply Filters to view data.</p>
+                <PanelState
+                  variant="empty"
+                  message="Select filters and click Apply Filters to view data."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
               ) : visibleAumRows.length > 0 ? (
                 <>
                   {showTimelinePicker && timelineYearOptions.length > 0 && (
@@ -768,6 +970,14 @@ export default function GeneralInsurance() {
                           ))}
                         </select>
                       </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setShowTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
                     </div>
                   )}
                   <div className="data-table-container">
@@ -776,9 +986,16 @@ export default function GeneralInsurance() {
                         <tr>
                           <th className="col-year">Year</th>
                           <th className="col-value">
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <IndianRupeeIcon size={14} strokeWidth={2.2} />
                               Assets under Management in Cr
-                              <IndianRupeeIcon size={13} strokeWidth={2.2} />
                             </span>
                           </th>
                         </tr>
@@ -786,12 +1003,16 @@ export default function GeneralInsurance() {
                       <tbody>
                         {visibleAumRows.map((row) => (
                           <tr key={row.year}>
-                            <td className="col-year">{row.year}</td>
+                            <td className="col-year">
+                              <span className="year-badge">{row.year}</span>
+                            </td>
                             <td className="col-value">
-                              {Number(row.value || 0).toLocaleString("en-IN", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
+                              <span className="value-amount">
+                                {Number(row.value || 0).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
                             </td>
                           </tr>
                         ))}
@@ -800,11 +1021,19 @@ export default function GeneralInsurance() {
                   </div>
                 </>
               ) : (
-                <p className="panel-placeholder">No data found for selected filters.</p>
+                <PanelState
+                  variant="empty"
+                  message="No data found for selected filters."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
               )
             ) : (
               <div className="data-table-container">
-                <p className="panel-placeholder">Select filters to view analytics.</p>
+                <PanelState
+                  variant="empty"
+                  message="Select filters to view analytics."
+                  hint="Results will appear here after applying filters."
+                />
               </div>
             )}
           </div>
@@ -816,14 +1045,120 @@ export default function GeneralInsurance() {
               <TrendingUp size={14} strokeWidth={2} />
             </div>
             <h3 className="panel-title section-title">Visualization Panel</h3>
+            {isAumInsurerWiseView && visualizationData.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  className="data-export-btn"
+                  onClick={() => setShowChartTypePicker((previous) => !previous)}
+                  title="Select chart type"
+                >
+                  Select Chart Type
+                </button>
+                <button
+                  type="button"
+                  className="data-export-btn panel-action-btn viz-export-btn"
+                  onClick={handleExportImage}
+                  disabled={isExportingImage}
+                  title="Export chart as image"
+                >
+                  <Download size={14} strokeWidth={2.2} />
+                  {isExportingImage ? "Exporting..." : "Export Image"}
+                </button>
+              </>
+            )}
           </div>
           <div className="panel-body viz-panel-body">
-            <div className="chart-wrapper">
-              <p className="panel-placeholder">Select filters to view analytics.</p>
-            </div>
+            {isAumInsurerWiseView ? (
+              aumLoading ? (
+                <PanelState
+                  variant="loading"
+                  message="Loading visualization"
+                  hint="Rendering chart for selected filters."
+                />
+              ) : aumError ? (
+                <PanelState variant="error" message={aumError} />
+              ) : visualizationData.length > 0 ? (
+                <>
+                  {showChartTypePicker && (
+                    <div className="timeline-filter-row chart-type-picker-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">Chart Type</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={pendingVisualizationType}
+                          onChange={(event) => setPendingVisualizationType(event.target.value)}
+                        >
+                          <option value="line">Line Chart</option>
+                          <option value="area">Area Chart</option>
+                          <option value="bar">Bar Chart</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => {
+                          setVisualizationType(pendingVisualizationType);
+                          setShowChartTypePicker(false);
+                        }}
+                        title="Apply chart type"
+                      >
+                        Apply Chart Type
+                      </button>
+                    </div>
+                  )}
+                  <div className="chart-wrapper plotly-chart-wrapper">
+                    <Plot
+                      data={plotTraces}
+                      layout={plotLayout}
+                      config={plotConfig}
+                      style={{ width: "100%", height: "100%" }}
+                      useResizeHandler
+                      onInitialized={(_, graphDiv) => setChartGraphDiv(graphDiv)}
+                      onUpdate={(_, graphDiv) => setChartGraphDiv(graphDiv)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message={
+                    !appliedAumSector || !appliedAumInsurer || !appliedInvestmentCategory
+                      ? "Select filters and click Apply Filters to view visualization."
+                      : "No data found for selected filters."
+                  }
+                  hint="Try widening the timeline or changing filters."
+                />
+              )
+            ) : (
+              <div className="chart-wrapper">
+                <PanelState
+                  variant="empty"
+                  message="Select filters to view analytics."
+                  hint="Chart will appear here once data is available."
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PanelState({ variant = "empty", message, hint = "" }) {
+  const icon =
+    variant === "loading" ? (
+      <Loader2 className="panel-state-icon spinning" size={20} strokeWidth={2.2} />
+    ) : (
+      <Info className="panel-state-icon" size={20} strokeWidth={2.2} />
+    );
+
+  return (
+    <div className={`panel-state panel-state-${variant}`}>
+      {icon}
+      <p className="panel-placeholder">{message}</p>
+      {hint ? <p className="panel-state-hint">{hint}</p> : null}
     </div>
   );
 }
@@ -837,7 +1172,7 @@ function FilterSelect({ label, options, value, onChange, placeholder = "Select" 
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
       >
-        <option value="">{placeholder}</option>
+        <option value="">--------</option>
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
@@ -1059,4 +1394,49 @@ function slugifyValue(value) {
 function escapeCsvValue(value) {
   const stringValue = value === undefined ? "" : String(value);
   return `"${stringValue.replace(/"/g, '""')}"`;
+}
+
+function wrapChartTitle(title) {
+  const safeTitle = String(title || "").trim();
+  if (!safeTitle) {
+    return { text: "", lineCount: 1 };
+  }
+
+  const segments = safeTitle.split(" : ").filter(Boolean);
+  const maxLineLength = 80;
+  const maxLines = 2;
+  const lines = [];
+  let currentLine = "";
+
+  for (const segment of segments) {
+    const nextValue = currentLine ? `${currentLine} : ${segment}` : segment;
+
+    if (nextValue.length <= maxLineLength || !currentLine) {
+      currentLine = nextValue;
+      continue;
+    }
+
+    lines.push(currentLine);
+    currentLine = segment;
+
+    if (lines.length === maxLines - 1) {
+      break;
+    }
+  }
+
+  if (currentLine && lines.length < maxLines) {
+    lines.push(currentLine);
+  }
+
+  const consumedLength = lines.join(" : ").length;
+  const hasRemainingText = safeTitle.length > consumedLength;
+
+  if (hasRemainingText && lines.length > 0) {
+    lines[lines.length - 1] = `${lines[lines.length - 1]} ...`;
+  }
+
+  return {
+    text: lines.join("<br>"),
+    lineCount: lines.length || 1,
+  };
 }

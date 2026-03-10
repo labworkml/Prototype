@@ -22,6 +22,7 @@ export default function DashboardLayout() {
   const userEmail = auth.currentUser?.email || "user@company.com";
 
   const breadcrumbItems = getBreadcrumbItems(location.pathname);
+  const isDashboardRoot = location.pathname === "/dashboard";
 
   const handleLogout = async () => {
     try {
@@ -36,12 +37,12 @@ export default function DashboardLayout() {
     <div className="app-container">
       <header className="navbar">
         <div className="navbar-breadcrumb">
-          {breadcrumbItems.map((item, index) => {
+          {!isDashboardRoot && breadcrumbItems.map((item, index) => {
             const isLast = index === breadcrumbItems.length - 1;
 
             return (
               <div key={item.path} className="navbar-crumb-item">
-                {index === 0 ? (
+                {index === 0 && breadcrumbItems.length > 1 ? (
                   <span className="navbar-crumb-arrow">←</span>
                 ) : null}
                 {isLast ? (

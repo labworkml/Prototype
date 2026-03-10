@@ -32,7 +32,7 @@ export default function Login() {
         <div className="login-card card">
           <div className="login-header">
             <h1 className="login-title">Insurance Analytics</h1>
-            <p className="login-subtitle">Analytics Platform for Insurance</p>
+            <p className="login-subtitle">Analytics Platform for Insurance Handbook Statistics</p>
           </div>
 
           <form onSubmit={handleLogin} className="login-form">
@@ -80,7 +80,7 @@ export default function Login() {
           </form>
 
           <div className="login-footer">
-            <p className="footer-text">© InsurTech Team.</p>
+            <p className="footer-text">Developed by InsurTech Team</p>
           </div>
         </div>
       </div>
