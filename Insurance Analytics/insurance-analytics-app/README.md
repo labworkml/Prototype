@@ -14,3 +14,24 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Firebase App Check
+
+App Check is initialized in `src/firebase/firebaseConfig.js` for the entire app.
+
+Set these Vite environment variables before running the app:
+
+```bash
+VITE_FIREBASE_APPCHECK_SITE_KEY=your_recaptcha_v3_site_key
+```
+
+Optional for local development only (to use debug token flow):
+
+```bash
+VITE_FIREBASE_APPCHECK_DEBUG_TOKEN=true
+```
+
+Notes:
+
+- `VITE_FIREBASE_APPCHECK_SITE_KEY` is required to enable App Check in frontend.
+- If site key is missing, the app will run and log a warning, but App Check will not be active.

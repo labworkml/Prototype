@@ -46,7 +46,7 @@ const TABS = [
 const SUB_MODULES = {
   "market-overview": [
     { id: "insurer-details", title: "Insurer Details", icon: FileText },
-    { id: "state-wise-analysis", title: "State Wise Analysis", icon: MapPin },
+    { id: "state-wise-analysis", title: "State Wise : Premium - Segment Analysis", icon: MapPin },
     { id: "issued-policies", title: "Number of Issued Policies", icon: LayoutGrid },
     { id: "aum", title: "Assets Under Management (AUM)", icon: Building2 },
     { id: "solvency-ratio", title: "Solvency Ratio", icon: CheckCircle },
@@ -112,10 +112,52 @@ export default function GeneralInsurance() {
   const [chartGraphDiv, setChartGraphDiv] = useState(null);
   const [isExportingImage, setIsExportingImage] = useState(false);
 
+  // Equity Share Capital state
+  const [equityCapitalRawDocs, setEquityCapitalRawDocs] = useState([]);
+  const [equityCapitalLoading, setEquityCapitalLoading] = useState(false);
+  const [equityCapitalError, setEquityCapitalError] = useState("");
+  const [selectedEscSector, setSelectedEscSector] = useState("");
+  const [selectedEscInsurer, setSelectedEscInsurer] = useState("");
+  const [appliedEscSector, setAppliedEscSector] = useState("");
+  const [appliedEscInsurer, setAppliedEscInsurer] = useState("");
+
+  // Gross Direct Premium state
+  const [grossDirectPremiumRawDocs, setGrossDirectPremiumRawDocs] = useState([]);
+  const [grossDirectPremiumLoading, setGrossDirectPremiumLoading] = useState(false);
+  const [grossDirectPremiumError, setGrossDirectPremiumError] = useState("");
+  const [selectedGdpInsurer, setSelectedGdpInsurer] = useState("");
+  const [appliedGdpInsurer, setAppliedGdpInsurer] = useState("");
+
+  // Premium Segment Analysis state
+  const [segmentGdpRawDocs, setSegmentGdpRawDocs] = useState([]);
+  const [segmentGdpLoading, setSegmentGdpLoading] = useState(false);
+  const [segmentGdpError, setSegmentGdpError] = useState("");
+  const [selectedSegmentInsurer, setSelectedSegmentInsurer] = useState("");
+  const [selectedSegment, setSelectedSegment] = useState("");
+  const [appliedSegmentInsurer, setAppliedSegmentInsurer] = useState("");
+  const [appliedSegment, setAppliedSegment] = useState("");
+
+  // State-wise Premium Segment GDP state
+  const [stateSegmentGdpRawDocs, setStateSegmentGdpRawDocs] = useState([]);
+  const [stateSegmentGdpLoading, setStateSegmentGdpLoading] = useState(false);
+  const [stateSegmentGdpError, setStateSegmentGdpError] = useState("");
+  const [selectedStateGdpState, setSelectedStateGdpState] = useState("");
+  const [selectedStateGdpSegment, setSelectedStateGdpSegment] = useState("");
+  const [appliedStateGdpState, setAppliedStateGdpState] = useState("");
+  const [appliedStateGdpSegment, setAppliedStateGdpSegment] = useState("");
+
   const isInsurerDetailsView =
     activeTab === "market-overview" && selectedModule === "insurer-details";
   const isAumInsurerWiseView =
     activeTab === "financials" && selectedModule === "aum-insurer-wise";
+  const isEquityCapitalView =
+    activeTab === "financials" && selectedModule === "equity-share-capital";
+  const isGrossDirectPremiumView =
+    activeTab === "insurer-performance" && selectedModule === "gross-direct-premium";
+  const isPremiumSegmentAnalysisView =
+    activeTab === "insurer-performance" && selectedModule === "premium-segment-analysis";
+  const isStatewisePremiumSegmentView =
+    activeTab === "market-overview" && selectedModule === "state-wise-analysis";
 
   useEffect(() => {
     const fetchInsurers = async () => {
@@ -221,6 +263,201 @@ export default function GeneralInsurance() {
     setShowTimelinePicker(false);
     setPendingVisualizationType(visualizationType);
   }, [isAumInsurerWiseView, selectedAumSector]);
+
+  // Fetch Equity Capital Data
+  useEffect(() => {
+    if (!isEquityCapitalView || equityCapitalRawDocs.length > 0) {
+      return;
+    }
+
+    const fetchEquityCapitalDocs = async () => {
+      setEquityCapitalLoading(true);
+      setEquityCapitalError("");
+
+      try {
+        const snapshot = await getDocs(collection(db, "Sheet48_Equity_Share_Capital_NonLife_db"));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setEquityCapitalRawDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch Equity Capital data:", error);
+        setEquityCapitalError("Unable to load Equity Capital data.");
+        setEquityCapitalRawDocs([]);
+      } finally {
+        setEquityCapitalLoading(false);
+      }
+    };
+
+    fetchEquityCapitalDocs();
+  }, [isEquityCapitalView, equityCapitalRawDocs.length]);
+
+  // Reset Equity Capital filters when entering the view
+  useEffect(() => {
+    if (!isEquityCapitalView) {
+      return;
+    }
+
+    setSelectedEscSector("");
+    setSelectedEscInsurer("");
+    setShowChartTypePicker(false);
+    setShowTimelinePicker(false);
+  }, [isEquityCapitalView]);
+
+  // Reset Equity Capital insurer when sector changes
+  useEffect(() => {
+    if (!isEquityCapitalView || selectedEscSector === "") {
+      return;
+    }
+
+    setSelectedEscInsurer("");
+  }, [selectedEscSector, isEquityCapitalView]);
+
+  // Fetch Gross Direct Premium data
+  useEffect(() => {
+    if (!isGrossDirectPremiumView || grossDirectPremiumRawDocs.length > 0) {
+      return;
+    }
+
+    const fetchGrossDirectPremiumDocs = async () => {
+      setGrossDirectPremiumLoading(true);
+      setGrossDirectPremiumError("");
+
+      try {
+        const snapshot = await getDocs(collection(db, "Sheet40_Gross_Direct_Premium_Nonlife"));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setGrossDirectPremiumRawDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch Gross Direct Premium data:", error);
+        setGrossDirectPremiumError("Unable to load Gross Direct Premium data.");
+        setGrossDirectPremiumRawDocs([]);
+      } finally {
+        setGrossDirectPremiumLoading(false);
+      }
+    };
+
+    fetchGrossDirectPremiumDocs();
+  }, [isGrossDirectPremiumView, grossDirectPremiumRawDocs.length]);
+
+  // Reset Gross Direct Premium filters when entering the view
+  useEffect(() => {
+    if (!isGrossDirectPremiumView) {
+      return;
+    }
+
+    setSelectedGdpInsurer("");
+    setAppliedGdpInsurer("");
+    setShowChartTypePicker(false);
+    setShowTimelinePicker(false);
+  }, [isGrossDirectPremiumView]);
+
+  // Fetch Premium Segment Analysis data
+  useEffect(() => {
+    if (!isPremiumSegmentAnalysisView || segmentGdpRawDocs.length > 0) {
+      return;
+    }
+
+    const fetchSegmentGdpDocs = async () => {
+      setSegmentGdpLoading(true);
+      setSegmentGdpError("");
+
+      try {
+        const snapshot = await getDocs(collection(db, "sheet41_segment_gdp_nonlife"));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setSegmentGdpRawDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch Premium Segment Analysis data:", error);
+        setSegmentGdpError("Unable to load Premium Segment Analysis data.");
+        setSegmentGdpRawDocs([]);
+      } finally {
+        setSegmentGdpLoading(false);
+      }
+    };
+
+    fetchSegmentGdpDocs();
+  }, [isPremiumSegmentAnalysisView, segmentGdpRawDocs.length]);
+
+  useEffect(() => {
+    if (!isPremiumSegmentAnalysisView) {
+      return;
+    }
+
+    setSelectedSegmentInsurer("");
+    setSelectedSegment("");
+    setAppliedSegmentInsurer("");
+    setAppliedSegment("");
+    setShowChartTypePicker(false);
+    setShowTimelinePicker(false);
+  }, [isPremiumSegmentAnalysisView]);
+
+  useEffect(() => {
+    if (!isPremiumSegmentAnalysisView || !selectedSegmentInsurer) {
+      return;
+    }
+
+    setSelectedSegment("");
+  }, [isPremiumSegmentAnalysisView, selectedSegmentInsurer]);
+
+  // Fetch State-wise Premium Segment GDP data
+  useEffect(() => {
+    if (!isStatewisePremiumSegmentView || stateSegmentGdpRawDocs.length > 0) {
+      return;
+    }
+
+    const fetchStateSegmentGdpDocs = async () => {
+      setStateSegmentGdpLoading(true);
+      setStateSegmentGdpError("");
+
+      try {
+        const snapshot = await getDocs(collection(db, "Sheet42_state_gdp_segment"));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setStateSegmentGdpRawDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch State-wise Premium Segment GDP data:", error);
+        setStateSegmentGdpError("Unable to load State-wise Premium Segment GDP data.");
+        setStateSegmentGdpRawDocs([]);
+      } finally {
+        setStateSegmentGdpLoading(false);
+      }
+    };
+
+    fetchStateSegmentGdpDocs();
+  }, [isStatewisePremiumSegmentView, stateSegmentGdpRawDocs.length]);
+
+  useEffect(() => {
+    if (!isStatewisePremiumSegmentView) {
+      return;
+    }
+
+    setSelectedStateGdpState("");
+    setSelectedStateGdpSegment("");
+    setAppliedStateGdpState("");
+    setAppliedStateGdpSegment("");
+    setShowChartTypePicker(false);
+    setShowTimelinePicker(false);
+  }, [isStatewisePremiumSegmentView]);
+
+  useEffect(() => {
+    if (!isStatewisePremiumSegmentView || !selectedStateGdpState) {
+      return;
+    }
+
+    setSelectedStateGdpSegment("");
+  }, [isStatewisePremiumSegmentView, selectedStateGdpState]);
 
   useEffect(() => {
     setPendingVisualizationType(visualizationType);
@@ -328,7 +565,11 @@ export default function GeneralInsurance() {
   ]);
 
   useEffect(() => {
-    if (!isAumInsurerWiseView || aumAppliedRows.length === 0) {
+    if (!isAumInsurerWiseView) {
+      return;
+    }
+
+    if (aumAppliedRows.length === 0) {
       setTimelineStartYear("");
       setTimelineEndYear("");
       return;
@@ -384,9 +625,530 @@ export default function GeneralInsurance() {
     });
   }, [aumAppliedRows, timelineStartYear, timelineEndYear]);
 
+  // Equity Capital Sector Options
+  const escSectorOptions = useMemo(() => {
+    return Array.from(
+      new Set(equityCapitalRawDocs.map((document) => resolveSector(document)).filter(Boolean))
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((sector) => ({ label: sector, value: sector }));
+  }, [equityCapitalRawDocs]);
+
+  // Equity Capital Insurer Options (filtered by sector)
+  const escInsurerOptions = useMemo(() => {
+    const normalizedSector = normalizeText(selectedEscSector);
+
+    return Array.from(
+      new Set(
+        equityCapitalRawDocs
+          .filter((document) => {
+            if (!normalizedSector) {
+              return true;
+            }
+
+            return normalizeText(resolveSector(document)) === normalizedSector;
+          })
+          .map((document) => resolveInsurerName(document))
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((insurerName) => ({ label: insurerName, value: insurerName }));
+  }, [equityCapitalRawDocs, selectedEscSector]);
+
+  // Equity Capital Applied Rows (filtered data to display)
+  const escAppliedRows = useMemo(() => {
+    if (!isEquityCapitalView || !appliedEscSector || !appliedEscInsurer) {
+      return [];
+    }
+
+    const normalizedSector = normalizeText(appliedEscSector);
+    const normalizedInsurer = normalizeText(appliedEscInsurer);
+    const yearTotals = new Map();
+
+    equityCapitalRawDocs.forEach((document) => {
+      if (normalizeText(resolveSector(document)) !== normalizedSector) {
+        return;
+      }
+
+      if (normalizeText(resolveInsurerName(document)) !== normalizedInsurer) {
+        return;
+      }
+
+      const yearLabel = resolveYearLabel(document);
+      if (!yearLabel) {
+        return;
+      }
+
+      const equityValue = resolveEquityCapitalValue(document);
+      yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + equityValue);
+    });
+
+    return Array.from(yearTotals.entries())
+      .map(([year, value]) => ({ year, value }))
+      .sort((first, second) => resolveYearSortValue(first.year) - resolveYearSortValue(second.year));
+  }, [
+    isEquityCapitalView,
+    appliedEscSector,
+    appliedEscInsurer,
+    equityCapitalRawDocs,
+  ]);
+
+  const gdpInsurerOptions = useMemo(() => {
+    return Array.from(
+      new Set(grossDirectPremiumRawDocs.map((document) => resolveInsurerName(document)).filter(Boolean))
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((insurerName) => ({ label: insurerName, value: insurerName }));
+  }, [grossDirectPremiumRawDocs]);
+
+  const gdpAppliedRows = useMemo(() => {
+    if (!isGrossDirectPremiumView || !appliedGdpInsurer) {
+      return [];
+    }
+
+    const normalizedInsurer = normalizeText(appliedGdpInsurer);
+    const yearTotals = new Map();
+
+    grossDirectPremiumRawDocs.forEach((document) => {
+      if (normalizeText(resolveInsurerName(document)) !== normalizedInsurer) {
+        return;
+      }
+
+      const yearLabel = resolveYearLabel(document);
+      if (!yearLabel) {
+        return;
+      }
+
+      const premiumValue = resolveGrossDirectPremiumValue(document);
+      yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + premiumValue);
+    });
+
+    return Array.from(yearTotals.entries())
+      .map(([year, value]) => ({ year, value }))
+      .sort((first, second) => resolveYearSortValue(first.year) - resolveYearSortValue(second.year));
+  }, [isGrossDirectPremiumView, appliedGdpInsurer, grossDirectPremiumRawDocs]);
+
+  const segmentInsurerOptions = useMemo(() => {
+    return Array.from(
+      new Set(segmentGdpRawDocs.map((document) => resolveInsurerName(document)).filter(Boolean))
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((insurerName) => ({ label: insurerName, value: insurerName }));
+  }, [segmentGdpRawDocs]);
+
+  const segmentOptions = useMemo(() => {
+    const normalizedInsurer = normalizeText(selectedSegmentInsurer);
+
+    return Array.from(
+      new Set(
+        segmentGdpRawDocs
+          .filter((document) => {
+            if (!normalizedInsurer) {
+              return true;
+            }
+
+            return normalizeText(resolveInsurerName(document)) === normalizedInsurer;
+          })
+          .map((document) => resolveSegmentName(document))
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((segmentName) => ({ label: segmentName, value: segmentName }));
+  }, [segmentGdpRawDocs, selectedSegmentInsurer]);
+
+  const segmentAppliedRows = useMemo(() => {
+    if (!isPremiumSegmentAnalysisView || !appliedSegmentInsurer || !appliedSegment) {
+      return [];
+    }
+
+    const normalizedInsurer = normalizeText(appliedSegmentInsurer);
+    const normalizedSegment = normalizeText(appliedSegment);
+    const yearTotals = new Map();
+
+    segmentGdpRawDocs.forEach((document) => {
+      if (normalizeText(resolveInsurerName(document)) !== normalizedInsurer) {
+        return;
+      }
+
+      if (normalizeText(resolveSegmentName(document)) !== normalizedSegment) {
+        return;
+      }
+
+      const yearLabel = resolveYearLabel(document);
+      if (!yearLabel) {
+        return;
+      }
+
+      const segmentValue = resolveSegmentGdpValue(document);
+      yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + segmentValue);
+    });
+
+    return Array.from(yearTotals.entries())
+      .map(([year, value]) => ({ year, value }))
+      .sort((first, second) => resolveYearSortValue(first.year) - resolveYearSortValue(second.year));
+  }, [isPremiumSegmentAnalysisView, appliedSegmentInsurer, appliedSegment, segmentGdpRawDocs]);
+
+  const stateGdpStateOptions = useMemo(() => {
+    return Array.from(
+      new Set(stateSegmentGdpRawDocs.map((document) => resolveStateName(document)).filter(Boolean))
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((stateName) => ({ label: stateName, value: stateName }));
+  }, [stateSegmentGdpRawDocs]);
+
+  const stateGdpSegmentOptions = useMemo(() => {
+    const normalizedState = normalizeText(selectedStateGdpState);
+
+    return Array.from(
+      new Set(
+        stateSegmentGdpRawDocs
+          .filter((document) => {
+            if (!normalizedState) {
+              return true;
+            }
+
+            return normalizeText(resolveStateName(document)) === normalizedState;
+          })
+          .map((document) => resolveSegmentName(document))
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((segmentName) => ({ label: segmentName, value: segmentName }));
+  }, [stateSegmentGdpRawDocs, selectedStateGdpState]);
+
+  const stateSegmentAppliedRows = useMemo(() => {
+    if (!isStatewisePremiumSegmentView || !appliedStateGdpState || !appliedStateGdpSegment) {
+      return [];
+    }
+
+    const normalizedState = normalizeText(appliedStateGdpState);
+    const normalizedSegment = normalizeText(appliedStateGdpSegment);
+    const yearTotals = new Map();
+
+    stateSegmentGdpRawDocs.forEach((document) => {
+      if (normalizeText(resolveStateName(document)) !== normalizedState) {
+        return;
+      }
+
+      if (normalizeText(resolveSegmentName(document)) !== normalizedSegment) {
+        return;
+      }
+
+      const yearLabel = resolveYearLabel(document);
+      if (!yearLabel) {
+        return;
+      }
+
+      const gdpValue = resolveStateSegmentGdpValue(document);
+      yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + gdpValue);
+    });
+
+    return Array.from(yearTotals.entries())
+      .map(([year, value]) => ({ year, value }))
+      .sort((first, second) => resolveYearSortValue(first.year) - resolveYearSortValue(second.year));
+  }, [
+    isStatewisePremiumSegmentView,
+    appliedStateGdpState,
+    appliedStateGdpSegment,
+    stateSegmentGdpRawDocs,
+  ]);
+
+  useEffect(() => {
+    if (!isEquityCapitalView) {
+      return;
+    }
+
+    if (escAppliedRows.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const timelineYears = escAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    if (timelineYears.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const minimumYear = String(timelineYears[0]);
+    const maximumYear = String(timelineYears[timelineYears.length - 1]);
+
+    if (!timelineStartYear) {
+      setTimelineStartYear(minimumYear);
+    }
+
+    if (!timelineEndYear) {
+      setTimelineEndYear(maximumYear);
+    }
+  }, [isEquityCapitalView, escAppliedRows, timelineStartYear, timelineEndYear]);
+
+  useEffect(() => {
+    if (!isGrossDirectPremiumView) {
+      return;
+    }
+
+    if (gdpAppliedRows.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const timelineYears = gdpAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    if (timelineYears.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const minimumYear = String(timelineYears[0]);
+    const maximumYear = String(timelineYears[timelineYears.length - 1]);
+
+    if (!timelineStartYear) {
+      setTimelineStartYear(minimumYear);
+    }
+
+    if (!timelineEndYear) {
+      setTimelineEndYear(maximumYear);
+    }
+  }, [isGrossDirectPremiumView, gdpAppliedRows, timelineStartYear, timelineEndYear]);
+
+  useEffect(() => {
+    if (!isPremiumSegmentAnalysisView) {
+      return;
+    }
+
+    if (segmentAppliedRows.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const timelineYears = segmentAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    if (timelineYears.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const minimumYear = String(timelineYears[0]);
+    const maximumYear = String(timelineYears[timelineYears.length - 1]);
+
+    if (!timelineStartYear) {
+      setTimelineStartYear(minimumYear);
+    }
+
+    if (!timelineEndYear) {
+      setTimelineEndYear(maximumYear);
+    }
+  }, [isPremiumSegmentAnalysisView, segmentAppliedRows, timelineStartYear, timelineEndYear]);
+
+  useEffect(() => {
+    if (!isStatewisePremiumSegmentView) {
+      return;
+    }
+
+    if (stateSegmentAppliedRows.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const timelineYears = stateSegmentAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    if (timelineYears.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const minimumYear = String(timelineYears[0]);
+    const maximumYear = String(timelineYears[timelineYears.length - 1]);
+
+    if (!timelineStartYear) {
+      setTimelineStartYear(minimumYear);
+    }
+
+    if (!timelineEndYear) {
+      setTimelineEndYear(maximumYear);
+    }
+  }, [isStatewisePremiumSegmentView, stateSegmentAppliedRows, timelineStartYear, timelineEndYear]);
+
+  // Timeline year options for Equity Capital
+  const escTimelineYearOptions = useMemo(() => {
+    const years = escAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    return Array.from(new Set(years));
+  }, [escAppliedRows]);
+
+  // Visible Equity Capital Rows (filtered by timeline)
+  const visibleEscRows = useMemo(() => {
+    if (!escAppliedRows.length) {
+      return [];
+    }
+
+    if (!timelineStartYear || !timelineEndYear) {
+      return escAppliedRows;
+    }
+
+    const startYear = Number(timelineStartYear);
+    const endYear = Number(timelineEndYear);
+
+    return escAppliedRows.filter((row) => {
+      const rowYear = resolveYearSortValue(row.year);
+      return rowYear >= startYear && rowYear <= endYear;
+    });
+  }, [escAppliedRows, timelineStartYear, timelineEndYear]);
+
+  const gdpTimelineYearOptions = useMemo(() => {
+    const years = gdpAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    return Array.from(new Set(years));
+  }, [gdpAppliedRows]);
+
+  const visibleGdpRows = useMemo(() => {
+    if (!gdpAppliedRows.length) {
+      return [];
+    }
+
+    if (!timelineStartYear || !timelineEndYear) {
+      return gdpAppliedRows;
+    }
+
+    const startYear = Number(timelineStartYear);
+    const endYear = Number(timelineEndYear);
+
+    return gdpAppliedRows.filter((row) => {
+      const rowYear = resolveYearSortValue(row.year);
+      return rowYear >= startYear && rowYear <= endYear;
+    });
+  }, [gdpAppliedRows, timelineStartYear, timelineEndYear]);
+
+  const segmentTimelineYearOptions = useMemo(() => {
+    const years = segmentAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    return Array.from(new Set(years));
+  }, [segmentAppliedRows]);
+
+  const visibleSegmentRows = useMemo(() => {
+    if (!segmentAppliedRows.length) {
+      return [];
+    }
+
+    if (!timelineStartYear || !timelineEndYear) {
+      return segmentAppliedRows;
+    }
+
+    const startYear = Number(timelineStartYear);
+    const endYear = Number(timelineEndYear);
+
+    return segmentAppliedRows.filter((row) => {
+      const rowYear = resolveYearSortValue(row.year);
+      return rowYear >= startYear && rowYear <= endYear;
+    });
+  }, [segmentAppliedRows, timelineStartYear, timelineEndYear]);
+
+  const stateSegmentTimelineYearOptions = useMemo(() => {
+    const years = stateSegmentAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    return Array.from(new Set(years));
+  }, [stateSegmentAppliedRows]);
+
+  const visibleStateSegmentRows = useMemo(() => {
+    if (!stateSegmentAppliedRows.length) {
+      return [];
+    }
+
+    if (!timelineStartYear || !timelineEndYear) {
+      return stateSegmentAppliedRows;
+    }
+
+    const startYear = Number(timelineStartYear);
+    const endYear = Number(timelineEndYear);
+
+    return stateSegmentAppliedRows.filter((row) => {
+      const rowYear = resolveYearSortValue(row.year);
+      return rowYear >= startYear && rowYear <= endYear;
+    });
+  }, [stateSegmentAppliedRows, timelineStartYear, timelineEndYear]);
+
   const filterConfig = useMemo(
     () =>
-      isAumInsurerWiseView
+      isGrossDirectPremiumView
+        ? [
+            {
+              label: "Select Insurer",
+              options: gdpInsurerOptions,
+              value: selectedGdpInsurer,
+              onChange: setSelectedGdpInsurer,
+              placeholder: "Select Insurer",
+            },
+          ]
+        : isStatewisePremiumSegmentView
+        ? [
+            {
+              label: "Select State",
+              options: stateGdpStateOptions,
+              value: selectedStateGdpState,
+              onChange: setSelectedStateGdpState,
+              placeholder: "Select State",
+            },
+            {
+              label: "Select Segment",
+              options: stateGdpSegmentOptions,
+              value: selectedStateGdpSegment,
+              onChange: setSelectedStateGdpSegment,
+              placeholder: "Select Segment",
+            },
+          ]
+        : isPremiumSegmentAnalysisView
+        ? [
+            {
+              label: "Select Insurer",
+              options: segmentInsurerOptions,
+              value: selectedSegmentInsurer,
+              onChange: setSelectedSegmentInsurer,
+              placeholder: "Select Insurer",
+            },
+            {
+              label: "Select Segment",
+              options: segmentOptions,
+              value: selectedSegment,
+              onChange: setSelectedSegment,
+              placeholder: "Select Segment",
+            },
+          ]
+        : isAumInsurerWiseView
         ? [
             {
               label: "Sector",
@@ -410,6 +1172,23 @@ export default function GeneralInsurance() {
               placeholder: "Select Category of Investment",
             },
           ]
+        : isEquityCapitalView
+        ? [
+            {
+              label: "Select Sector",
+              options: escSectorOptions,
+              value: selectedEscSector,
+              onChange: setSelectedEscSector,
+              placeholder: "Select Sector",
+            },
+            {
+              label: "Select Insurer",
+              options: escInsurerOptions,
+              value: selectedEscInsurer,
+              onChange: setSelectedEscInsurer,
+              placeholder: "Select Insurer",
+            },
+          ]
         : [
             {
               label: "Select Insurer",
@@ -420,13 +1199,31 @@ export default function GeneralInsurance() {
             },
           ],
     [
+      isGrossDirectPremiumView,
+      gdpInsurerOptions,
+      selectedGdpInsurer,
+      isStatewisePremiumSegmentView,
+      stateGdpStateOptions,
+      selectedStateGdpState,
+      stateGdpSegmentOptions,
+      selectedStateGdpSegment,
+      isPremiumSegmentAnalysisView,
+      segmentInsurerOptions,
+      selectedSegmentInsurer,
+      segmentOptions,
+      selectedSegment,
       isAumInsurerWiseView,
+      isEquityCapitalView,
       aumSectorOptions,
       selectedAumSector,
       aumInsurerOptions,
       selectedAumInsurer,
       investmentCategoryOptions,
       selectedInvestmentCategory,
+      escSectorOptions,
+      selectedEscSector,
+      escInsurerOptions,
+      selectedEscInsurer,
       insurerOptions,
       selectedInsurerRegNo,
     ]
@@ -460,52 +1257,156 @@ export default function GeneralInsurance() {
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
 
   const visualizationData = useMemo(() => {
-    if (!isAumInsurerWiseView) {
+    if (!isAumInsurerWiseView && !isGrossDirectPremiumView && !isPremiumSegmentAnalysisView && !isStatewisePremiumSegmentView) {
       return [];
     }
 
-    return visibleAumRows
+    const rows = isGrossDirectPremiumView
+      ? visibleGdpRows
+      : isStatewisePremiumSegmentView
+      ? visibleStateSegmentRows
+      : isPremiumSegmentAnalysisView
+      ? visibleSegmentRows
+      : visibleAumRows;
+
+    return rows
       .map((row) => ({ year: row.year, value: Number(row.value || 0) }))
       .filter((row) => row.year && Number.isFinite(row.value));
-  }, [isAumInsurerWiseView, visibleAumRows]);
-
-  const chartTitle = useMemo(() => {
-    if (!isAumInsurerWiseView) {
-      return selectedSubModuleTitle;
-    }
-
-    return [
-      selectedSubModuleTitle,
-      appliedAumSector,
-      appliedAumInsurer,
-      formatInvestmentCategoryLabel(appliedInvestmentCategory),
-    ]
-      .filter(Boolean)
-      .join(" : ");
   }, [
     isAumInsurerWiseView,
+    isGrossDirectPremiumView,
+    isStatewisePremiumSegmentView,
+    isPremiumSegmentAnalysisView,
+    visibleAumRows,
+    visibleGdpRows,
+    visibleStateSegmentRows,
+    visibleSegmentRows,
+  ]);
+
+  // Equity Capital Visualization Data
+  const escVisualizationData = useMemo(() => {
+    if (!isEquityCapitalView) {
+      return [];
+    }
+
+    return visibleEscRows
+      .map((row) => ({ year: row.year, value: Number(row.value || 0) }))
+      .filter((row) => row.year && Number.isFinite(row.value));
+  }, [isEquityCapitalView, visibleEscRows]);
+
+  // Combined visualization data for chart rendering
+  const activeVisualizationData = useMemo(() => {
+    return isAumInsurerWiseView || isGrossDirectPremiumView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView
+      ? visualizationData
+      : escVisualizationData;
+  }, [
+    isAumInsurerWiseView,
+    isGrossDirectPremiumView,
+    isPremiumSegmentAnalysisView,
+    isStatewisePremiumSegmentView,
+    visualizationData,
+    escVisualizationData,
+  ]);
+
+  const chartTitle = useMemo(() => {
+    if (isAumInsurerWiseView) {
+      return [
+        selectedSubModuleTitle,
+        appliedAumSector,
+        appliedAumInsurer,
+        formatInvestmentCategoryLabel(appliedInvestmentCategory),
+      ]
+        .filter(Boolean)
+        .join(" : ");
+    }
+
+    if (isGrossDirectPremiumView) {
+      return [selectedSubModuleTitle, appliedGdpInsurer].filter(Boolean).join(" : ");
+    }
+
+    if (isStatewisePremiumSegmentView) {
+      return [selectedSubModuleTitle, appliedStateGdpState, appliedStateGdpSegment]
+        .filter(Boolean)
+        .join(" : ");
+    }
+
+    if (isPremiumSegmentAnalysisView) {
+      return [selectedSubModuleTitle, appliedSegmentInsurer, appliedSegment]
+        .filter(Boolean)
+        .join(" : ");
+    }
+
+    if (isEquityCapitalView) {
+      return [
+        selectedSubModuleTitle,
+        appliedEscSector,
+        appliedEscInsurer,
+      ]
+        .filter(Boolean)
+        .join(" : ");
+    }
+
+    return selectedSubModuleTitle;
+  }, [
+    isAumInsurerWiseView,
+    isEquityCapitalView,
     selectedSubModuleTitle,
     appliedAumSector,
     appliedAumInsurer,
     appliedInvestmentCategory,
+    isGrossDirectPremiumView,
+    appliedGdpInsurer,
+    isStatewisePremiumSegmentView,
+    appliedStateGdpState,
+    appliedStateGdpSegment,
+    isPremiumSegmentAnalysisView,
+    appliedSegmentInsurer,
+    appliedSegment,
+    appliedEscSector,
+    appliedEscInsurer,
+  ]);
+
+  const dataLabel = useMemo(() => {
+    if (isAumInsurerWiseView) {
+      return "AUM";
+    }
+    if (isGrossDirectPremiumView) {
+      return "Gross Direct Premium";
+    }
+    if (isStatewisePremiumSegmentView) {
+      return "GDP";
+    }
+    if (isPremiumSegmentAnalysisView) {
+      return "Segment GDP";
+    }
+    if (isEquityCapitalView) {
+      return "Equity Share Capital";
+    }
+    return "Value";
+  }, [
+    isAumInsurerWiseView,
+    isGrossDirectPremiumView,
+    isStatewisePremiumSegmentView,
+    isPremiumSegmentAnalysisView,
+    isEquityCapitalView,
   ]);
 
   const plotTraces = useMemo(() => {
-    const xValues = visualizationData.map((item) => String(item.year));
-    const yValues = visualizationData.map((item) => Number(item.value || 0));
+    const xValues = activeVisualizationData.map((item) => String(item.year));
+    const yValues = activeVisualizationData.map((item) => Number(item.value || 0));
 
     if (visualizationType === "bar") {
       return [
         {
           type: "bar",
-          name: "AUM",
+          name: dataLabel,
           x: xValues,
           y: yValues,
           marker: {
             color: "rgba(14, 165, 164, 0.88)",
             line: { color: "rgba(15, 118, 110, 0.95)", width: 1 },
           },
-          hovertemplate: "%{x}<br>AUM: %{y:,}<extra></extra>",
+          hovertemplate: `%{x}<br>${dataLabel}: %{y:,}<extra></extra>`,
         },
       ];
     }
@@ -515,14 +1416,14 @@ export default function GeneralInsurance() {
         {
           type: "scatter",
           mode: "lines+markers",
-          name: "AUM",
+          name: dataLabel,
           x: xValues,
           y: yValues,
           line: { color: "#0ea5a4", width: 3 },
           marker: { color: "#0ea5a4", size: 8 },
           fill: "tozeroy",
           fillcolor: "rgba(14, 165, 164, 0.14)",
-          hovertemplate: "%{x}<br>AUM: %{y:,}<extra></extra>",
+          hovertemplate: `%{x}<br>${dataLabel}: %{y:,}<extra></extra>`,
         },
       ];
     }
@@ -531,15 +1432,40 @@ export default function GeneralInsurance() {
       {
         type: "scatter",
         mode: "lines+markers",
-        name: "AUM",
+        name: dataLabel,
         x: xValues,
         y: yValues,
         line: { color: "#0ea5a4", width: 3 },
         marker: { color: "#0ea5a4", size: 8 },
-        hovertemplate: "%{x}<br>AUM: %{y:,}<extra></extra>",
+        hovertemplate: `%{x}<br>${dataLabel}: %{y:,}<extra></extra>`,
       },
     ];
-  }, [visualizationData, visualizationType]);
+  }, [activeVisualizationData, visualizationType, dataLabel]);
+
+  const yaxisTitle = useMemo(() => {
+    if (isAumInsurerWiseView) {
+      return "Assets under Management in Cr";
+    }
+    if (isGrossDirectPremiumView) {
+      return "Gross Direct Premium in Cr";
+    }
+    if (isStatewisePremiumSegmentView) {
+      return "GDP in Cr";
+    }
+    if (isPremiumSegmentAnalysisView) {
+      return "Segment GDP in Cr";
+    }
+    if (isEquityCapitalView) {
+      return "Equity Share Capital in Cr";
+    }
+    return "Value";
+  }, [
+    isAumInsurerWiseView,
+    isGrossDirectPremiumView,
+    isStatewisePremiumSegmentView,
+    isPremiumSegmentAnalysisView,
+    isEquityCapitalView,
+  ]);
 
   const plotLayout = useMemo(
     () => ({
@@ -571,7 +1497,7 @@ export default function GeneralInsurance() {
         tickfont: { size: 12, color: "#334155" },
       },
       yaxis: {
-        title: { text: "Assets under Management in Cr", font: { size: 12, color: "#475569" } },
+        title: { text: yaxisTitle, font: { size: 12, color: "#475569" } },
         showgrid: true,
         gridcolor: "rgba(148, 163, 184, 0.16)",
         zeroline: false,
@@ -585,7 +1511,7 @@ export default function GeneralInsurance() {
         font: { size: 14, color: "#334155" },
       },
     }),
-    [chartTitle]
+    [chartTitle, yaxisTitle]
   );
 
   const plotConfig = useMemo(
@@ -595,6 +1521,11 @@ export default function GeneralInsurance() {
       toImageButtonOptions: {
         format: "png",
         filename: `${buildExportFileName(selectedSubModuleTitle, [
+          { label: "Select State", value: appliedStateGdpState },
+          { label: "Select Segment", value: appliedStateGdpSegment },
+          { label: "Select Insurer", value: appliedSegmentInsurer },
+          { label: "Select Segment", value: appliedSegment },
+          { label: "Select Insurer", value: appliedGdpInsurer },
           { label: "Sector", value: appliedAumSector },
           { label: "Select Insurer", value: appliedAumInsurer },
           { label: "Category", value: appliedInvestmentCategory },
@@ -605,7 +1536,17 @@ export default function GeneralInsurance() {
       },
       modeBarButtonsToRemove: ["select2d", "lasso2d", "toggleSpikelines", "autoScale2d"],
     }),
-    [selectedSubModuleTitle, appliedAumSector, appliedAumInsurer, appliedInvestmentCategory]
+    [
+      selectedSubModuleTitle,
+      appliedStateGdpState,
+      appliedStateGdpSegment,
+      appliedSegmentInsurer,
+      appliedSegment,
+      appliedGdpInsurer,
+      appliedAumSector,
+      appliedAumInsurer,
+      appliedInvestmentCategory,
+    ]
   );
 
   const handleExportImage = async () => {
@@ -630,6 +1571,40 @@ export default function GeneralInsurance() {
   };
 
   const handleResetFilters = () => {
+    if (isStatewisePremiumSegmentView) {
+      setSelectedStateGdpState("");
+      setSelectedStateGdpSegment("");
+      setAppliedStateGdpState("");
+      setAppliedStateGdpSegment("");
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      setStateSegmentGdpError("");
+      return;
+    }
+
+    if (isPremiumSegmentAnalysisView) {
+      setSelectedSegmentInsurer("");
+      setSelectedSegment("");
+      setAppliedSegmentInsurer("");
+      setAppliedSegment("");
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      setSegmentGdpError("");
+      return;
+    }
+
+    if (isGrossDirectPremiumView) {
+      setSelectedGdpInsurer("");
+      setAppliedGdpInsurer("");
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      setGrossDirectPremiumError("");
+      return;
+    }
+
     if (isAumInsurerWiseView) {
       setSelectedAumSector("");
       setSelectedAumInsurer("");
@@ -644,12 +1619,50 @@ export default function GeneralInsurance() {
       return;
     }
 
+    if (isEquityCapitalView) {
+      setSelectedEscSector("");
+      setSelectedEscInsurer("");
+      setAppliedEscSector("");
+      setAppliedEscInsurer("");
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      setEquityCapitalError("");
+      return;
+    }
+
     setSelectedInsurerRegNo("");
     setSelectedInsurerDetails(null);
     setDetailsError("");
   };
 
   const handleApplyFilters = () => {
+    if (isStatewisePremiumSegmentView) {
+      setAppliedStateGdpState(selectedStateGdpState);
+      setAppliedStateGdpSegment(selectedStateGdpSegment);
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    if (isPremiumSegmentAnalysisView) {
+      setAppliedSegmentInsurer(selectedSegmentInsurer);
+      setAppliedSegment(selectedSegment);
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    if (isGrossDirectPremiumView) {
+      setAppliedGdpInsurer(selectedGdpInsurer);
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
     if (isAumInsurerWiseView) {
       setAppliedAumSector(selectedAumSector);
       setAppliedAumInsurer(selectedAumInsurer);
@@ -659,9 +1672,177 @@ export default function GeneralInsurance() {
       setTimelineEndYear("");
       return;
     }
+
+    if (isEquityCapitalView) {
+      setAppliedEscSector(selectedEscSector);
+      setAppliedEscInsurer(selectedEscInsurer);
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
   };
 
   const handleExportData = async () => {
+    if (isStatewisePremiumSegmentView) {
+      if (!appliedStateGdpState || !appliedStateGdpSegment || visibleStateSegmentRows.length === 0) {
+        return;
+      }
+
+      const activeFilters = [
+        { label: "Select State", value: appliedStateGdpState },
+        { label: "Select Segment", value: appliedStateGdpSegment },
+      ];
+
+      const dataRows = visibleStateSegmentRows.map((row) => [
+        row.year,
+        Number(row.value || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      ]);
+
+      const exportRows = [
+        ["Sub Module", selectedSubModuleTitle],
+        [],
+        ["Applied Filters", "Value"],
+        ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
+        [],
+        ["Year", "GDP (Rs. Crore)"],
+        ...dataRows,
+      ];
+
+      const fileBaseName = buildExportFileName(selectedSubModuleTitle, activeFilters);
+
+      try {
+        const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        XLSX.writeFile(workbook, `${fileBaseName}.xlsx`);
+        return;
+      } catch (error) {
+        const csvContent = exportRows
+          .map((row) => row.map(escapeCsvValue).join(","))
+          .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${fileBaseName}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+
+    if (isPremiumSegmentAnalysisView) {
+      if (!appliedSegmentInsurer || !appliedSegment || visibleSegmentRows.length === 0) {
+        return;
+      }
+
+      const activeFilters = [
+        { label: "Select Insurer", value: appliedSegmentInsurer },
+        { label: "Select Segment", value: appliedSegment },
+      ];
+
+      const dataRows = visibleSegmentRows.map((row) => [
+        row.year,
+        Number(row.value || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      ]);
+
+      const exportRows = [
+        ["Sub Module", selectedSubModuleTitle],
+        [],
+        ["Applied Filters", "Value"],
+        ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
+        [],
+        ["Year", "Segment GDP (Rs. Crore)"],
+        ...dataRows,
+      ];
+
+      const fileBaseName = buildExportFileName(selectedSubModuleTitle, activeFilters);
+
+      try {
+        const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        XLSX.writeFile(workbook, `${fileBaseName}.xlsx`);
+        return;
+      } catch (error) {
+        const csvContent = exportRows
+          .map((row) => row.map(escapeCsvValue).join(","))
+          .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${fileBaseName}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+
+    if (isGrossDirectPremiumView) {
+      if (!appliedGdpInsurer || visibleGdpRows.length === 0) {
+        return;
+      }
+
+      const activeFilters = [{ label: "Select Insurer", value: appliedGdpInsurer }];
+
+      const dataRows = visibleGdpRows.map((row) => [
+        row.year,
+        Number(row.value || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      ]);
+
+      const exportRows = [
+        ["Sub Module", selectedSubModuleTitle],
+        [],
+        ["Applied Filters", "Value"],
+        ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
+        [],
+        ["Year", "Gross Direct Premium (Rs. Crore)"],
+        ...dataRows,
+      ];
+
+      const fileBaseName = buildExportFileName(selectedSubModuleTitle, activeFilters);
+
+      try {
+        const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        XLSX.writeFile(workbook, `${fileBaseName}.xlsx`);
+        return;
+      } catch (error) {
+        const csvContent = exportRows
+          .map((row) => row.map(escapeCsvValue).join(","))
+          .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${fileBaseName}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+
     if (isAumInsurerWiseView) {
       if (!appliedAumInsurer || !appliedInvestmentCategory || visibleAumRows.length === 0) {
         return;
@@ -688,6 +1869,60 @@ export default function GeneralInsurance() {
         ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
         [],
         ["Year", "AUM"],
+        ...dataRows,
+      ];
+
+      const fileBaseName = buildExportFileName(selectedSubModuleTitle, activeFilters);
+
+      try {
+        const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        XLSX.writeFile(workbook, `${fileBaseName}.xlsx`);
+        return;
+      } catch (error) {
+        const csvContent = exportRows
+          .map((row) => row.map(escapeCsvValue).join(","))
+          .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${fileBaseName}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+
+    if (isEquityCapitalView) {
+      if (!appliedEscInsurer || visibleEscRows.length === 0) {
+        return;
+      }
+
+      const activeFilters = [
+        { label: "Select Sector", value: appliedEscSector },
+        { label: "Select Insurer", value: appliedEscInsurer },
+      ];
+
+      const dataRows = visibleEscRows.map((row) => [
+        row.year,
+        Number(row.value || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      ]);
+
+      const exportRows = [
+        ["Sub Module", selectedSubModuleTitle],
+        [],
+        ["Applied Filters", "Value"],
+        ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
+        [],
+        ["Year", "Equity Share Capital (₹ Crore)"],
         ...dataRows,
       ];
 
@@ -847,10 +2082,54 @@ export default function GeneralInsurance() {
                 Apply Filters
               </button>
             )}
-            {insurersLoading && !isAumInsurerWiseView && (
+            {isGrossDirectPremiumView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={handleApplyFilters}
+                disabled={!selectedGdpInsurer}
+                title="Apply Filters"
+              >
+                Apply Filters
+              </button>
+            )}
+            {isStatewisePremiumSegmentView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={handleApplyFilters}
+                disabled={!selectedStateGdpState || !selectedStateGdpSegment}
+                title="Apply Filters"
+              >
+                Apply Filters
+              </button>
+            )}
+            {isPremiumSegmentAnalysisView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={handleApplyFilters}
+                disabled={!selectedSegmentInsurer || !selectedSegment}
+                title="Apply Filters"
+              >
+                Apply Filters
+              </button>
+            )}
+            {isEquityCapitalView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={handleApplyFilters}
+                disabled={!selectedEscSector || !selectedEscInsurer}
+                title="Apply Filters"
+              >
+                Apply Filters
+              </button>
+            )}
+            {insurersLoading && !isAumInsurerWiseView && !isEquityCapitalView && !isGrossDirectPremiumView && !isPremiumSegmentAnalysisView && !isStatewisePremiumSegmentView && (
               <p className="panel-placeholder">Loading insurers...</p>
             )}
-            {insurersError && !insurersLoading && !isAumInsurerWiseView && (
+            {insurersError && !insurersLoading && !isAumInsurerWiseView && !isEquityCapitalView && !isGrossDirectPremiumView && !isPremiumSegmentAnalysisView && !isStatewisePremiumSegmentView && (
               <p className="panel-placeholder">{insurersError}</p>
             )}
             {aumLoading && isAumInsurerWiseView && (
@@ -858,6 +2137,30 @@ export default function GeneralInsurance() {
             )}
             {aumError && !aumLoading && isAumInsurerWiseView && (
               <p className="panel-placeholder">{aumError}</p>
+            )}
+            {grossDirectPremiumLoading && isGrossDirectPremiumView && (
+              <p className="panel-placeholder">Loading filters...</p>
+            )}
+            {grossDirectPremiumError && !grossDirectPremiumLoading && isGrossDirectPremiumView && (
+              <p className="panel-placeholder">{grossDirectPremiumError}</p>
+            )}
+            {segmentGdpLoading && isPremiumSegmentAnalysisView && (
+              <p className="panel-placeholder">Loading filters...</p>
+            )}
+            {segmentGdpError && !segmentGdpLoading && isPremiumSegmentAnalysisView && (
+              <p className="panel-placeholder">{segmentGdpError}</p>
+            )}
+            {stateSegmentGdpLoading && isStatewisePremiumSegmentView && (
+              <p className="panel-placeholder">Loading filters...</p>
+            )}
+            {stateSegmentGdpError && !stateSegmentGdpLoading && isStatewisePremiumSegmentView && (
+              <p className="panel-placeholder">{stateSegmentGdpError}</p>
+            )}
+            {equityCapitalLoading && isEquityCapitalView && (
+              <p className="panel-placeholder">Loading filters...</p>
+            )}
+            {equityCapitalError && !equityCapitalLoading && isEquityCapitalView && (
+              <p className="panel-placeholder">{equityCapitalError}</p>
             )}
           </div>
         </div>
@@ -875,6 +2178,50 @@ export default function GeneralInsurance() {
                 onClick={() => setShowTimelinePicker((previous) => !previous)}
                 title="Select Timeline"
                 disabled={visibleAumRows.length === 0}
+              >
+                Select Timeline
+              </button>
+            )}
+            {isGrossDirectPremiumView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
+                disabled={gdpAppliedRows.length === 0}
+              >
+                Select Timeline
+              </button>
+            )}
+            {isPremiumSegmentAnalysisView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
+                disabled={segmentAppliedRows.length === 0}
+              >
+                Select Timeline
+              </button>
+            )}
+            {isStatewisePremiumSegmentView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
+                disabled={stateSegmentAppliedRows.length === 0}
+              >
+                Select Timeline
+              </button>
+            )}
+            {isEquityCapitalView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
+                disabled={escAppliedRows.length === 0}
               >
                 Select Timeline
               </button>
@@ -1027,6 +2374,460 @@ export default function GeneralInsurance() {
                   hint="You can adjust filters and re-apply to refresh results."
                 />
               )
+            ) : isGrossDirectPremiumView ? (
+              grossDirectPremiumLoading ? (
+                <PanelState variant="loading" message="Loading data..." />
+              ) : grossDirectPremiumError ? (
+                <PanelState variant="error" message={grossDirectPremiumError} />
+              ) : !appliedGdpInsurer ? (
+                <PanelState
+                  variant="empty"
+                  message="Select insurer and click Apply Filters to view data."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              ) : visibleGdpRows.length > 0 ? (
+                <>
+                  {showTimelinePicker && gdpTimelineYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setTimelineStartYear(nextStartYear);
+
+                            if (timelineEndYear && Number(nextStartYear) > Number(timelineEndYear)) {
+                              setTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {gdpTimelineYearOptions.map((year) => (
+                            <option key={`start-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setTimelineEndYear(nextEndYear);
+
+                            if (timelineStartYear && Number(nextEndYear) < Number(timelineStartYear)) {
+                              setTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {gdpTimelineYearOptions.map((year) => (
+                            <option key={`end-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setShowTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Year</th>
+                          <th className="col-value">
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <IndianRupeeIcon size={14} strokeWidth={2.2} />
+                              Gross Direct Premium in Cr
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleGdpRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">
+                              <span className="year-badge">{row.year}</span>
+                            </td>
+                            <td className="col-value">
+                              <span className="value-amount">
+                                {Number(row.value || 0).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message="No data found for selected insurer."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              )
+            ) : isPremiumSegmentAnalysisView ? (
+              segmentGdpLoading ? (
+                <PanelState variant="loading" message="Loading data..." />
+              ) : segmentGdpError ? (
+                <PanelState variant="error" message={segmentGdpError} />
+              ) : !appliedSegmentInsurer || !appliedSegment ? (
+                <PanelState
+                  variant="empty"
+                  message="Select filters and click Apply Filters to view data."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              ) : visibleSegmentRows.length > 0 ? (
+                <>
+                  {showTimelinePicker && segmentTimelineYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setTimelineStartYear(nextStartYear);
+
+                            if (timelineEndYear && Number(nextStartYear) > Number(timelineEndYear)) {
+                              setTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {segmentTimelineYearOptions.map((year) => (
+                            <option key={`start-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setTimelineEndYear(nextEndYear);
+
+                            if (timelineStartYear && Number(nextEndYear) < Number(timelineStartYear)) {
+                              setTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {segmentTimelineYearOptions.map((year) => (
+                            <option key={`end-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setShowTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Year</th>
+                          <th className="col-value">
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <IndianRupeeIcon size={14} strokeWidth={2.2} />
+                              Segment GDP in Cr
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleSegmentRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">
+                              <span className="year-badge">{row.year}</span>
+                            </td>
+                            <td className="col-value">
+                              <span className="value-amount">
+                                {Number(row.value || 0).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message="No data found for selected filters."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              )
+            ) : isStatewisePremiumSegmentView ? (
+              stateSegmentGdpLoading ? (
+                <PanelState variant="loading" message="Loading data..." />
+              ) : stateSegmentGdpError ? (
+                <PanelState variant="error" message={stateSegmentGdpError} />
+              ) : !appliedStateGdpState || !appliedStateGdpSegment ? (
+                <PanelState
+                  variant="empty"
+                  message="Select filters and click Apply Filters to view data."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              ) : visibleStateSegmentRows.length > 0 ? (
+                <>
+                  {showTimelinePicker && stateSegmentTimelineYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setTimelineStartYear(nextStartYear);
+
+                            if (timelineEndYear && Number(nextStartYear) > Number(timelineEndYear)) {
+                              setTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {stateSegmentTimelineYearOptions.map((year) => (
+                            <option key={`start-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setTimelineEndYear(nextEndYear);
+
+                            if (timelineStartYear && Number(nextEndYear) < Number(timelineStartYear)) {
+                              setTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {stateSegmentTimelineYearOptions.map((year) => (
+                            <option key={`end-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setShowTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Year</th>
+                          <th className="col-value">
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <IndianRupeeIcon size={14} strokeWidth={2.2} />
+                              GDP in Cr
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleStateSegmentRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">
+                              <span className="year-badge">{row.year}</span>
+                            </td>
+                            <td className="col-value">
+                              <span className="value-amount">
+                                {Number(row.value || 0).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message="No data found for selected filters."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              )
+            ) : isEquityCapitalView ? (
+              equityCapitalLoading ? (
+                <PanelState variant="loading" message="Loading data..." />
+              ) : equityCapitalError ? (
+                <PanelState variant="error" message={equityCapitalError} />
+              ) : !appliedEscSector || !appliedEscInsurer ? (
+                <PanelState
+                  variant="empty"
+                  message="Select filters and click Apply Filters to view data."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              ) : escAppliedRows.length > 0 ? (
+                <>
+                  {showTimelinePicker && escTimelineYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setTimelineStartYear(nextStartYear);
+                            if (timelineEndYear && Number(nextStartYear) > Number(timelineEndYear)) {
+                              setTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {escTimelineYearOptions.map((year) => (
+                            <option key={`start-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setTimelineEndYear(nextEndYear);
+                            if (timelineStartYear && Number(nextEndYear) < Number(timelineStartYear)) {
+                              setTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {escTimelineYearOptions.map((year) => (
+                            <option key={`end-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setShowTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Year</th>
+                          <th className="col-value">
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <CreditCard size={14} strokeWidth={2.2} />
+                              Equity Share Capital in Cr
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleEscRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">
+                              <span className="year-badge">{row.year}</span>
+                            </td>
+                            <td className="col-value">
+                              <span className="value-amount">
+                                {Number(row.value || 0).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message="No data found for selected filters."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              )
             ) : (
               <div className="data-table-container">
                 <PanelState
@@ -1045,7 +2846,8 @@ export default function GeneralInsurance() {
               <TrendingUp size={14} strokeWidth={2} />
             </div>
             <h3 className="panel-title section-title">Visualization Panel</h3>
-            {isAumInsurerWiseView && visualizationData.length > 0 && (
+            {(isAumInsurerWiseView || isGrossDirectPremiumView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isEquityCapitalView) &&
+              activeVisualizationData.length > 0 && (
               <>
                 <button
                   type="button"
@@ -1069,16 +2871,108 @@ export default function GeneralInsurance() {
             )}
           </div>
           <div className="panel-body viz-panel-body">
-            {isAumInsurerWiseView ? (
-              aumLoading ? (
+            {isAumInsurerWiseView || isGrossDirectPremiumView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView ? (
+              (isGrossDirectPremiumView
+                ? grossDirectPremiumLoading
+                : isStatewisePremiumSegmentView
+                ? stateSegmentGdpLoading
+                : isPremiumSegmentAnalysisView
+                ? segmentGdpLoading
+                : aumLoading) ? (
                 <PanelState
                   variant="loading"
                   message="Loading visualization"
                   hint="Rendering chart for selected filters."
                 />
-              ) : aumError ? (
-                <PanelState variant="error" message={aumError} />
-              ) : visualizationData.length > 0 ? (
+              ) : (isGrossDirectPremiumView
+                ? grossDirectPremiumError
+                : isStatewisePremiumSegmentView
+                ? stateSegmentGdpError
+                : isPremiumSegmentAnalysisView
+                ? segmentGdpError
+                : aumError) ? (
+                <PanelState
+                  variant="error"
+                  message={
+                    isGrossDirectPremiumView
+                      ? grossDirectPremiumError
+                      : isStatewisePremiumSegmentView
+                      ? stateSegmentGdpError
+                      : isPremiumSegmentAnalysisView
+                      ? segmentGdpError
+                      : aumError
+                  }
+                />
+              ) : activeVisualizationData.length > 0 ? (
+                <>
+                  {showChartTypePicker && (
+                    <div className="timeline-filter-row chart-type-picker-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">Chart Type</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={pendingVisualizationType}
+                          onChange={(event) => setPendingVisualizationType(event.target.value)}
+                        >
+                          <option value="line">Line Chart</option>
+                          <option value="area">Area Chart</option>
+                          <option value="bar">Bar Chart</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => {
+                          setVisualizationType(pendingVisualizationType);
+                          setShowChartTypePicker(false);
+                        }}
+                        title="Apply chart type"
+                      >
+                        Apply Chart Type
+                      </button>
+                    </div>
+                  )}
+                  <div className="chart-wrapper plotly-chart-wrapper">
+                    <Plot
+                      data={plotTraces}
+                      layout={plotLayout}
+                      config={plotConfig}
+                      style={{ width: "100%", height: "100%" }}
+                      useResizeHandler
+                      onInitialized={(_, graphDiv) => setChartGraphDiv(graphDiv)}
+                      onUpdate={(_, graphDiv) => setChartGraphDiv(graphDiv)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message={(() => {
+                    const hasFilterSelection = isGrossDirectPremiumView
+                      ? Boolean(appliedGdpInsurer)
+                      : isStatewisePremiumSegmentView
+                      ? Boolean(appliedStateGdpState && appliedStateGdpSegment)
+                      : isPremiumSegmentAnalysisView
+                      ? Boolean(appliedSegmentInsurer && appliedSegment)
+                      : Boolean(appliedAumSector && appliedAumInsurer && appliedInvestmentCategory);
+
+                    return hasFilterSelection
+                      ? "No data found for selected filters."
+                      : "Select filters and click Apply Filters to view visualization.";
+                  })()}
+                  hint="Try widening the timeline or changing filters."
+                />
+              )
+            ) : isEquityCapitalView ? (
+              equityCapitalLoading ? (
+                <PanelState
+                  variant="loading"
+                  message="Loading visualization"
+                  hint="Rendering chart for selected filters."
+                />
+              ) : equityCapitalError ? (
+                <PanelState variant="error" message={equityCapitalError} />
+              ) : activeVisualizationData.length > 0 ? (
                 <>
                   {showChartTypePicker && (
                     <div className="timeline-filter-row chart-type-picker-row">
@@ -1123,11 +3017,11 @@ export default function GeneralInsurance() {
                 <PanelState
                   variant="empty"
                   message={
-                    !appliedAumSector || !appliedAumInsurer || !appliedInvestmentCategory
+                    !appliedEscSector || !appliedEscInsurer
                       ? "Select filters and click Apply Filters to view visualization."
                       : "No data found for selected filters."
                   }
-                  hint="Try widening the timeline or changing filters."
+                  hint="Try changing filters."
                 />
               )
             ) : (
@@ -1269,6 +3163,47 @@ function resolveInvestmentCategory(document) {
   return "";
 }
 
+function resolveSegmentName(document) {
+  const candidates = [
+    document?.segment,
+    document?.segment_name,
+    document?.segmentName,
+    document?.business_segment,
+    document?.line_of_business,
+    document?.lob,
+    document?.type_of_business,
+    document?.category,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function resolveStateName(document) {
+  const candidates = [
+    document?.state,
+    document?.state_name,
+    document?.stateName,
+    document?.region,
+    document?.location,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
 function resolveSector(document) {
   const candidates = [document?.sector, document?.insurer_sector, document?.type_of_sector];
 
@@ -1319,6 +3254,140 @@ function resolveAumValue(document) {
 
   for (const [fieldName, fieldValue] of Object.entries(document || {})) {
     if (!/aum|asset/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolveGrossDirectPremiumValue(document) {
+  const preferredFields = [
+    "gross_direct_premium",
+    "gross_direct_premium_in_cr",
+    "gross_direct_premium_in_crore",
+    "gross_direct_premium_in_crores",
+    "gdp",
+    "premium",
+    "amount",
+    "value",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericFieldValue(document?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/gross|direct|premium|gdp/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolveSegmentGdpValue(document) {
+  const preferredFields = [
+    "segment_gdp",
+    "segment_gdp_in_cr",
+    "segment_gdp_in_crore",
+    "segment_gdp_in_crores",
+    "segment_premium",
+    "gross_direct_premium",
+    "gdp",
+    "premium",
+    "amount",
+    "value",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericFieldValue(document?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/segment|premium|gdp/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolveStateSegmentGdpValue(document) {
+  const preferredFields = [
+    "state_gdp_segment",
+    "state_segment_gdp",
+    "state_gdp",
+    "segment_gdp",
+    "gdp",
+    "premium",
+    "amount",
+    "value",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericFieldValue(document?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/state|segment|premium|gdp/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolveEquityCapitalValue(document) {
+  const preferredFields = [
+    "equity_share_capital",
+    "equity_capital",
+    "equity_share_capital_in_crore",
+    "equity_share_capital_in_crores",
+    "equity_in_crore",
+    "equity_in_crores",
+    "amount",
+    "value",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericFieldValue(document?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/equity|capital/i.test(fieldName)) {
       continue;
     }
 
