@@ -11,6 +11,7 @@ const BREADCRUMB_LABELS = {
   health: "Health",
   reinsurance: "Reinsurance",
   intermediaries: "Intermediaries",
+  summary: "Summary of Indian Insurance Sector",
   analytics: "Insurance Analytics",
   laws: "Insurance Laws",
 };

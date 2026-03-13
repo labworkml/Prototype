@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import {
@@ -23,7 +24,7 @@ import {
   Banknote, BarChart2, Link2, CreditCard, TrendingDown, Sprout,
   Zap, Clock, Search, Calendar, Gem, Pin, Users, Briefcase,
   Shuffle, Building, Network, Phone, Scale, RefreshCw,
-  IndianRupeeIcon
+  IndianRupeeIcon, Lightbulb
 } from "lucide-react";
 import { db } from "../firebase/firebaseConfig";
 import SegmentAnalysisFilters from "../components/SegmentAnalysisFilters";
@@ -45,7 +46,7 @@ const TABS = [
 
 const SUB_MODULES = {
   "market-overview": [
-    { id: 1, title: "Insurer Basic Details", icon: FileText },
+    { id: 1, title: "Life - Insurer Basic Details", icon: FileText },
     { id: 2, title: "Total Premium — Segment Analysis", icon: PieChart },
     { id: 3, title: "State Wise Analysis", icon: MapPin },
     { id: 4, title: "Number of Individual Policies", icon: Files },
@@ -85,8 +86,10 @@ const SUB_MODULES = {
 };
 
 export default function LifeInsurance() {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState("market-overview");
   const [selectedModule, setSelectedModule] = useState(null);
+  const [showInsights, setShowInsights] = useState(false);
   const [lifeInsurerDocs, setLifeInsurerDocs] = useState([]);
   const [selectedInsurer, setSelectedInsurer] = useState("");
   const [appliedInsurer, setAppliedInsurer] = useState("");
@@ -299,6 +302,23 @@ export default function LifeInsurance() {
 
   const selectedSubModuleTitle =
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get("tab");
+    const moduleParam = params.get("module");
+
+    if (tabParam && Object.prototype.hasOwnProperty.call(SUB_MODULES, tabParam)) {
+      setActiveTab(tabParam);
+    }
+
+    if (moduleParam !== null) {
+      const parsedModule = Number(moduleParam);
+      if (Number.isFinite(parsedModule)) {
+        setSelectedModule(parsedModule);
+      }
+    }
+  }, [location.search]);
 
   const selectedPerformancePremiumDocs = useMemo(() => {
     if (insurerPremiumFilterType === "Total Premium") {
@@ -693,8 +713,20 @@ export default function LifeInsurance() {
     }
   };
 
+  const getTabAccent = (tabId) => {
+    const tabAccents = {
+      "market-overview": "#0ea5a4",
+      "insurer-performance": "#0891b2",
+      "claims-risk": "#f97316",
+      financials: "#6366f1",
+      distribution: "#14b8a6",
+      grievances: "#ef4444",
+    };
+    return tabAccents[tabId] || "#0ea5a4";
+  };
+
   return (
-    <div className="life-insurance-viewport">
+    <div className="life-insurance-viewport life-theme">
       {/* Tab Navigation */}
       <div className="life-tabs">
         {TABS.map((tab) => {
@@ -703,6 +735,8 @@ export default function LifeInsurance() {
             <button
               key={tab.id}
               className={`life-tab ${activeTab === tab.id ? "active" : ""}`}
+              data-tab={tab.id}
+              style={{ "--tab-accent": getTabAccent(tab.id) }}
               onClick={() => {
                 setActiveTab(tab.id);
                 setSelectedModule(null);
@@ -716,13 +750,17 @@ export default function LifeInsurance() {
       </div>
 
       {/* Sub-Modules Row */}
-      <div className="life-submodules">
+      <div
+        className={`life-submodules submodules-${activeTab}`}
+        style={{ "--tab-accent": getTabAccent(activeTab) }}
+      >
         {SUB_MODULES[activeTab]?.map((module) => {
           const IconComponent = module.icon;
           return (
             <div
               key={module.id}
               className={`life-submodule ${selectedModule === module.id ? "selected" : ""}`}
+              data-module={module.id}
               onClick={() => setSelectedModule(module.id)}
             >
               <div className="submodule-icon">
@@ -735,7 +773,7 @@ export default function LifeInsurance() {
       </div>
 
       {/* Main Content Area - 3 Column Layout */}
-      <div className="life-content">
+      <div className={`life-content ${showInsights ? "insights-expanded" : "insights-collapsed"}`}>
         {/* Left: Filters Panel */}
         <div className="life-filters card">
           <div className="panel-header">
@@ -1266,6 +1304,43 @@ export default function LifeInsurance() {
               <p className="panel-placeholder">Select an insurer to view analytics.</p>
             )}
           </div>
+        </div>
+
+        <div className={`life-insights-panel card ${showInsights ? "" : "collapsed"}`}>
+          <div className={`panel-header insights-panel-header ${showInsights ? "" : "collapsed"}`}>
+            <button
+              type="button"
+              className="insights-toggle-btn"
+              onClick={() => setShowInsights((previous) => !previous)}
+              aria-label={showInsights ? "Collapse insights panel" : "Expand insights panel"}
+              title={showInsights ? "Collapse insights" : "Expand insights"}
+            >
+              {showInsights ? "<<" : (
+                <span className="insights-collapsed-strip visible">
+                  <Lightbulb size={28} strokeWidth={2.5} className="insights-collapsed-icon" />
+                  <span className="insights-collapsed-label visible">Insights</span>
+                  <span className="insights-collapsed-arrow visible">&gt;&gt;</span>
+                </span>
+              )}
+            </button>
+
+            {showInsights && (
+              <>
+                <div className="panel-icon-badge">
+                  <Lightbulb size={14} strokeWidth={2} />
+                </div>
+                <h3 className="panel-title section-title">Insights</h3>
+              </>
+            )}
+          </div>
+
+          {showInsights && (
+            <div className="panel-body insights-panel-body">
+              <div className="chart-wrapper">
+                <p className="panel-placeholder">Select filters to view insights.</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

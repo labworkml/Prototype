@@ -7,6 +7,7 @@ import GeneralInsurance from "./pages/GeneralInsurance";
 import HealthInsurance from "./pages/HealthInsurance";
 import ReinsuranceInsurance from "./pages/ReinsuranceInsurance";
 import IntermediariesInsurance from "./pages/IntermediariesInsurance";
+import SummaryInsuranceSector from "./pages/SummaryInsuranceSector";
 import InsuranceAnalytics from "./pages/InsuranceAnalytics";
 import InsuranceLaws from "./pages/InsuranceLaws";
 import DashboardLayout from "./layouts/DashboardLayout";
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="handbook/health" element={<HealthInsurance />} />
             <Route path="handbook/reinsurance" element={<ReinsuranceInsurance />} />
             <Route path="handbook/intermediaries" element={<IntermediariesInsurance />} />
+            <Route path="handbook/summary" element={<SummaryInsuranceSector />} />
             <Route path="analytics" element={<InsuranceAnalytics />} />
             <Route path="laws" element={<InsuranceLaws />} />
           </Route>

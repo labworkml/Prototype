@@ -12,6 +12,20 @@ export default function Login() {
 
   const navigate = useNavigate();
 
+  const getAuthErrorMessage = (error) => {
+    const code = error?.code || "";
+    const message = String(error?.message || "").toLowerCase();
+
+    if (
+      code === "auth/firebase-app-check-token-is-invalid" ||
+      message.includes("firebase-app-check-token-is-invalid")
+    ) {
+      return "App Check verification failed. Refresh the page and try again. If this continues, verify the Firebase App Check site key and allowed domains.";
+    }
+
+    return error?.message || "Unable to sign in. Please try again.";
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -21,7 +35,7 @@ export default function Login() {
       await signInWithEmailAndPassword(auth, email, password);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.message);
+      setError(getAuthErrorMessage(err));
       setLoading(false);
     }
   };
@@ -64,7 +78,25 @@ export default function Login() {
               />
             </div>
 
-            {error && <div className="error-box card">{error}</div>}
+            {error && (
+              <div className="error-box card">
+                {error}
+                {error.includes("App Check verification failed") && (
+                  <button
+                    type="button"
+                    className="login-button"
+                    style={{ marginTop: 8, background: "#0ea5a4", color: "#fff", fontSize: 13, padding: "6px 16px", borderRadius: 8 }}
+                    onClick={() => {
+                      window.localStorage.removeItem("firebase-app-check-debug-token");
+                      window.localStorage.removeItem("firebase-app-check-token");
+                      window.location.reload();
+                    }}
+                  >
+                    Reset App Check & Retry
+                  </button>
+                )}
+              </div>
+            )}
 
             <button
               type="submit"

@@ -4,31 +4,31 @@ export default function InsuranceAnalytics() {
   const modules = [
     {
       id: "life",
-      title: "Life",
+        title: "Sector Summary",
       icon: "👨‍👩‍👧",
       description: "",
     },
     {
       id: "general",
-      title: "General",
+        title: "Insurer's Profile",
       icon: "🏢",
       description: "",
     },
     {
       id: "health",
-      title: "Health",
+        title: "Key Performance Indicators",
       icon: "💊",
       description: "",
     },
     {
       id: "reinsurance",
-      title: "Reinsurance",
+        title: "Unnamed",
       icon: "📦",
       description: "",
     },
     {
       id: "intermediaries",
-      title: "Intermediaries",
+        title: "Distribution Analysis",
       icon: "💛",
       description: "",
     },

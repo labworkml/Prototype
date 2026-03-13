@@ -6,6 +6,7 @@ import {
   FileText,
   Globe,
   LayoutGrid,
+  Lightbulb,
   MapPin,
   RefreshCw,
   Shield,
@@ -64,6 +65,7 @@ const SUB_MODULES = {
 export default function HealthInsurance() {
   const [activeTab, setActiveTab] = useState("business-volume");
   const [selectedModule, setSelectedModule] = useState(null);
+  const [showInsights, setShowInsights] = useState(false);
 
   const [selectedInsurer, setSelectedInsurer] = useState("");
   const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
@@ -134,8 +136,19 @@ export default function HealthInsurance() {
     return;
   };
 
+  const getTabAccent = (tabId) => {
+    const tabAccents = {
+      "business-volume": "#06b6d4",
+      claims: "#0ea5a4",
+      "state-wise-analysis": "#3b82f6",
+      "health-products-riders": "#8b5cf6",
+      "healthcare-network": "#14b8a6",
+    };
+    return tabAccents[tabId] || "#0ea5a4";
+  };
+
   return (
-    <div className="life-insurance-viewport">
+    <div className="life-insurance-viewport health-theme">
       <div className="life-tabs">
         {TABS.map((tab) => {
           const IconComponent = tab.icon;
@@ -143,6 +156,8 @@ export default function HealthInsurance() {
             <button
               key={tab.id}
               className={`life-tab ${activeTab === tab.id ? "active" : ""}`}
+              data-tab={tab.id}
+              style={{ "--tab-accent": getTabAccent(tab.id) }}
               onClick={() => {
                 setActiveTab(tab.id);
                 setSelectedModule(null);
@@ -155,13 +170,17 @@ export default function HealthInsurance() {
         })}
       </div>
 
-      <div className="life-submodules">
+      <div
+        className={`life-submodules submodules-${activeTab}`}
+        style={{ "--tab-accent": getTabAccent(activeTab) }}
+      >
         {SUB_MODULES[activeTab]?.map((module) => {
           const IconComponent = module.icon;
           return (
             <div
               key={module.id}
               className={`life-submodule ${selectedModule === module.id ? "selected" : ""}`}
+              data-module={module.id}
               onClick={() => setSelectedModule(module.id)}
             >
               <div className="submodule-icon">
@@ -173,7 +192,7 @@ export default function HealthInsurance() {
         })}
       </div>
 
-      <div className="life-content">
+      <div className={`life-content ${showInsights ? "insights-expanded" : "insights-collapsed"}`}>
         <div className="life-filters card">
           <div className="panel-header">
             <div className="panel-icon-badge">
@@ -237,6 +256,43 @@ export default function HealthInsurance() {
               <p className="panel-placeholder">Select filters to view analytics.</p>
             </div>
           </div>
+        </div>
+
+        <div className={`life-insights-panel card ${showInsights ? "" : "collapsed"}`}>
+          <div className={`panel-header insights-panel-header ${showInsights ? "" : "collapsed"}`}>
+            <button
+              type="button"
+              className="insights-toggle-btn"
+              onClick={() => setShowInsights((previous) => !previous)}
+              aria-label={showInsights ? "Collapse insights panel" : "Expand insights panel"}
+              title={showInsights ? "Collapse insights" : "Expand insights"}
+            >
+              {showInsights ? "<<" : (
+                <span className="insights-collapsed-strip visible">
+                  <Lightbulb size={28} strokeWidth={2.5} className="insights-collapsed-icon" />
+                  <span className="insights-collapsed-label visible">Insights</span>
+                  <span className="insights-collapsed-arrow visible">&gt;&gt;</span>
+                </span>
+              )}
+            </button>
+
+            {showInsights && (
+              <>
+                <div className="panel-icon-badge">
+                  <Lightbulb size={14} strokeWidth={2} />
+                </div>
+                <h3 className="panel-title section-title">Insights</h3>
+              </>
+            )}
+          </div>
+
+          {showInsights && (
+            <div className="panel-body insights-panel-body">
+              <div className="chart-wrapper">
+                <p className="panel-placeholder">Select filters to view insights.</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

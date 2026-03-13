@@ -4,13 +4,13 @@
 
 /* Wrapper & Container */
 .analytics-wrapper {
-  min-height: 100vh;
   background: var(--bg-secondary);
-  padding: 24px 20px;
+  padding: 16px 20px;
 }
 
 .analytics-container {
   max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -55,11 +55,11 @@
    ===================================================== */
 
 .analytics-title {
-  font-size: var(--font-size-h1);
+  font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0 0 40px 0;
-  letter-spacing: -0.6px;
+  margin: 0 0 20px 0;
+  letter-spacing: -0.3px;
 }
 
 /* =====================================================
@@ -67,14 +67,14 @@
    ===================================================== */
 
 .modules-container {
-  margin-bottom: 48px;
+  margin-bottom: 0;
 }
 
 .modules-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
-  padding: 32px;
+  padding: 20px 24px;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
@@ -113,8 +113,7 @@
 }
 
 .module-card-icon {
-  font-size: 48px;
-  line-height: 1;
+  flex-shrink: 0;
 }
 
 .module-card-title {

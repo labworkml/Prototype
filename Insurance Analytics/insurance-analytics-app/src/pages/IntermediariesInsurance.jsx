@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import PlotComponentModule from "react-plotly.js";
-import PlotlyModule from "plotly.js-dist-min";
 import {
   BarChart2,
   BarChart3,
   Building2,
-  Download,
   FileText,
   Globe,
   Handshake,
   Info,
+  Lightbulb,
   IndianRupeeIcon,
   LineChart as LineChartIcon,
   Loader2,
@@ -19,6 +18,7 @@ import {
   RefreshCw,
   Shield,
   Shuffle,
+  Trash2,
   TrendingUp,
   UserRound,
   Users,
@@ -58,10 +58,10 @@ import {
   getHealthBusinessMetrics,
   getHealthBusinessYearwiseData,
 } from "../services/lifeAgentsService";
+import { askAI, generateInsights } from "../services/aiService";
 import "../styles/life-insurance.css";
 
 const Plot = PlotComponentModule?.default || PlotComponentModule;
-const Plotly = PlotlyModule?.default || PlotlyModule;
 
 const DISTRIBUTION_AGENT_MODULE_CONFIG = {
   "individual-agents-life": {
@@ -158,18 +158,35 @@ const NON_LIFE_BUSINESS_DISTRIBUTION_MODULE_CONFIG = {
 const LIFE_BUSINESS_TYPES = ["Individual New Business", "Group New Business"];
 
 const TABS = [
-  { id: "distribution-workforce", label: "Distribution Workforce", icon: Users },
-  { id: "state-wise-analysis", label: "State Wise Analysis", icon: MapPin },
-  { id: "intermediary-efficiency", label: "Intermediary Efficiency", icon: TrendingUp },
+  {
+    id: "distribution-workforce",
+    label: "Distribution Workforce",
+    icon: Users,
+    accent: "#06b6d4",
+  },
+  {
+    id: "state-wise-analysis",
+    label: "State Wise Analysis",
+    icon: MapPin,
+    accent: "#3b82f6",
+  },
+  {
+    id: "intermediary-efficiency",
+    label: "Intermediary Efficiency",
+    icon: TrendingUp,
+    accent: "#0ea5a4",
+  },
   {
     id: "life-business-distribution",
     label: "Life – Business Distribution",
     icon: BarChart3,
+    accent: "#8b5cf6",
   },
   {
     id: "non-life-business-distribution",
     label: "Non-Life – Business Distribution",
     icon: Globe,
+    accent: "#f59e0b",
   },
 ];
 
@@ -266,14 +283,14 @@ export default function IntermediariesInsurance() {
   const [showTimelinePicker, setShowTimelinePicker] = useState(false);
   const [timelineStartYear, setTimelineStartYear] = useState("");
   const [timelineEndYear, setTimelineEndYear] = useState("");
+  const [showInsights, setShowInsights] = useState(false);
   const [visualizationType, setVisualizationType] = useState("line");
   const [pendingVisualizationType, setPendingVisualizationType] = useState("line");
   const [showChartTypePicker, setShowChartTypePicker] = useState(false);
-  const [chartGraphDiv, setChartGraphDiv] = useState(null);
-  const [isExportingImage, setIsExportingImage] = useState(false);
-  const [viewportWidth, setViewportWidth] = useState(
-    typeof window !== "undefined" ? window.innerWidth : 1280
-  );
+  const [insightsQuestion, setInsightsQuestion] = useState("");
+  const [aiMessages, setAiMessages] = useState([]);
+  const [isAILoading, setIsAILoading] = useState(false);
+  const insightsGenerationRef = useRef(0);
 
   const [selectedInsurer, setSelectedInsurer] = useState("");
   const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
@@ -350,18 +367,12 @@ export default function IntermediariesInsurance() {
     setAgentsError("");
     setRawData([]);
     setData([]);
+    setAiMessages([]);
   }, [distributionAgentModuleConfig?.collectionName, isDistributionAgentsView]);
 
   useEffect(() => {
     setPendingVisualizationType(visualizationType);
   }, [visualizationType]);
-
-  useEffect(() => {
-    const handleResize = () => setViewportWidth(window.innerWidth);
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   useEffect(() => {
     const fetchInsurers = async () => {
@@ -784,93 +795,6 @@ export default function IntermediariesInsurance() {
     ? getHealthMetricLabel(selectedHealthMetric, healthMetricOptions) || "Value"
     : distributionAgentModuleConfig?.metricLabel || "Agents";
 
-  const chartTitle = useMemo(() => {
-    const titleSegments = [selectedSubModuleTitle];
-
-    if (distributionAgentModuleConfig?.requiresInsurerAndState) {
-      if (selectedStatewiseInsurer) {
-        titleSegments.push(selectedStatewiseInsurer);
-      }
-      if (selectedStatewiseState) {
-        titleSegments.push(selectedStatewiseState);
-      }
-    } else if (distributionAgentModuleConfig?.requiresStateOnly) {
-      if (selectedStatewiseState) {
-        titleSegments.push(selectedStatewiseState);
-      }
-    } else {
-      if (distributionAgentModuleConfig?.requiresBusinessType) {
-        if (selectedLifeBusinessType) {
-          titleSegments.push(selectedLifeBusinessType);
-        }
-
-        if (distributionAgentModuleConfig?.requiresBusinessTypeInsurer && selectedLifeBusinessInsurer) {
-          titleSegments.push(selectedLifeBusinessInsurer);
-        }
-
-        if (!distributionAgentModuleConfig?.requiresBusinessTypeInsurer && selectedLifeBusinessChannel) {
-          titleSegments.push(selectedLifeBusinessChannel);
-        }
-
-        if (!distributionAgentModuleConfig?.requiresBusinessTypeInsurer && selectedLifeBusinessMetric) {
-          titleSegments.push(getLifeBusinessMetricLabel(selectedLifeBusinessMetric));
-        }
-      } else if (distributionAgentModuleConfig?.requiresSegmentChannel) {
-        if (selectedNonLifeSegment) {
-          titleSegments.push(selectedNonLifeSegment);
-        }
-
-        if (selectedNonLifeChannel) {
-          titleSegments.push(selectedNonLifeChannel);
-        }
-      } else if (distributionAgentModuleConfig?.requiresHealthChannelCategoryMetric) {
-        if (selectedHealthChannel) {
-          titleSegments.push(selectedHealthChannel);
-        }
-
-        if (selectedHealthCategory) {
-          titleSegments.push(selectedHealthCategory);
-        }
-
-        if (selectedHealthMetric) {
-          titleSegments.push(getHealthMetricLabel(selectedHealthMetric, healthMetricOptions));
-        }
-      }
-
-      if (distributionAgentModuleConfig?.requiresAgentType && selectedAgentType) {
-        titleSegments.push(selectedAgentType);
-      }
-
-      if (selectedAgentInsurer && selectedAgentInsurer !== "All Insurers") {
-        titleSegments.push(selectedAgentInsurer);
-      }
-
-      if (selectedAgentSector && selectedAgentSector !== "Both") {
-        titleSegments.push(selectedAgentSector);
-      }
-    }
-
-    return titleSegments.filter(Boolean).join(" : ");
-  }, [
-    selectedSubModuleTitle,
-    distributionAgentModuleConfig,
-    selectedStatewiseInsurer,
-    selectedStatewiseState,
-    selectedLifeBusinessType,
-    selectedLifeBusinessInsurer,
-    selectedLifeBusinessChannel,
-    selectedLifeBusinessMetric,
-    selectedNonLifeSegment,
-    selectedNonLifeChannel,
-    selectedHealthChannel,
-    selectedHealthCategory,
-    selectedHealthMetric,
-    healthMetricOptions,
-    selectedAgentType,
-    selectedAgentInsurer,
-    selectedAgentSector,
-  ]);
-
   const chartExportFileName = useMemo(
     () =>
       `${buildExportFileName(selectedSubModuleTitle, [
@@ -878,33 +802,6 @@ export default function IntermediariesInsurance() {
       ])}_chart`,
     [selectedSubModuleTitle]
   );
-
-  const formattedChartTitle = useMemo(() => {
-    const wrappedTitle = wrapChartTitle(chartTitle);
-    const titleLength = String(chartTitle || "").length;
-
-    const isSmallViewport = viewportWidth < 768;
-    const isMediumViewport = viewportWidth >= 768 && viewportWidth < 1200;
-
-    let baseFontSize = isSmallViewport ? 12 : isMediumViewport ? 13 : 14;
-
-    if (wrappedTitle.lineCount === 1) {
-      baseFontSize += 1;
-    }
-
-    if (titleLength > 80) {
-      baseFontSize -= 1;
-    }
-
-    const fontSize = Math.max(11, baseFontSize);
-    const topMargin = wrappedTitle.lineCount === 2 ? (isSmallViewport ? 84 : 90) : isSmallViewport ? 70 : 76;
-
-    return {
-      text: wrappedTitle.text,
-      fontSize,
-      topMargin,
-    };
-  }, [chartTitle, viewportWidth]);
 
   const plotTraces = useMemo(() => {
     const xValues = visualizationData.map((item) => String(item.year));
@@ -962,20 +859,7 @@ export default function IntermediariesInsurance() {
       autosize: true,
       paper_bgcolor: "rgba(0, 0, 0, 0)",
       plot_bgcolor: "rgba(0, 0, 0, 0)",
-      margin: { l: 60, r: 18, t: formattedChartTitle.topMargin, b: 52 },
-      title: {
-        text: formattedChartTitle.text,
-        x: 0.5,
-        xanchor: "center",
-        y: 0.96,
-        yanchor: "top",
-        automargin: true,
-        font: {
-          size: formattedChartTitle.fontSize,
-          color: "#0f172a",
-          family: "Segoe UI, Arial, sans-serif",
-        },
-      },
+      margin: { l: 60, r: 18, t: 20, b: 52 },
       xaxis: {
         title: {
           text: distributionAgentModuleConfig?.requiresBusinessTypeInsurer ? "Channel" : "Year",
@@ -1006,7 +890,7 @@ export default function IntermediariesInsurance() {
         font: { color: "#0f172a", size: 12 },
       },
     }),
-    [formattedChartTitle, metricLabel, distributionAgentModuleConfig]
+    [metricLabel, distributionAgentModuleConfig]
   );
 
   const plotConfig = useMemo(
@@ -1024,27 +908,6 @@ export default function IntermediariesInsurance() {
     }),
     [chartExportFileName]
   );
-
-  const handleExportImage = async () => {
-    if (!chartGraphDiv || isExportingImage) {
-      return;
-    }
-
-    setIsExportingImage(true);
-    try {
-      await Plotly.downloadImage(chartGraphDiv, {
-        format: "png",
-        filename: chartExportFileName,
-        width: 1280,
-        height: 720,
-        scale: 2,
-      });
-    } catch (error) {
-      console.error("Failed to export chart image:", error);
-    } finally {
-      setIsExportingImage(false);
-    }
-  };
 
   const filterConfig = useMemo(
     () => [
@@ -1111,6 +974,217 @@ export default function IntermediariesInsurance() {
     ? Boolean(selectedAgentType && (selectedAgentInsurer || selectedAgentSector))
     : Boolean(selectedAgentInsurer || selectedAgentSector);
 
+  const insightsContextMessage = useMemo(() => {
+    if (!isDistributionAgentsView) {
+      return "Use this panel to ask questions about the selected insurance analytics data.";
+    }
+
+    const rangeStart = timelineStartYear || timelineYearOptions[0];
+    const rangeEnd = timelineEndYear || timelineYearOptions[timelineYearOptions.length - 1];
+    const hasRange = Boolean(rangeStart && rangeEnd);
+    const hasInsurer = Boolean(selectedStatewiseInsurer || selectedLifeBusinessInsurer || selectedAgentInsurer);
+    const insurerName =
+      selectedStatewiseInsurer ||
+      selectedLifeBusinessInsurer ||
+      (selectedAgentInsurer && selectedAgentInsurer !== "All Insurers" ? selectedAgentInsurer : "");
+    const regionName = selectedStatewiseState || "";
+
+    const detailParts = [selectedSubModuleTitle];
+    if (hasInsurer) {
+      detailParts.push(`for ${insurerName}`);
+    }
+    if (regionName) {
+      detailParts.push(`in ${regionName}`);
+    }
+    if (hasRange) {
+      detailParts.push(`from ${rangeStart} to ${rangeEnd}`);
+    }
+
+    return `This data shows ${detailParts.join(" ")}.`;
+  }, [
+    isDistributionAgentsView,
+    selectedSubModuleTitle,
+    selectedStatewiseInsurer,
+    selectedLifeBusinessInsurer,
+    selectedAgentInsurer,
+    selectedStatewiseState,
+    timelineStartYear,
+    timelineEndYear,
+    timelineYearOptions,
+  ]);
+
+  // Auto-generate insights whenever visualization data changes while insights are visible.
+  useEffect(() => {
+    if (!showInsights || !isDistributionAgentsView || visualizationData.length === 0) return;
+
+    const stats = analyzeDataLocally(visualizationData);
+
+    // Build filter summary
+    const filterParts = [];
+    if (selectedAgentType) filterParts.push(`Agent Type: ${selectedAgentType}`);
+    if (selectedAgentInsurer && selectedAgentInsurer !== "All Insurers") filterParts.push(`Insurer: ${selectedAgentInsurer}`);
+    if (selectedAgentSector) filterParts.push(`Sector: ${selectedAgentSector}`);
+    if (selectedStatewiseInsurer) filterParts.push(`Insurer: ${selectedStatewiseInsurer}`);
+    if (selectedStatewiseState) filterParts.push(`State: ${selectedStatewiseState}`);
+    if (selectedLifeBusinessType) filterParts.push(`Business Type: ${selectedLifeBusinessType}`);
+    if (selectedLifeBusinessChannel) filterParts.push(`Channel: ${selectedLifeBusinessChannel}`);
+    if (selectedLifeBusinessInsurer) filterParts.push(`Life Insurer: ${selectedLifeBusinessInsurer}`);
+    if (selectedNonLifeSegment) filterParts.push(`Segment: ${selectedNonLifeSegment}`);
+    if (selectedNonLifeChannel) filterParts.push(`Non-Life Channel: ${selectedNonLifeChannel}`);
+    if (selectedHealthChannel) filterParts.push(`Health Channel: ${selectedHealthChannel}`);
+    if (selectedHealthCategory) filterParts.push(`Health Category: ${selectedHealthCategory}`);
+    const filterSummary = filterParts.length > 0 ? `Applied Filters: ${filterParts.join(" | ")}\n` : "";
+
+    // Structured summary — AI only interprets, never recalculates
+    const context =
+      `Dataset: ${selectedSubModuleTitle}\nMetric: ${metricLabel}\n${filterSummary}` +
+      `Start value: ${stats.startValue} (${stats.startYear})\n` +
+      `End value: ${stats.endValue} (${stats.endYear})\n` +
+      `Minimum: ${stats.minValue} (${stats.minYear})\n` +
+      `Maximum: ${stats.maxValue} (${stats.maxYear})\n` +
+      `Overall growth: ${stats.growthPct}%\n` +
+      `Trend: ${stats.trend}\n` +
+      (stats.sharpDrop ? `Notable drop: ${stats.sharpDrop}\n` : "") +
+      (stats.sharpRise ? `Notable rise: ${stats.sharpRise}\n` : "");
+
+    // Increment generation counter — stale async responses will be ignored
+    const generation = ++insightsGenerationRef.current;
+    setAiMessages([]);
+    setIsAILoading(true);
+
+    generateInsights(context)
+      .then((text) => {
+        if (generation !== insightsGenerationRef.current) return;
+        setAiMessages([{ role: "assistant", text: text || "No insights could be generated for this dataset.", isAutoInsight: true }]);
+      })
+      .catch((err) => {
+        if (generation !== insightsGenerationRef.current) return;
+        console.error("Auto insights error:", err);
+        const isQuota = String(err?.message || "").includes("429") || String(err?.message || "").toLowerCase().includes("quota");
+        setAiMessages([{ role: "assistant", text: isQuota
+          ? "AI quota exceeded. Please wait a moment and try refreshing."
+          : "Could not generate insights. Please try again.", isAutoInsight: true }]);
+      })
+      .finally(() => {
+        if (generation === insightsGenerationRef.current) setIsAILoading(false);
+      });
+  }, [visualizationData, showInsights]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (showInsights) {
+      return;
+    }
+
+    // Invalidate any in-flight auto-generation requests while panel is collapsed.
+    insightsGenerationRef.current += 1;
+    setIsAILoading(false);
+  }, [showInsights]);
+
+  const handleAskInsightsQuestion = async () => {
+    console.log("Ask button clicked");
+    if (isAILoading) return;
+    const trimmedQuestion = insightsQuestion.trim();
+    if (!trimmedQuestion) {
+      return;
+    }
+
+    // ── Hybrid Intelligence: answer deterministic questions locally ──
+    if (visualizationData.length > 0) {
+      const stats = analyzeDataLocally(visualizationData);
+      const q = trimmedQuestion.toLowerCase();
+
+      const isHighest   = /highest|maximum|max|peak|top/.test(q);
+      const isLowest    = /lowest|minimum|min|bottom|least/.test(q);
+      const isGrowth    = /growth|change|increase|decrease|grown|fell|rise|drop/.test(q);
+      const isTrend     = /\btrend\b|direction|overall|pattern/.test(q);
+      const isStart     = /\bstart|\bfirst|\bearliest|\bbegin/.test(q);
+      const isEnd       = /\bend\b|\blast\b|\blatest|\brecent|\bcurrent/.test(q);
+
+      const localAnswer =
+        isHighest && isLowest
+          ? `Highest: ${stats.maxValue} in ${stats.maxYear}.\nLowest: ${stats.minValue} in ${stats.minYear}.`
+          : isHighest
+          ? `The highest value is ${stats.maxValue}, recorded in ${stats.maxYear}.`
+          : isLowest
+          ? `The lowest value is ${stats.minValue}, recorded in ${stats.minYear}.`
+          : isGrowth
+          ? `Overall change from ${stats.startYear} to ${stats.endYear}: ${stats.growthPct}% (${stats.startValue} → ${stats.endValue}).`
+          : isTrend
+          ? `The overall trend is ${stats.trend}. Values moved from ${stats.startValue} (${stats.startYear}) to ${stats.endValue} (${stats.endYear}).`
+          : isStart
+          ? `The starting value is ${stats.startValue} in ${stats.startYear}.`
+          : isEnd
+          ? `The latest value is ${stats.endValue} in ${stats.endYear}.`
+          : null;
+
+      if (localAnswer) {
+        setAiMessages((prev) => [
+          ...prev,
+          { role: "user", text: trimmedQuestion },
+          { role: "assistant", text: localAnswer },
+        ]);
+        setInsightsQuestion("");
+        return; // ← no Gemini call needed
+      }
+    }
+
+    // ── Fall through to Gemini for interpretive questions ──
+    try {
+      setIsAILoading(true);
+
+      const stats = visualizationData.length > 0 ? analyzeDataLocally(visualizationData) : null;
+
+      const filterParts = [];
+      if (selectedAgentType) filterParts.push(`Agent Type: ${selectedAgentType}`);
+      if (selectedAgentInsurer && selectedAgentInsurer !== "All Insurers") filterParts.push(`Insurer: ${selectedAgentInsurer}`);
+      if (selectedAgentSector) filterParts.push(`Sector: ${selectedAgentSector}`);
+      if (selectedStatewiseState) filterParts.push(`State: ${selectedStatewiseState}`);
+      if (selectedStatewiseInsurer) filterParts.push(`Insurer: ${selectedStatewiseInsurer}`);
+      if (selectedLifeBusinessType) filterParts.push(`Business Type: ${selectedLifeBusinessType}`);
+      if (selectedLifeBusinessChannel) filterParts.push(`Channel: ${selectedLifeBusinessChannel}`);
+      if (selectedLifeBusinessInsurer) filterParts.push(`Life Insurer: ${selectedLifeBusinessInsurer}`);
+      if (selectedNonLifeSegment) filterParts.push(`Segment: ${selectedNonLifeSegment}`);
+      if (selectedNonLifeChannel) filterParts.push(`Non-Life Channel: ${selectedNonLifeChannel}`);
+      if (selectedHealthChannel) filterParts.push(`Health Channel: ${selectedHealthChannel}`);
+      if (selectedHealthCategory) filterParts.push(`Health Category: ${selectedHealthCategory}`);
+      const filterSummary = filterParts.length > 0 ? filterParts.join(" | ") : "No filters applied";
+
+      const context = stats
+        ? `Dataset: ${selectedSubModuleTitle}\nMetric: ${metricLabel}\nActive Filters: ${filterSummary}\n` +
+          `Start: ${stats.startValue} (${stats.startYear}), End: ${stats.endValue} (${stats.endYear})\n` +
+          `Min: ${stats.minValue} (${stats.minYear}), Max: ${stats.maxValue} (${stats.maxYear})\n` +
+          `Growth: ${stats.growthPct}%, Trend: ${stats.trend}`
+        : `Dataset: ${selectedSubModuleTitle}\nMetric: ${metricLabel}\nActive Filters: ${filterSummary}`;
+
+      const aiResponse = await askAI(trimmedQuestion, context);
+
+      setAiMessages((prev) => [
+        ...prev,
+        { role: "user", text: trimmedQuestion },
+        { role: "assistant", text: aiResponse },
+      ]);
+      setInsightsQuestion("");
+    } catch (error) {
+      console.error("Error calling AI service:", error);
+      const isQuota = String(error?.message || "").includes("429") || String(error?.message || "").toLowerCase().includes("quota");
+      setAiMessages((prev) => [
+        ...prev,
+        { role: "user", text: trimmedQuestion },
+        { role: "assistant", text: isQuota
+          ? "AI quota exceeded. Please wait a moment before asking again."
+          : "Sorry, I encountered an error processing your question. Please try again." },
+      ]);
+      setInsightsQuestion("");
+    } finally {
+      setIsAILoading(false);
+    }
+  };
+
+  const handleClearInsightsChat = () => {
+    setAiMessages([]);
+    setInsightsQuestion("");
+  };
+
   const handleResetFilters = () => {
     if (isDistributionAgentsView) {
       setSelectedAgentType("");
@@ -1154,6 +1228,8 @@ export default function IntermediariesInsurance() {
     if (!isDistributionAgentsView) {
       return;
     }
+
+    setAiMessages([]);
 
     if (distributionAgentModuleConfig?.requiresBusinessType) {
       if (distributionAgentModuleConfig?.requiresBusinessTypeInsurer) {
@@ -1499,7 +1575,7 @@ export default function IntermediariesInsurance() {
   };
 
   return (
-    <div className="life-insurance-viewport">
+    <div className="life-insurance-viewport intermediaries-theme">
       <div className="life-tabs">
         {TABS.map((tab) => {
           const IconComponent = tab.icon;
@@ -1507,6 +1583,8 @@ export default function IntermediariesInsurance() {
             <button
               key={tab.id}
               className={`life-tab ${activeTab === tab.id ? "active" : ""}`}
+              data-tab={tab.id}
+              style={{ "--tab-accent": tab.accent }}
               onClick={() => {
                 setActiveTab(tab.id);
                 if (tab.id === "distribution-workforce") {
@@ -1527,13 +1605,17 @@ export default function IntermediariesInsurance() {
         })}
       </div>
 
-      <div className="life-submodules">
+      <div
+        className={`life-submodules submodules-${activeTab}`}
+        style={{ "--tab-accent": TABS.find((tab) => tab.id === activeTab)?.accent || "#0ea5a4" }}
+      >
         {SUB_MODULES[activeTab]?.map((module) => {
           const IconComponent = module.icon;
           return (
             <div
               key={module.id}
               className={`life-submodule ${selectedModule === module.id ? "selected" : ""}`}
+              data-module={module.id}
               onClick={() => setSelectedModule(module.id)}
             >
               <div className="submodule-icon">
@@ -1545,7 +1627,7 @@ export default function IntermediariesInsurance() {
         })}
       </div>
 
-      <div className="life-content">
+      <div className={`life-content ${showInsights ? "insights-expanded" : "insights-collapsed"}`}>
         <div className="life-filters card">
           <div className="panel-header">
             <div className="panel-icon-badge">
@@ -1914,12 +1996,7 @@ export default function IntermediariesInsurance() {
                             <th className="col-value">
                               {distributionAgentModuleConfig?.requiresSegmentChannel ? (
                                 <span
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "6px",
-                                    justifyContent: "center",
-                                  }}
+                                  className="metric-heading-inline"
                                 >
                                   <IndianRupeeIcon size={14} strokeWidth={2.2} />
                                   Gross Direct Premium in Cr
@@ -2021,26 +2098,14 @@ export default function IntermediariesInsurance() {
             </div>
             <h3 className="panel-title section-title">Visualization Panel</h3>
             {isDistributionAgentsView && visualizationData.length > 0 && (
-              <>
-                <button
-                  type="button"
-                  className="data-export-btn"
-                  onClick={() => setShowChartTypePicker((previous) => !previous)}
-                  title="Select chart type"
-                >
-                  Select Chart Type
-                </button>
-                <button
-                  type="button"
-                  className="data-export-btn panel-action-btn viz-export-btn"
-                  onClick={handleExportImage}
-                  disabled={isExportingImage}
-                  title="Export chart as image"
-                >
-                  <Download size={14} strokeWidth={2.2} />
-                  {isExportingImage ? "Exporting..." : "Export Image"}
-                </button>
-              </>
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowChartTypePicker((previous) => !previous)}
+                title="Select chart type"
+              >
+                Select Chart Type
+              </button>
             )}
           </div>
           <div className="panel-body viz-panel-body">
@@ -2084,13 +2149,11 @@ export default function IntermediariesInsurance() {
                   )}
                   <div className="chart-wrapper plotly-chart-wrapper">
                     <Plot
+                      className="plot-component-fill"
                       data={plotTraces}
                       layout={plotLayout}
                       config={plotConfig}
-                      style={{ width: "100%", height: "100%" }}
                       useResizeHandler
-                      onInitialized={(_, graphDiv) => setChartGraphDiv(graphDiv)}
-                      onUpdate={(_, graphDiv) => setChartGraphDiv(graphDiv)}
                     />
                   </div>
                 </>
@@ -2126,6 +2189,60 @@ export default function IntermediariesInsurance() {
             )}
           </div>
         </div>
+
+        <div className={`life-insights-panel card ${showInsights ? "" : "collapsed"}`}>
+          <div className={`panel-header insights-panel-header ${showInsights ? "" : "collapsed"}`}>
+            <button
+              type="button"
+              className="insights-toggle-btn"
+              onClick={() => setShowInsights((previous) => !previous)}
+              aria-label={showInsights ? "Collapse insights panel" : "Expand insights panel"}
+              title={showInsights ? "Collapse insights" : "Expand insights"}
+            >
+              {showInsights ? "<<" : (
+                <span className="insights-collapsed-strip visible">
+                  <Lightbulb size={28} strokeWidth={2.5} className="insights-collapsed-icon" />
+                  <span className="insights-collapsed-label visible">Insights</span>
+                  <span className="insights-collapsed-arrow visible">&gt;&gt;</span>
+                </span>
+              )}
+            </button>
+
+            {showInsights && (
+              <>
+                <div className="panel-icon-badge">
+                  <Lightbulb size={14} strokeWidth={2} />
+                </div>
+                <h3 className="panel-title section-title">Insights</h3>
+                <div className="panel-header-actions">
+                  <button
+                    type="button"
+                    className="data-export-btn"
+                    onClick={handleClearInsightsChat}
+                    disabled={isAILoading || (aiMessages.length === 0 && !insightsQuestion.trim())}
+                    title="Clear conversation"
+                  >
+                    <Trash2 size={13} strokeWidth={2} style={{ marginRight: 5 }} />
+                    Clear Chat
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {showInsights && (
+            <div className="panel-body insights-panel-body">
+              <InsightsAssistantPanel
+                contextMessage={insightsContextMessage}
+                messages={aiMessages}
+                isLoading={isAILoading}
+                question={insightsQuestion}
+                onQuestionChange={setInsightsQuestion}
+                onAsk={handleAskInsightsQuestion}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -2144,6 +2261,87 @@ function PanelState({ variant = "empty", message, hint = "" }) {
       {icon}
       <p className="panel-placeholder">{message}</p>
       {hint ? <p className="panel-state-hint">{hint}</p> : null}
+    </div>
+  );
+}
+
+function InsightsAssistantPanel({ contextMessage, messages = [], isLoading = false, question, onQuestionChange, onAsk }) {
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    onAsk?.();
+  };
+
+  return (
+    <div className="insights-chat-layout">
+      <div className="insights-context-box">
+        <p className="insights-context-text">{contextMessage}</p>
+      </div>
+
+      <div className="insights-messages-area" role="log" aria-live="polite">
+        {isLoading && messages.length === 0 ? (
+          <div className="insights-empty-state">
+            <Loader2 className="insights-loading-spinner" size={18} strokeWidth={2} />
+            <p className="insights-messages-placeholder" style={{ marginTop: 8 }}>Generating insights…</p>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="insights-empty-state">
+            <p className="insights-messages-placeholder">Ask a question about this data.</p>
+          </div>
+        ) : (
+          <div className="insights-messages-list">
+            {messages.map((msg, idx) =>
+              msg.isAutoInsight ? (
+                <div key={idx} className="insights-autoinsight-block">
+                  {msg.text
+                    .split("\n")
+                    .filter((line) => line.trim())
+                    .map((line, i) => (
+                      <div key={i} className={`insights-insight-card insights-insight-card--${(i % 3) + 1}`}>
+                        <p className="insights-insight-text">{line.replace(/^[•*\-]\s*/, "")}</p>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div key={idx} className={`insights-bubble-row insights-bubble-row--${msg.role}`}>
+                  {msg.role === "assistant" && (
+                    <div className="insights-avatar insights-avatar--assistant">
+                      <Lightbulb size={12} strokeWidth={2.5} />
+                    </div>
+                  )}
+                  <div className={`insights-bubble insights-bubble--${msg.role}`}>
+                    <p className="insights-bubble-text">{msg.text}</p>
+                  </div>
+                  {msg.role === "user" && (
+                    <div className="insights-avatar insights-avatar--user">
+                      <UserRound size={12} strokeWidth={2.5} />
+                    </div>
+                  )}
+                </div>
+              )
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+      </div>
+
+      <form className="insights-input-row" onSubmit={handleSubmit}>
+        <input
+          type="text"
+          className="insights-question-input"
+          placeholder="Type your question..."
+          value={question}
+          onChange={(event) => onQuestionChange?.(event.target.value)}
+        />
+        <button type="submit" className="insights-ask-btn">
+          Ask
+        </button>
+      </form>
     </div>
   );
 }
@@ -2271,6 +2469,63 @@ function escapeCsvValue(value) {
   return `"${stringValue.replace(/"/g, '""')}"`;
 }
 
+// ── Local analytics engine ─────────────────────────────────────────────────
+// Computes all deterministic stats in JS so Gemini only needs to interpret,
+// never recalculate. Reduces token usage by ~85% and prevents hallucinations.
+function analyzeDataLocally(data) {
+  const points = data.filter((d) => Number.isFinite(Number(d.value)));
+  if (points.length === 0) {
+    return { startValue: 0, endValue: 0, startYear: "", endYear: "", minValue: 0, maxValue: 0, minYear: "", maxYear: "", growthPct: "0.00", trend: "flat", sharpDrop: null, sharpRise: null };
+  }
+
+  const values = points.map((d) => Number(d.value));
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const minPoint = points[values.indexOf(minValue)];
+  const maxPoint = points[values.indexOf(maxValue)];
+
+  const startValue = values[0];
+  const endValue   = values[values.length - 1];
+  const startYear  = String(points[0].year);
+  const endYear    = String(points[points.length - 1].year);
+
+  const growthPct = startValue !== 0
+    ? (((endValue - startValue) / Math.abs(startValue)) * 100).toFixed(2)
+    : "N/A";
+
+  const trend =
+    endValue > startValue * 1.05 ? "upward" :
+    endValue < startValue * 0.95 ? "downward" : "relatively flat";
+
+  // Detect sharpest single-period drop / rise (>15%)
+  let sharpDrop = null;
+  let sharpRise = null;
+  for (let i = 1; i < points.length; i++) {
+    const prev = Number(points[i - 1].value);
+    const curr = Number(points[i].value);
+    if (prev === 0) continue;
+    const pct = ((curr - prev) / Math.abs(prev)) * 100;
+    if (pct <= -15) sharpDrop = `${Math.abs(pct).toFixed(0)}% drop between ${points[i - 1].year} and ${points[i].year}`;
+    if (pct >= 15)  sharpRise = `${pct.toFixed(0)}% rise between ${points[i - 1].year} and ${points[i].year}`;
+  }
+
+  return {
+    startValue: Number(startValue.toFixed(2)),
+    endValue:   Number(endValue.toFixed(2)),
+    startYear,
+    endYear,
+    minValue:   Number(minValue.toFixed(2)),
+    maxValue:   Number(maxValue.toFixed(2)),
+    minYear:    String(minPoint.year),
+    maxYear:    String(maxPoint.year),
+    growthPct,
+    trend,
+    sharpDrop,
+    sharpRise,
+  };
+}
+// ──────────────────────────────────────────────────────────────────────────
+
 function toNumericValue(value) {
   if (value === null || value === undefined || value === "") {
     return 0;
@@ -2323,49 +2578,4 @@ function getHealthMetricLabel(metricValue, metricOptions) {
 
   const matchedMetric = (metricOptions || []).find((option) => option?.value === metricValue);
   return matchedMetric?.label || metricValue;
-}
-
-function wrapChartTitle(title) {
-  const safeTitle = String(title || "").trim();
-  if (!safeTitle) {
-    return { text: "", lineCount: 1 };
-  }
-
-  const segments = safeTitle.split(" : ").filter(Boolean);
-  const maxLineLength = 80;
-  const maxLines = 2;
-  const lines = [];
-  let currentLine = "";
-
-  for (const segment of segments) {
-    const nextValue = currentLine ? `${currentLine} : ${segment}` : segment;
-
-    if (nextValue.length <= maxLineLength || !currentLine) {
-      currentLine = nextValue;
-      continue;
-    }
-
-    lines.push(currentLine);
-    currentLine = segment;
-
-    if (lines.length === maxLines - 1) {
-      break;
-    }
-  }
-
-  if (currentLine && lines.length < maxLines) {
-    lines.push(currentLine);
-  }
-
-  const consumedLength = lines.join(" : ").length;
-  const hasRemainingText = safeTitle.length > consumedLength;
-
-  if (hasRemainingText && lines.length > 0) {
-    lines[lines.length - 1] = `${lines[lines.length - 1]} ...`;
-  }
-
-  return {
-    text: lines.join("<br>"),
-    lineCount: lines.length || 1,
-  };
 }

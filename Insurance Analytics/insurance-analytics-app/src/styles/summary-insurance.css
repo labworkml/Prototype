@@ -1,0 +1,548 @@
+/* =====================================================
+   SUMMARY OF INDIAN INSURANCE SECTOR
+   Augments life-insurance.css with page-specific rules
+   ===================================================== */
+
+/* ─── Viewport ──────────────────────────────────────── */
+.summary-viewport {
+  height: calc(100vh - 112px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(14, 165, 233, 0.06), transparent 40%),
+    radial-gradient(circle at 88% 10%, rgba(139, 92, 246, 0.05), transparent 38%),
+    var(--life-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Page Header ───────────────────────────────────── */
+.summary-page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 28px 8px;
+  flex-shrink: 0;
+}
+
+.summary-page-header-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(14, 165, 233, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.summary-page-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--life-text);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.summary-page-subtitle {
+  font-size: 14px;
+  color: var(--life-text-subtle);
+  margin: 2px 0 0;
+}
+
+/* ─── Sections Scroll Area ──────────────────────────── */
+.summary-sections-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.summary-sections-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.summary-sections-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.12);
+  border-radius: 99px;
+}
+
+/* ─── Section Block ─────────────────────────────────── */
+.summary-section-block {
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.97) 0%,
+    rgba(248, 250, 255, 0.95) 100%
+  );
+  border: 1px solid var(--life-border);
+  border-radius: 17px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  flex-shrink: 0;
+  transition: box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.summary-section-block::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--section-accent) 80%, white),
+    color-mix(in srgb, var(--section-accent) 35%, white)
+  );
+}
+
+.summary-section-block:hover {
+  border-color: color-mix(in srgb, var(--section-accent) 28%, #dbe4ef);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+/* ─── Section Header ────────────────────────────────── */
+.summary-section-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--life-border);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--section-soft) 45%, rgba(255, 255, 255, 0.8)),
+    rgba(15, 23, 42, 0.008)
+  );
+}
+
+.summary-section-icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.summary-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+/* ─── Cards Grid ────────────────────────────────────── */
+.summary-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 11px;
+  padding: 13px 16px 15px;
+  max-height: 236px;
+  overflow-y: auto;
+}
+
+.summary-cards-grid::-webkit-scrollbar {
+  width: 4px;
+}
+.summary-cards-grid::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.1);
+  border-radius: 99px;
+}
+
+/* ─── Metric Card ───────────────────────────────────── */
+.summary-metric-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--life-border);
+  border-radius: 11px;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.summary-metric-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    color-mix(in srgb, var(--s-accent) 8%, transparent) 100%
+  );
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.summary-metric-card:hover {
+  border-color: color-mix(in srgb, var(--s-accent) 44%, transparent);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.09);
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--s-accent) 4%, white);
+}
+
+.summary-metric-card:hover::after {
+  opacity: 1;
+}
+
+.summary-metric-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--s-accent) 65%, white);
+  outline-offset: 1px;
+}
+
+.summary-metric-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summary-metric-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--life-text);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.summary-metric-desc {
+  font-size: 12.5px;
+  color: var(--life-text-subtle);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: hidden;
+}
+
+.summary-metric-chevron {
+  flex-shrink: 0;
+  opacity: 0.45;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.summary-metric-card:hover .summary-metric-chevron {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* ─── Modal Overlay ─────────────────────────────────── */
+.summary-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.38);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: smFadeIn 160ms ease;
+}
+
+@keyframes smFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ─── Modal Box ─────────────────────────────────────── */
+.summary-modal {
+  background: var(--life-surface-solid, #ffffff);
+  border-radius: 20px;
+  border: 1px solid var(--life-border);
+  box-shadow: 0 26px 68px rgba(15, 23, 42, 0.22);
+  width: 100%;
+  max-width: 1080px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: smSlideUp 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes smSlideUp {
+  from { opacity: 0; transform: translateY(18px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+/* ─── Modal Header ──────────────────────────────────── */
+.summary-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 20px;
+  border-bottom: 1px solid;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.028), rgba(15, 23, 42, 0.01));
+  flex-shrink: 0;
+}
+
+.summary-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.summary-modal-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.summary-modal-section-tag {
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--life-text-subtle);
+  margin: 0 0 3px;
+}
+
+.summary-modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--life-text);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.summary-modal-close-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--life-border);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--life-text-subtle);
+  transition: all 160ms ease;
+  flex-shrink: 0;
+}
+
+.summary-modal-close-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+/* ─── Modal Filter Bar ──────────────────────────────── */
+.summary-modal-filterbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  border-bottom: 1px solid var(--life-border);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.015), transparent);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.summary-filterbar-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.summary-filterbar-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--life-text-subtle);
+  white-space: nowrap;
+}
+
+.summary-filterbar-select {
+  padding: 5px 26px 5px 10px;
+  border: 1px solid var(--life-border);
+  border-radius: 8px;
+  background: var(--life-surface-solid, #fff);
+  color: var(--life-text);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.summary-filterbar-select:focus {
+  border-color: rgba(14, 165, 164, 0.5);
+  box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.08);
+}
+
+/* ─── Modal 3-Panel Body ────────────────────────────── */
+.summary-modal-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.95fr) minmax(0, 1.95fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Panels reuse life-insurance.css panel classes, but we override borders */
+.summary-panel {
+  border-radius: 0 !important;
+  border: none !important;
+  border-right: 1px solid var(--life-border) !important;
+  box-shadow: none !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(249, 251, 255, 0.9));
+}
+
+.summary-panel:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.summary-panel:last-child {
+  border-right: none !important;
+}
+
+/* ─── Filters inside modal ──────────────────────────── */
+.summary-filters-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.summary-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.summary-filter-select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--life-border);
+  border-radius: 8px;
+  background: var(--life-surface-solid, #fff);
+  color: var(--life-text);
+  font-size: 14.5px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.summary-filter-select:focus {
+  border-color: rgba(14, 165, 164, 0.5);
+  box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.08);
+}
+
+.summary-apply-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 160ms ease, transform 140ms ease;
+  font-family: inherit;
+  margin-top: 4px;
+}
+
+/* Keep typography bump scoped to Summary modal only */
+.summary-modal .panel-title {
+  font-size: 18px;
+}
+
+.summary-modal .filter-label {
+  font-size: 13.5px;
+}
+
+.summary-modal .panel-placeholder {
+  font-size: 15px;
+}
+
+.summary-modal .panel-state-hint {
+  font-size: 14px;
+}
+
+.summary-apply-btn:hover {
+  opacity: 0.87;
+  transform: translateY(-1px);
+}
+
+/* ─── Panel placeholder state ───────────────────────── */
+.summary-panel-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 26px;
+}
+
+/* ─── Responsive ────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .summary-cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+    max-height: 246px;
+  }
+}
+
+@media (max-width: 860px) {
+  .summary-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    max-height: 270px;
+  }
+
+  .summary-modal-body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .summary-panel {
+    border-right: none !important;
+    border-bottom: 1px solid var(--life-border) !important;
+    min-height: 200px;
+  }
+
+  .summary-panel:last-child {
+    border-bottom: none !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .summary-sections-scroll {
+    padding: 8px 12px 16px;
+  }
+  .summary-page-header {
+    padding: 10px 14px 6px;
+  }
+  .summary-cards-grid {
+    grid-template-columns: 1fr;
+    max-height: 300px;
+  }
+}

@@ -1,74 +1,66 @@
-import { useNavigate } from "react-router-dom";
-import "../styles/module-page.css";
+import {
+  BookText,
+  Scale,
+  FileStack,
+  ScrollText,
+  ShieldCheck,
+} from "lucide-react";
+import "../styles/analytics.css";
 
 export default function InsuranceLaws() {
-  const navigate = useNavigate();
+  const modules = [
+    {
+      id: "acts",
+      title: "Acts",
+      icon: BookText,
+      color: "#0ea5e9",
+      bg: "rgba(14,165,233,0.1)",
+      description: "Primary insurance acts and statutory provisions.",
+    },
+    {
+      id: "regulations",
+      title: "Regulations",
+      icon: Scale,
+      color: "#14b8a6",
+      bg: "rgba(20,184,166,0.1)",
+      description: "Regulatory framework and compliance regulations.",
+    },
+    {
+      id: "master-circular",
+      title: "Master Circular",
+      icon: FileStack,
+      color: "#6366f1",
+      bg: "rgba(99,102,241,0.1)",
+      description: "Consolidated circulars and supervisory directions.",
+    },
+    {
+      id: "guidelines",
+      title: "Guidelines",
+      icon: ScrollText,
+      color: "#f59e0b",
+      bg: "rgba(245,158,11,0.1)",
+      description: "Operational and governance guidelines for insurers.",
+    },
+    {
+      id: "insurance-core-principles",
+      title: "Insurance Core Principles",
+      icon: ShieldCheck,
+      color: "#ef4444",
+      bg: "rgba(239,68,68,0.1)",
+      description: "Core principles for prudential supervision and stability.",
+    },
+  ];
 
   return (
-    <div className="module-page-wrapper">
-      <div className="module-page-header">
-        <button className="module-back-btn" onClick={() => navigate("/dashboard")}>
-          ← Back to Dashboard
-        </button>
-        <h1 className="module-page-title">Insurance Laws & Regulations</h1>
-        <p className="module-page-subtitle">Compliance guidelines and regulatory requirements for insurance operations</p>
-      </div>
+    <div className="analytics-wrapper">
+      <div className="analytics-container">
+        <h1 className="analytics-title">Insurance Laws</h1>
 
-      <div className="module-page-container">
-        <div className="laws-grid">
-          <LawCard 
-            title="Data Protection" 
-            status="Compliant" 
-            regulation="GDPR, CCPA"
-          />
-          <LawCard 
-            title="Consumer Protection" 
-            status="Compliant" 
-            regulation="Fair Claims"
-          />
-          <LawCard 
-            title="Solvency Requirements" 
-            status="Compliant" 
-            regulation="RBC Standards"
-          />
-          <LawCard 
-            title="Transparency Standards" 
-            status="Compliant" 
-            regulation="Disclosure Rules"
-          />
-        </div>
-
-        <div className="content-section card">
-          <h2>Regulatory Framework</h2>
-          <div className="regulation-list">
-            <RegulationItem 
-              title="Insurance Act 2023" 
-              description="Comprehensive framework governing insurance operations and consumer protection"
-            />
-            <RegulationItem 
-              title="Data Privacy Regulations" 
-              description="Requirements for handling sensitive customer information and claims data"
-            />
-            <RegulationItem 
-              title="Anti-Fraud Compliance" 
-              description="Mandatory procedures for detecting and preventing insurance fraud"
-            />
-            <RegulationItem 
-              title="Rate Filing Requirements" 
-              description="Guidelines for actuarial analysis and premium rate submissions"
-            />
-          </div>
-        </div>
-
-        <div className="content-section card">
-          <h2>Compliance Checklist</h2>
-          <div className="checklist">
-            <ChecklistItem label="Annual compliance audit completed" />
-            <ChecklistItem label="Customer dispute resolution process in place" />
-            <ChecklistItem label="Fraud detection system operational" />
-            <ChecklistItem label="Data security protocols updated" />
-            <ChecklistItem label="Staff training current" />
-            <ChecklistItem label="Regulatory filing deadlines met" />
+        <div className="modules-container">
+          <div className="modules-grid">
+            {modules.map((module) => (
+              <ModuleCard key={module.id} module={module} />
+            ))}
           </div>
         </div>
       </div>
@@ -76,30 +68,27 @@ export default function InsuranceLaws() {
   );
 }
 
-function LawCard({ title, status, regulation }) {
-  return (
-    <div className="law-card card">
-      <div className="law-card-title">{title}</div>
-      <div className="law-card-status">{status}</div>
-      <div className="law-card-regulation">{regulation}</div>
-    </div>
-  );
-}
+function ModuleCard({ module }) {
+  const IconComponent = module.icon;
 
-function RegulationItem({ title, description }) {
   return (
-    <div className="regulation-item card">
-      <div className="regulation-title">{title}</div>
-      <div className="regulation-description">{description}</div>
-    </div>
-  );
-}
-
-function ChecklistItem({ label }) {
-  return (
-    <div className="checklist-item">
-      <span className="checklist-check">✓</span>
-      <span>{label}</span>
+    <div className="module-card card">
+      <div
+        className="module-card-icon"
+        style={{
+          background: module.bg,
+          borderRadius: "14px",
+          width: "52px",
+          height: "52px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <IconComponent size={26} strokeWidth={1.75} color={module.color} />
+      </div>
+      <h3 className="module-card-title">{module.title}</h3>
+      <p className="module-card-description">{module.description}</p>
     </div>
   );
 }

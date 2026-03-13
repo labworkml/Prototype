@@ -1,5 +1,9 @@
 import { initializeApp } from "firebase/app";
-import { ReCaptchaV3Provider, initializeAppCheck } from "firebase/app-check";
+// Only import App Check in production
+let ReCaptchaV3Provider, initializeAppCheck;
+if (typeof window !== "undefined" && !window.location.hostname.match(/^(localhost|127\.0\.0\.1|::1)$/)) {
+  ({ ReCaptchaV3Provider, initializeAppCheck } = require("firebase/app-check"));
+}
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -17,10 +21,33 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-const appCheck = initializeAppCheck(app, {
-  provider: new ReCaptchaV3Provider(import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY),
-  isTokenAutoRefreshEnabled: true,
-});
+const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+const currentHostname = typeof window !== "undefined" ? window.location.hostname : "";
+// App Check must be fully disabled for localhost/dev, regardless of site key or Firebase enforcement.
+const isLocalDevelopment =
+  import.meta.env.DEV || localHosts.has(currentHostname) || currentHostname.endsWith(".local") || currentHostname === "";
+const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
+
+let appCheck;
+
+// App Check is NEVER initialized for localhost/dev. Only for real domains in production.
+if (
+  typeof window !== "undefined" &&
+  !window.location.hostname.match(/^(localhost|127\.0\.0\.1|::1)$/) &&
+  appCheckSiteKey &&
+  ReCaptchaV3Provider &&
+  initializeAppCheck
+) {
+  try {
+    appCheck = initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(appCheckSiteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch (error) {
+    console.warn("App Check initialization failed. Continuing without App Check:", error);
+    appCheck = undefined;
+  }
+}
 
 // Export services
 export { app, appCheck };

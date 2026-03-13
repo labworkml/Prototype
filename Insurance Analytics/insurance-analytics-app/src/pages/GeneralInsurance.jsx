@@ -18,6 +18,7 @@ import {
   IndianRupeeIcon,
   Landmark,
   LayoutGrid,
+  Lightbulb,
   Loader2,
   MapPin,
   PieChart,
@@ -45,7 +46,7 @@ const TABS = [
 
 const SUB_MODULES = {
   "market-overview": [
-    { id: "insurer-details", title: "Insurer Details", icon: FileText },
+    { id: "insurer-details", title: "General - Insurer Details", icon: FileText },
     { id: "state-wise-analysis", title: "State Wise : Premium - Segment Analysis", icon: MapPin },
     { id: "issued-policies", title: "Number of Issued Policies", icon: LayoutGrid },
     { id: "aum", title: "Assets Under Management (AUM)", icon: Building2 },
@@ -84,6 +85,7 @@ const SUB_MODULES = {
 export default function GeneralInsurance() {
   const [activeTab, setActiveTab] = useState("market-overview");
   const [selectedModule, setSelectedModule] = useState("insurer-details");
+  const [showInsights, setShowInsights] = useState(false);
 
   const [insurers, setInsurers] = useState([]);
   const [insurersLoading, setInsurersLoading] = useState(false);
@@ -2004,8 +2006,20 @@ export default function GeneralInsurance() {
     }
   };
 
+  const getTabAccent = (tabId) => {
+    const tabAccents = {
+      "market-overview": "#0ea5a4",
+      "insurer-performance": "#0284c7",
+      "claims-risk": "#f97316",
+      financials: "#6366f1",
+      distribution: "#14b8a6",
+      grievances: "#ef4444",
+    };
+    return tabAccents[tabId] || "#0ea5a4";
+  };
+
   return (
-    <div className="life-insurance-viewport">
+    <div className="life-insurance-viewport general-theme">
       <div className="life-tabs">
         {TABS.map((tab) => {
           const IconComponent = tab.icon;
@@ -2013,6 +2027,8 @@ export default function GeneralInsurance() {
             <button
               key={tab.id}
               className={`life-tab ${activeTab === tab.id ? "active" : ""}`}
+              data-tab={tab.id}
+              style={{ "--tab-accent": getTabAccent(tab.id) }}
               onClick={() => {
                 setActiveTab(tab.id);
                 setSelectedModule(tab.id === "market-overview" ? "insurer-details" : null);
@@ -2025,13 +2041,17 @@ export default function GeneralInsurance() {
         })}
       </div>
 
-      <div className="life-submodules">
+      <div
+        className={`life-submodules submodules-${activeTab}`}
+        style={{ "--tab-accent": getTabAccent(activeTab) }}
+      >
         {SUB_MODULES[activeTab]?.map((module) => {
           const IconComponent = module.icon;
           return (
             <div
               key={module.id}
               className={`life-submodule ${selectedModule === module.id ? "selected" : ""}`}
+              data-module={module.id}
               onClick={() => setSelectedModule(module.id)}
             >
               <div className="submodule-icon">
@@ -2043,7 +2063,7 @@ export default function GeneralInsurance() {
         })}
       </div>
 
-      <div className="life-content">
+      <div className={`life-content ${showInsights ? "insights-expanded" : "insights-collapsed"}`}>
         <div className="life-filters card">
           <div className="panel-header">
             <div className="panel-icon-badge">
@@ -3034,6 +3054,47 @@ export default function GeneralInsurance() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className={`life-insights-panel card ${showInsights ? "" : "collapsed"}`}>
+          <div className={`panel-header insights-panel-header ${showInsights ? "" : "collapsed"}`}>
+            <button
+              type="button"
+              className="insights-toggle-btn"
+              onClick={() => setShowInsights((previous) => !previous)}
+              aria-label={showInsights ? "Collapse insights panel" : "Expand insights panel"}
+              title={showInsights ? "Collapse insights" : "Expand insights"}
+            >
+              {showInsights ? "<<" : (
+                <span className="insights-collapsed-strip visible">
+                  <Lightbulb size={28} strokeWidth={2.5} className="insights-collapsed-icon" />
+                  <span className="insights-collapsed-label visible">Insights</span>
+                  <span className="insights-collapsed-arrow visible">&gt;&gt;</span>
+                </span>
+              )}
+            </button>
+
+            {showInsights && (
+              <>
+                <div className="panel-icon-badge">
+                  <Lightbulb size={14} strokeWidth={2} />
+                </div>
+                <h3 className="panel-title section-title">Insights</h3>
+              </>
+            )}
+          </div>
+
+          {showInsights && (
+            <div className="panel-body insights-panel-body">
+              <div className="chart-wrapper">
+                <PanelState
+                  variant="empty"
+                  message="Select filters to view insights."
+                  hint="Insights will appear here after applying filters."
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
