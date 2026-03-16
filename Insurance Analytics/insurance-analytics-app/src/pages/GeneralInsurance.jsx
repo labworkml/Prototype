@@ -148,6 +148,26 @@ export default function GeneralInsurance() {
   const [appliedStateGdpState, setAppliedStateGdpState] = useState("");
   const [appliedStateGdpSegment, setAppliedStateGdpSegment] = useState("");
 
+  // Number of Issued Policies state
+  const [issuedPoliciesRawDocs, setIssuedPoliciesRawDocs] = useState([]);
+  const [issuedPoliciesLoading, setIssuedPoliciesLoading] = useState(false);
+  const [issuedPoliciesError, setIssuedPoliciesError] = useState("");
+  const [selectedIssuedInsurerType, setSelectedIssuedInsurerType] = useState("");
+  const [appliedIssuedInsurerType, setAppliedIssuedInsurerType] = useState("");
+
+  // Operational Analysis state
+  const [operationalRawDocs, setOperationalRawDocs] = useState([]);
+  const [operationalLoading, setOperationalLoading] = useState(false);
+  const [operationalError, setOperationalError] = useState("");
+  const [selectedOperationalSector, setSelectedOperationalSector] = useState("");
+  const [selectedOperationalInsurer, setSelectedOperationalInsurer] = useState("");
+  const [selectedOperationalSegment, setSelectedOperationalSegment] = useState("");
+  const [selectedOperationalMetric, setSelectedOperationalMetric] = useState("");
+  const [appliedOperationalSector, setAppliedOperationalSector] = useState("");
+  const [appliedOperationalInsurer, setAppliedOperationalInsurer] = useState("");
+  const [appliedOperationalSegment, setAppliedOperationalSegment] = useState("");
+  const [appliedOperationalMetric, setAppliedOperationalMetric] = useState("");
+
   const isInsurerDetailsView =
     activeTab === "market-overview" && selectedModule === "insurer-details";
   const isAumInsurerWiseView =
@@ -160,6 +180,10 @@ export default function GeneralInsurance() {
     activeTab === "insurer-performance" && selectedModule === "premium-segment-analysis";
   const isStatewisePremiumSegmentView =
     activeTab === "market-overview" && selectedModule === "state-wise-analysis";
+  const isIssuedPoliciesView =
+    activeTab === "market-overview" && selectedModule === "issued-policies";
+  const isOperationalAnalysisView =
+    activeTab === "insurer-performance" && selectedModule === "operational-analysis";
 
   useEffect(() => {
     const fetchInsurers = async () => {
@@ -460,6 +484,95 @@ export default function GeneralInsurance() {
 
     setSelectedStateGdpSegment("");
   }, [isStatewisePremiumSegmentView, selectedStateGdpState]);
+
+  // Fetch Number of Issued Policies data
+  useEffect(() => {
+    if (!isIssuedPoliciesView || issuedPoliciesRawDocs.length > 0) {
+      return;
+    }
+
+    const fetchIssuedPoliciesDocs = async () => {
+      setIssuedPoliciesLoading(true);
+      setIssuedPoliciesError("");
+
+      try {
+        const snapshot = await getDocs(
+          collection(db, "Sheet43_Number_of_Policies_Issued_by_General_Insurers")
+        );
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setIssuedPoliciesRawDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch issued policies data:", error);
+        setIssuedPoliciesError("Unable to load Number of Issued Policies data.");
+        setIssuedPoliciesRawDocs([]);
+      } finally {
+        setIssuedPoliciesLoading(false);
+      }
+    };
+
+    fetchIssuedPoliciesDocs();
+  }, [isIssuedPoliciesView, issuedPoliciesRawDocs.length]);
+
+  useEffect(() => {
+    if (!isIssuedPoliciesView) {
+      return;
+    }
+
+    setSelectedIssuedInsurerType("");
+    setAppliedIssuedInsurerType("");
+    setShowChartTypePicker(false);
+    setShowTimelinePicker(false);
+  }, [isIssuedPoliciesView]);
+
+  useEffect(() => {
+    if (!isOperationalAnalysisView || operationalRawDocs.length > 0) {
+      return;
+    }
+
+    const fetchOperationalDocs = async () => {
+      setOperationalLoading(true);
+      setOperationalError("");
+
+      try {
+        const snapshot = await getDocs(collection(db, "sheet44_operationalmetrics"));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setOperationalRawDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch Operational Analysis data:", error);
+        setOperationalError("Unable to load Operational Analysis data.");
+        setOperationalRawDocs([]);
+      } finally {
+        setOperationalLoading(false);
+      }
+    };
+
+    fetchOperationalDocs();
+  }, [isOperationalAnalysisView, operationalRawDocs.length]);
+
+  useEffect(() => {
+    if (!isOperationalAnalysisView) {
+      return;
+    }
+
+    setSelectedOperationalSector("");
+    setSelectedOperationalInsurer("");
+    setSelectedOperationalSegment("");
+    setSelectedOperationalMetric("");
+    setAppliedOperationalSector("");
+    setAppliedOperationalInsurer("");
+    setAppliedOperationalSegment("");
+    setAppliedOperationalMetric("");
+    setShowChartTypePicker(false);
+    setShowTimelinePicker(false);
+  }, [isOperationalAnalysisView]);
 
   useEffect(() => {
     setPendingVisualizationType(visualizationType);
@@ -858,6 +971,212 @@ export default function GeneralInsurance() {
     stateSegmentGdpRawDocs,
   ]);
 
+  const issuedPoliciesInsurerTypeOptions = useMemo(() => {
+    return Array.from(
+      new Set(issuedPoliciesRawDocs.map((document) => resolveInsurerType(document)).filter(Boolean))
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((insurerType) => ({ label: insurerType, value: insurerType }));
+  }, [issuedPoliciesRawDocs]);
+
+  const issuedPoliciesAppliedRows = useMemo(() => {
+    if (!isIssuedPoliciesView || !appliedIssuedInsurerType) {
+      return [];
+    }
+
+    const normalizedInsurerType = normalizeText(appliedIssuedInsurerType);
+    const yearTotals = new Map();
+
+    issuedPoliciesRawDocs.forEach((document) => {
+      if (normalizeText(resolveInsurerType(document)) !== normalizedInsurerType) {
+        return;
+      }
+
+      const yearLabel = resolveYearLabel(document);
+      if (!yearLabel) {
+        return;
+      }
+
+      const policiesValue = resolvePoliciesIssuedLakhsValue(document);
+      yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + policiesValue);
+    });
+
+    return Array.from(yearTotals.entries())
+      .map(([year, value]) => ({ year, value }))
+      .sort((first, second) => resolveYearSortValue(first.year) - resolveYearSortValue(second.year));
+  }, [isIssuedPoliciesView, appliedIssuedInsurerType, issuedPoliciesRawDocs]);
+
+  const operationalMetricFilterLabelMap = useMemo(
+    () => ({
+      "NET PREMIUM EARNED  (₹Crore)": "Net Premium Earned",
+      "CLAIMS INCURRED (NET)  (₹Crore)": "Net claims incurred",
+      "INCURRED CLAIMS RATIO  (Percent)": "Incurred Claims Ratio",
+    }),
+    []
+  );
+
+  const operationalMetricPanelLabelMap = useMemo(
+    () => ({
+      "NET PREMIUM EARNED  (₹Crore)": "Net Premium Earned (₹Crore)",
+      "CLAIMS INCURRED (NET)  (₹Crore)": "Net Claims Incurred (₹Crore)",
+      "INCURRED CLAIMS RATIO  (Percent)": "Incurred Claims Ratio (Percent)",
+    }),
+    []
+  );
+
+  const operationalSectorOptions = useMemo(() => {
+    return Array.from(new Set(operationalRawDocs.map((document) => document.sector).filter(Boolean)))
+      .sort((first, second) => String(first).localeCompare(String(second)))
+      .map((sector) => ({ label: formatDisplayLabel(sector), value: sector }));
+  }, [operationalRawDocs]);
+
+  const operationalInsurerOptions = useMemo(() => {
+    const normalizedSector = normalizeText(selectedOperationalSector);
+    return Array.from(
+      new Set(
+        operationalRawDocs
+          .filter((document) => {
+            if (!normalizedSector) {
+              return true;
+            }
+
+            return normalizeText(document.sector) === normalizedSector;
+          })
+          .map((document) => document.insurer_name)
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => String(first).localeCompare(String(second)))
+      .map((insurerName) => ({ label: formatDisplayLabel(insurerName), value: insurerName }));
+  }, [operationalRawDocs, selectedOperationalSector]);
+
+  const operationalSegmentOptions = useMemo(() => {
+    const normalizedSector = normalizeText(selectedOperationalSector);
+    const normalizedInsurer = normalizeText(selectedOperationalInsurer);
+    return Array.from(
+      new Set(
+        operationalRawDocs
+          .filter((document) => {
+            if (normalizedSector && normalizeText(document.sector) !== normalizedSector) {
+              return false;
+            }
+
+            if (normalizedInsurer && normalizeText(document.insurer_name) !== normalizedInsurer) {
+              return false;
+            }
+
+            return true;
+          })
+          .map((document) => document.segment)
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => String(first).localeCompare(String(second)))
+      .map((segment) => ({ label: formatDisplayLabel(segment), value: segment }));
+  }, [operationalRawDocs, selectedOperationalSector, selectedOperationalInsurer]);
+
+  const operationalMetricOptions = useMemo(() => {
+    const normalizedSector = normalizeText(selectedOperationalSector);
+    const normalizedInsurer = normalizeText(selectedOperationalInsurer);
+    const normalizedSegment = normalizeText(selectedOperationalSegment);
+
+    return Array.from(
+      new Set(
+        operationalRawDocs
+          .filter((document) => {
+            if (normalizedSector && normalizeText(document.sector) !== normalizedSector) {
+              return false;
+            }
+
+            if (normalizedInsurer && normalizeText(document.insurer_name) !== normalizedInsurer) {
+              return false;
+            }
+
+            if (normalizedSegment && normalizeText(document.segment) !== normalizedSegment) {
+              return false;
+            }
+
+            return true;
+          })
+          .map((document) => document.metric)
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => String(first).localeCompare(String(second)))
+      .map((metric) => ({
+        label: operationalMetricFilterLabelMap[metric] || metric,
+        value: metric,
+      }));
+  }, [
+    operationalRawDocs,
+    selectedOperationalSector,
+    selectedOperationalInsurer,
+    selectedOperationalSegment,
+    operationalMetricFilterLabelMap,
+  ]);
+
+  const operationalAppliedRows = useMemo(() => {
+    if (
+      !isOperationalAnalysisView ||
+      !appliedOperationalSector ||
+      !appliedOperationalInsurer ||
+      !appliedOperationalSegment ||
+      !appliedOperationalMetric
+    ) {
+      return [];
+    }
+
+    const normalizedSector = normalizeText(appliedOperationalSector);
+    const normalizedInsurer = normalizeText(appliedOperationalInsurer);
+    const normalizedSegment = normalizeText(appliedOperationalSegment);
+    const normalizedMetric = normalizeText(appliedOperationalMetric);
+    const yearTotals = new Map();
+
+    operationalRawDocs.forEach((document) => {
+      if (normalizeText(document.sector) !== normalizedSector) {
+        return;
+      }
+
+      if (normalizeText(document.insurer_name) !== normalizedInsurer) {
+        return;
+      }
+
+      if (normalizeText(document.segment) !== normalizedSegment) {
+        return;
+      }
+
+      if (normalizeText(document.metric) !== normalizedMetric) {
+        return;
+      }
+
+      const yearLabel = resolveYearLabel(document);
+      if (!yearLabel) {
+        return;
+      }
+
+      const metricValue = Number(
+        document.value ?? document.metric_value ?? document.amount ?? document.metric_amount ?? 0
+      );
+
+      if (!Number.isFinite(metricValue)) {
+        return;
+      }
+
+      yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + metricValue);
+    });
+
+    return Array.from(yearTotals.entries())
+      .map(([year, value]) => ({ year, value }))
+      .sort((first, second) => resolveYearSortValue(first.year) - resolveYearSortValue(second.year));
+  }, [
+    isOperationalAnalysisView,
+    appliedOperationalSector,
+    appliedOperationalInsurer,
+    appliedOperationalSegment,
+    appliedOperationalMetric,
+    operationalRawDocs,
+  ]);
+
   useEffect(() => {
     if (!isEquityCapitalView) {
       return;
@@ -994,6 +1313,40 @@ export default function GeneralInsurance() {
     }
   }, [isStatewisePremiumSegmentView, stateSegmentAppliedRows, timelineStartYear, timelineEndYear]);
 
+  useEffect(() => {
+    if (!isIssuedPoliciesView) {
+      return;
+    }
+
+    if (issuedPoliciesAppliedRows.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const timelineYears = issuedPoliciesAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    if (timelineYears.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const minimumYear = String(timelineYears[0]);
+    const maximumYear = String(timelineYears[timelineYears.length - 1]);
+
+    if (!timelineStartYear) {
+      setTimelineStartYear(minimumYear);
+    }
+
+    if (!timelineEndYear) {
+      setTimelineEndYear(maximumYear);
+    }
+  }, [isIssuedPoliciesView, issuedPoliciesAppliedRows, timelineStartYear, timelineEndYear]);
+
   // Timeline year options for Equity Capital
   const escTimelineYearOptions = useMemo(() => {
     const years = escAppliedRows
@@ -1104,6 +1457,33 @@ export default function GeneralInsurance() {
     });
   }, [stateSegmentAppliedRows, timelineStartYear, timelineEndYear]);
 
+  const issuedPoliciesTimelineYearOptions = useMemo(() => {
+    const years = issuedPoliciesAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    return Array.from(new Set(years));
+  }, [issuedPoliciesAppliedRows]);
+
+  const visibleIssuedPoliciesRows = useMemo(() => {
+    if (!issuedPoliciesAppliedRows.length) {
+      return [];
+    }
+
+    if (!timelineStartYear || !timelineEndYear) {
+      return issuedPoliciesAppliedRows;
+    }
+
+    const startYear = Number(timelineStartYear);
+    const endYear = Number(timelineEndYear);
+
+    return issuedPoliciesAppliedRows.filter((row) => {
+      const rowYear = resolveYearSortValue(row.year);
+      return rowYear >= startYear && rowYear <= endYear;
+    });
+  }, [issuedPoliciesAppliedRows, timelineStartYear, timelineEndYear]);
+
   const filterConfig = useMemo(
     () =>
       isGrossDirectPremiumView
@@ -1114,6 +1494,16 @@ export default function GeneralInsurance() {
               value: selectedGdpInsurer,
               onChange: setSelectedGdpInsurer,
               placeholder: "Select Insurer",
+            },
+          ]
+        : isIssuedPoliciesView
+        ? [
+            {
+              label: "Type of Insurer",
+              options: issuedPoliciesInsurerTypeOptions,
+              value: selectedIssuedInsurerType,
+              onChange: setSelectedIssuedInsurerType,
+              placeholder: "Select Type of Insurer",
             },
           ]
         : isStatewisePremiumSegmentView
@@ -1131,6 +1521,37 @@ export default function GeneralInsurance() {
               value: selectedStateGdpSegment,
               onChange: setSelectedStateGdpSegment,
               placeholder: "Select Segment",
+            },
+          ]
+        : isOperationalAnalysisView
+        ? [
+            {
+              label: "Sector",
+              options: operationalSectorOptions,
+              value: selectedOperationalSector,
+              onChange: setSelectedOperationalSector,
+              placeholder: "Select Sector",
+            },
+            {
+              label: "Insurer Name",
+              options: operationalInsurerOptions,
+              value: selectedOperationalInsurer,
+              onChange: setSelectedOperationalInsurer,
+              placeholder: "Select Insurer",
+            },
+            {
+              label: "Segment",
+              options: operationalSegmentOptions,
+              value: selectedOperationalSegment,
+              onChange: setSelectedOperationalSegment,
+              placeholder: "Select Segment",
+            },
+            {
+              label: "Metric",
+              options: operationalMetricOptions,
+              value: selectedOperationalMetric,
+              onChange: setSelectedOperationalMetric,
+              placeholder: "Select Metric",
             },
           ]
         : isPremiumSegmentAnalysisView
@@ -1204,11 +1625,23 @@ export default function GeneralInsurance() {
       isGrossDirectPremiumView,
       gdpInsurerOptions,
       selectedGdpInsurer,
+      isIssuedPoliciesView,
+      issuedPoliciesInsurerTypeOptions,
+      selectedIssuedInsurerType,
       isStatewisePremiumSegmentView,
       stateGdpStateOptions,
       selectedStateGdpState,
       stateGdpSegmentOptions,
       selectedStateGdpSegment,
+      isOperationalAnalysisView,
+      operationalSectorOptions,
+      selectedOperationalSector,
+      operationalInsurerOptions,
+      selectedOperationalInsurer,
+      operationalSegmentOptions,
+      selectedOperationalSegment,
+      operationalMetricOptions,
+      selectedOperationalMetric,
       isPremiumSegmentAnalysisView,
       segmentInsurerOptions,
       selectedSegmentInsurer,
@@ -1259,12 +1692,20 @@ export default function GeneralInsurance() {
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
 
   const visualizationData = useMemo(() => {
-    if (!isAumInsurerWiseView && !isGrossDirectPremiumView && !isPremiumSegmentAnalysisView && !isStatewisePremiumSegmentView) {
+    if (
+      !isAumInsurerWiseView &&
+      !isGrossDirectPremiumView &&
+      !isPremiumSegmentAnalysisView &&
+      !isStatewisePremiumSegmentView &&
+      !isIssuedPoliciesView
+    ) {
       return [];
     }
 
     const rows = isGrossDirectPremiumView
       ? visibleGdpRows
+      : isIssuedPoliciesView
+      ? visibleIssuedPoliciesRows
       : isStatewisePremiumSegmentView
       ? visibleStateSegmentRows
       : isPremiumSegmentAnalysisView
@@ -1277,10 +1718,12 @@ export default function GeneralInsurance() {
   }, [
     isAumInsurerWiseView,
     isGrossDirectPremiumView,
+    isIssuedPoliciesView,
     isStatewisePremiumSegmentView,
     isPremiumSegmentAnalysisView,
     visibleAumRows,
     visibleGdpRows,
+    visibleIssuedPoliciesRows,
     visibleStateSegmentRows,
     visibleSegmentRows,
   ]);
@@ -1298,7 +1741,7 @@ export default function GeneralInsurance() {
 
   // Combined visualization data for chart rendering
   const activeVisualizationData = useMemo(() => {
-    return isAumInsurerWiseView || isGrossDirectPremiumView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView
+    return isAumInsurerWiseView || isGrossDirectPremiumView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isIssuedPoliciesView
       ? visualizationData
       : escVisualizationData;
   }, [
@@ -1306,6 +1749,7 @@ export default function GeneralInsurance() {
     isGrossDirectPremiumView,
     isPremiumSegmentAnalysisView,
     isStatewisePremiumSegmentView,
+    isIssuedPoliciesView,
     visualizationData,
     escVisualizationData,
   ]);
@@ -1324,6 +1768,10 @@ export default function GeneralInsurance() {
 
     if (isGrossDirectPremiumView) {
       return [selectedSubModuleTitle, appliedGdpInsurer].filter(Boolean).join(" : ");
+    }
+
+    if (isIssuedPoliciesView) {
+      return [selectedSubModuleTitle, appliedIssuedInsurerType].filter(Boolean).join(" : ");
     }
 
     if (isStatewisePremiumSegmentView) {
@@ -1358,6 +1806,8 @@ export default function GeneralInsurance() {
     appliedInvestmentCategory,
     isGrossDirectPremiumView,
     appliedGdpInsurer,
+    isIssuedPoliciesView,
+    appliedIssuedInsurerType,
     isStatewisePremiumSegmentView,
     appliedStateGdpState,
     appliedStateGdpSegment,
@@ -1375,6 +1825,9 @@ export default function GeneralInsurance() {
     if (isGrossDirectPremiumView) {
       return "Gross Direct Premium";
     }
+    if (isIssuedPoliciesView) {
+      return "No. of Policies (Lakhs)";
+    }
     if (isStatewisePremiumSegmentView) {
       return "GDP";
     }
@@ -1388,6 +1841,7 @@ export default function GeneralInsurance() {
   }, [
     isAumInsurerWiseView,
     isGrossDirectPremiumView,
+    isIssuedPoliciesView,
     isStatewisePremiumSegmentView,
     isPremiumSegmentAnalysisView,
     isEquityCapitalView,
@@ -1451,6 +1905,9 @@ export default function GeneralInsurance() {
     if (isGrossDirectPremiumView) {
       return "Gross Direct Premium in Cr";
     }
+    if (isIssuedPoliciesView) {
+      return "No. of Policies (Lakhs)";
+    }
     if (isStatewisePremiumSegmentView) {
       return "GDP in Cr";
     }
@@ -1464,6 +1921,7 @@ export default function GeneralInsurance() {
   }, [
     isAumInsurerWiseView,
     isGrossDirectPremiumView,
+    isIssuedPoliciesView,
     isStatewisePremiumSegmentView,
     isPremiumSegmentAnalysisView,
     isEquityCapitalView,
@@ -1528,6 +1986,7 @@ export default function GeneralInsurance() {
           { label: "Select Insurer", value: appliedSegmentInsurer },
           { label: "Select Segment", value: appliedSegment },
           { label: "Select Insurer", value: appliedGdpInsurer },
+          { label: "Type of Insurer", value: appliedIssuedInsurerType },
           { label: "Sector", value: appliedAumSector },
           { label: "Select Insurer", value: appliedAumInsurer },
           { label: "Category", value: appliedInvestmentCategory },
@@ -1545,6 +2004,7 @@ export default function GeneralInsurance() {
       appliedSegmentInsurer,
       appliedSegment,
       appliedGdpInsurer,
+      appliedIssuedInsurerType,
       appliedAumSector,
       appliedAumInsurer,
       appliedInvestmentCategory,
@@ -1573,6 +2033,22 @@ export default function GeneralInsurance() {
   };
 
   const handleResetFilters = () => {
+    if (isOperationalAnalysisView) {
+      setSelectedOperationalSector("");
+      setSelectedOperationalInsurer("");
+      setSelectedOperationalSegment("");
+      setSelectedOperationalMetric("");
+      setAppliedOperationalSector("");
+      setAppliedOperationalInsurer("");
+      setAppliedOperationalSegment("");
+      setAppliedOperationalMetric("");
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      setOperationalError("");
+      return;
+    }
+
     if (isStatewisePremiumSegmentView) {
       setSelectedStateGdpState("");
       setSelectedStateGdpSegment("");
@@ -1582,6 +2058,16 @@ export default function GeneralInsurance() {
       setTimelineStartYear("");
       setTimelineEndYear("");
       setStateSegmentGdpError("");
+      return;
+    }
+
+    if (isIssuedPoliciesView) {
+      setSelectedIssuedInsurerType("");
+      setAppliedIssuedInsurerType("");
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      setIssuedPoliciesError("");
       return;
     }
 
@@ -1648,6 +2134,16 @@ export default function GeneralInsurance() {
       return;
     }
 
+    if (isOperationalAnalysisView) {
+      setAppliedOperationalSector(selectedOperationalSector);
+      setAppliedOperationalInsurer(selectedOperationalInsurer);
+      setAppliedOperationalSegment(selectedOperationalSegment);
+      setAppliedOperationalMetric(selectedOperationalMetric);
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
     if (isPremiumSegmentAnalysisView) {
       setAppliedSegmentInsurer(selectedSegmentInsurer);
       setAppliedSegment(selectedSegment);
@@ -1659,6 +2155,14 @@ export default function GeneralInsurance() {
 
     if (isGrossDirectPremiumView) {
       setAppliedGdpInsurer(selectedGdpInsurer);
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    if (isIssuedPoliciesView) {
+      setAppliedIssuedInsurerType(selectedIssuedInsurerType);
       setShowTimelinePicker(false);
       setTimelineStartYear("");
       setTimelineEndYear("");
@@ -1816,6 +2320,122 @@ export default function GeneralInsurance() {
         ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
         [],
         ["Year", "Gross Direct Premium (Rs. Crore)"],
+        ...dataRows,
+      ];
+
+      const fileBaseName = buildExportFileName(selectedSubModuleTitle, activeFilters);
+
+      try {
+        const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        XLSX.writeFile(workbook, `${fileBaseName}.xlsx`);
+        return;
+      } catch (error) {
+        const csvContent = exportRows
+          .map((row) => row.map(escapeCsvValue).join(","))
+          .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${fileBaseName}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+
+    if (isIssuedPoliciesView) {
+      if (!appliedIssuedInsurerType || visibleIssuedPoliciesRows.length === 0) {
+        return;
+      }
+
+      const activeFilters = [{ label: "Type of Insurer", value: appliedIssuedInsurerType }];
+
+      const dataRows = visibleIssuedPoliciesRows.map((row) => [
+        row.year,
+        Number(row.value || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      ]);
+
+      const exportRows = [
+        ["Sub Module", selectedSubModuleTitle],
+        [],
+        ["Applied Filters", "Value"],
+        ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
+        [],
+        ["Year", "No. of Policies (Lakhs)"],
+        ...dataRows,
+      ];
+
+      const fileBaseName = buildExportFileName(selectedSubModuleTitle, activeFilters);
+
+      try {
+        const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        XLSX.writeFile(workbook, `${fileBaseName}.xlsx`);
+        return;
+      } catch (error) {
+        const csvContent = exportRows
+          .map((row) => row.map(escapeCsvValue).join(","))
+          .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${fileBaseName}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+
+    if (isOperationalAnalysisView) {
+      if (
+        !appliedOperationalSector ||
+        !appliedOperationalInsurer ||
+        !appliedOperationalSegment ||
+        !appliedOperationalMetric ||
+        operationalAppliedRows.length === 0
+      ) {
+        return;
+      }
+
+      const activeFilters = [
+        { label: "Sector", value: appliedOperationalSector },
+        { label: "Insurer Name", value: appliedOperationalInsurer },
+        { label: "Segment", value: appliedOperationalSegment },
+        {
+          label: "Metric",
+          value: operationalMetricFilterLabelMap[appliedOperationalMetric] || appliedOperationalMetric,
+        },
+      ];
+
+      const dataRows = operationalAppliedRows.map((row) => [
+        row.year,
+        Number(row.value || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      ]);
+
+      const exportRows = [
+        ["Sub Module", selectedSubModuleTitle],
+        [],
+        ["Applied Filters", "Value"],
+        ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
+        [],
+        ["Year", operationalMetricPanelLabelMap[appliedOperationalMetric] || appliedOperationalMetric],
         ...dataRows,
       ];
 
@@ -2113,6 +2733,17 @@ export default function GeneralInsurance() {
                 Apply Filters
               </button>
             )}
+            {isIssuedPoliciesView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={handleApplyFilters}
+                disabled={!selectedIssuedInsurerType}
+                title="Apply Filters"
+              >
+                Apply Filters
+              </button>
+            )}
             {isStatewisePremiumSegmentView && (
               <button
                 type="button"
@@ -2135,6 +2766,22 @@ export default function GeneralInsurance() {
                 Apply Filters
               </button>
             )}
+            {isOperationalAnalysisView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={handleApplyFilters}
+                disabled={
+                  !selectedOperationalSector ||
+                  !selectedOperationalInsurer ||
+                  !selectedOperationalSegment ||
+                  !selectedOperationalMetric
+                }
+                title="Apply Filters"
+              >
+                Apply Filters
+              </button>
+            )}
             {isEquityCapitalView && (
               <button
                 type="button"
@@ -2146,10 +2793,10 @@ export default function GeneralInsurance() {
                 Apply Filters
               </button>
             )}
-            {insurersLoading && !isAumInsurerWiseView && !isEquityCapitalView && !isGrossDirectPremiumView && !isPremiumSegmentAnalysisView && !isStatewisePremiumSegmentView && (
+            {insurersLoading && !isAumInsurerWiseView && !isEquityCapitalView && !isGrossDirectPremiumView && !isIssuedPoliciesView && !isPremiumSegmentAnalysisView && !isStatewisePremiumSegmentView && (
               <p className="panel-placeholder">Loading insurers...</p>
             )}
-            {insurersError && !insurersLoading && !isAumInsurerWiseView && !isEquityCapitalView && !isGrossDirectPremiumView && !isPremiumSegmentAnalysisView && !isStatewisePremiumSegmentView && (
+            {insurersError && !insurersLoading && !isAumInsurerWiseView && !isEquityCapitalView && !isGrossDirectPremiumView && !isIssuedPoliciesView && !isPremiumSegmentAnalysisView && !isStatewisePremiumSegmentView && (
               <p className="panel-placeholder">{insurersError}</p>
             )}
             {aumLoading && isAumInsurerWiseView && (
@@ -2164,6 +2811,12 @@ export default function GeneralInsurance() {
             {grossDirectPremiumError && !grossDirectPremiumLoading && isGrossDirectPremiumView && (
               <p className="panel-placeholder">{grossDirectPremiumError}</p>
             )}
+            {issuedPoliciesLoading && isIssuedPoliciesView && (
+              <p className="panel-placeholder">Loading filters...</p>
+            )}
+            {issuedPoliciesError && !issuedPoliciesLoading && isIssuedPoliciesView && (
+              <p className="panel-placeholder">{issuedPoliciesError}</p>
+            )}
             {segmentGdpLoading && isPremiumSegmentAnalysisView && (
               <p className="panel-placeholder">Loading filters...</p>
             )}
@@ -2175,6 +2828,12 @@ export default function GeneralInsurance() {
             )}
             {stateSegmentGdpError && !stateSegmentGdpLoading && isStatewisePremiumSegmentView && (
               <p className="panel-placeholder">{stateSegmentGdpError}</p>
+            )}
+            {operationalLoading && isOperationalAnalysisView && (
+              <p className="panel-placeholder">Loading filters...</p>
+            )}
+            {operationalError && !operationalLoading && isOperationalAnalysisView && (
+              <p className="panel-placeholder">{operationalError}</p>
             )}
             {equityCapitalLoading && isEquityCapitalView && (
               <p className="panel-placeholder">Loading filters...</p>
@@ -2209,6 +2868,17 @@ export default function GeneralInsurance() {
                 onClick={() => setShowTimelinePicker((previous) => !previous)}
                 title="Select Timeline"
                 disabled={gdpAppliedRows.length === 0}
+              >
+                Select Timeline
+              </button>
+            )}
+            {isIssuedPoliciesView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
+                disabled={issuedPoliciesAppliedRows.length === 0}
               >
                 Select Timeline
               </button>
@@ -2508,6 +3178,108 @@ export default function GeneralInsurance() {
                   hint="You can adjust filters and re-apply to refresh results."
                 />
               )
+            ) : isIssuedPoliciesView ? (
+              issuedPoliciesLoading ? (
+                <PanelState variant="loading" message="Loading data..." />
+              ) : issuedPoliciesError ? (
+                <PanelState variant="error" message={issuedPoliciesError} />
+              ) : !appliedIssuedInsurerType ? (
+                <PanelState
+                  variant="empty"
+                  message="Select Type of Insurer and click Apply Filters to view data."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              ) : visibleIssuedPoliciesRows.length > 0 ? (
+                <>
+                  {showTimelinePicker && issuedPoliciesTimelineYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setTimelineStartYear(nextStartYear);
+
+                            if (timelineEndYear && Number(nextStartYear) > Number(timelineEndYear)) {
+                              setTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {issuedPoliciesTimelineYearOptions.map((year) => (
+                            <option key={`start-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setTimelineEndYear(nextEndYear);
+
+                            if (timelineStartYear && Number(nextEndYear) < Number(timelineStartYear)) {
+                              setTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {issuedPoliciesTimelineYearOptions.map((year) => (
+                            <option key={`end-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setShowTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Year</th>
+                          <th className="col-value">No. of Policies (Lakhs)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleIssuedPoliciesRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">
+                              <span className="year-badge">{row.year}</span>
+                            </td>
+                            <td className="col-value">
+                              <span className="value-amount">
+                                {Number(row.value || 0).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message="No data found for selected Type of Insurer."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              )
             ) : isPremiumSegmentAnalysisView ? (
               segmentGdpLoading ? (
                 <PanelState variant="loading" message="Loading data..." />
@@ -2615,6 +3387,58 @@ export default function GeneralInsurance() {
                     </table>
                   </div>
                 </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message="No data found for selected filters."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              )
+            ) : isOperationalAnalysisView ? (
+              operationalLoading ? (
+                <PanelState variant="loading" message="Loading data..." />
+              ) : operationalError ? (
+                <PanelState variant="error" message={operationalError} />
+              ) : !appliedOperationalSector ||
+                !appliedOperationalInsurer ||
+                !appliedOperationalSegment ||
+                !appliedOperationalMetric ? (
+                <PanelState
+                  variant="empty"
+                  message="Select filters and click Apply Filters to view data."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              ) : operationalAppliedRows.length > 0 ? (
+                <div className="data-table-container">
+                  <table className="segment-data-table">
+                    <thead>
+                      <tr>
+                        <th className="col-year">Year</th>
+                        <th className="col-value">
+                          {operationalMetricPanelLabelMap[appliedOperationalMetric] ||
+                            appliedOperationalMetric}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {operationalAppliedRows.map((row) => (
+                        <tr key={row.year}>
+                          <td className="col-year">
+                            <span className="year-badge">{row.year}</span>
+                          </td>
+                          <td className="col-value">
+                            <span className="value-amount">
+                              {Number(row.value || 0).toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <PanelState
                   variant="empty"
@@ -2866,7 +3690,7 @@ export default function GeneralInsurance() {
               <TrendingUp size={14} strokeWidth={2} />
             </div>
             <h3 className="panel-title section-title">Visualization Panel</h3>
-            {(isAumInsurerWiseView || isGrossDirectPremiumView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isEquityCapitalView) &&
+            {(isAumInsurerWiseView || isGrossDirectPremiumView || isIssuedPoliciesView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isEquityCapitalView) &&
               activeVisualizationData.length > 0 && (
               <>
                 <button
@@ -2891,9 +3715,11 @@ export default function GeneralInsurance() {
             )}
           </div>
           <div className="panel-body viz-panel-body">
-            {isAumInsurerWiseView || isGrossDirectPremiumView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView ? (
+            {isAumInsurerWiseView || isGrossDirectPremiumView || isIssuedPoliciesView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView ? (
               (isGrossDirectPremiumView
                 ? grossDirectPremiumLoading
+                : isIssuedPoliciesView
+                ? issuedPoliciesLoading
                 : isStatewisePremiumSegmentView
                 ? stateSegmentGdpLoading
                 : isPremiumSegmentAnalysisView
@@ -2906,6 +3732,8 @@ export default function GeneralInsurance() {
                 />
               ) : (isGrossDirectPremiumView
                 ? grossDirectPremiumError
+                : isIssuedPoliciesView
+                ? issuedPoliciesError
                 : isStatewisePremiumSegmentView
                 ? stateSegmentGdpError
                 : isPremiumSegmentAnalysisView
@@ -2916,6 +3744,8 @@ export default function GeneralInsurance() {
                   message={
                     isGrossDirectPremiumView
                       ? grossDirectPremiumError
+                      : isIssuedPoliciesView
+                      ? issuedPoliciesError
                       : isStatewisePremiumSegmentView
                       ? stateSegmentGdpError
                       : isPremiumSegmentAnalysisView
@@ -2970,6 +3800,8 @@ export default function GeneralInsurance() {
                   message={(() => {
                     const hasFilterSelection = isGrossDirectPremiumView
                       ? Boolean(appliedGdpInsurer)
+                      : isIssuedPoliciesView
+                      ? Boolean(appliedIssuedInsurerType)
                       : isStatewisePremiumSegmentView
                       ? Boolean(appliedStateGdpState && appliedStateGdpSegment)
                       : isPremiumSegmentAnalysisView
@@ -3278,6 +4110,24 @@ function resolveSector(document) {
   return "";
 }
 
+function resolveInsurerType(document) {
+  const candidates = [
+    document?.insurer_type,
+    document?.type_of_insurer,
+    document?.insurerType,
+    document?.insurer_category,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
 function resolveYearLabel(document) {
   const candidates = [document?.year, document?.financial_year, document?.financialYear, document?.fy];
 
@@ -3461,6 +4311,40 @@ function resolveEquityCapitalValue(document) {
   return 0;
 }
 
+function resolvePoliciesIssuedLakhsValue(document) {
+  const preferredFields = [
+    "policies_issued_lakhs",
+    "number_of_policies_issued_lakhs",
+    "no_of_policies_issued_lakhs",
+    "policies_issued",
+    "number_of_policies_issued",
+    "no_of_policies_issued",
+    "policies",
+    "value",
+    "amount",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericFieldValue(document?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/polic|issue/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
 function parseNumericFieldValue(value) {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -3499,6 +4383,26 @@ function formatInvestmentCategoryLabel(value) {
     .trim()
     .split(/\s+/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function formatDisplayLabel(value) {
+  return String(value || "")
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .map((word) => {
+      if (!word) {
+        return word;
+      }
+
+      // Keep acronyms and mixed-case words intact (e.g., ICICI, SBI, HDFC ERGO).
+      if (word === word.toUpperCase() || /[A-Z]/.test(word.slice(1))) {
+        return word;
+      }
+
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
     .join(" ");
 }
 
@@ -3567,6 +4471,6 @@ function wrapChartTitle(title) {
 
   return {
     text: lines.join("<br>"),
-    lineCount: lines.length || 1,
+    lineCount: Math.max(lines.length, 1),
   };
 }
