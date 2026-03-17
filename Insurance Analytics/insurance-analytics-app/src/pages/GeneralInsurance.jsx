@@ -2651,7 +2651,8 @@ export default function GeneralInsurance() {
               style={{ "--tab-accent": getTabAccent(tab.id) }}
               onClick={() => {
                 setActiveTab(tab.id);
-                setSelectedModule(tab.id === "market-overview" ? "insurer-details" : null);
+                const firstModuleId = SUB_MODULES[tab.id]?.[0]?.id || null;
+                setSelectedModule(firstModuleId);
               }}
             >
               <IconComponent className="life-tab-icon" size={16} strokeWidth={2} />

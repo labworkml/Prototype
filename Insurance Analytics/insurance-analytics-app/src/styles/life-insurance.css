@@ -1394,6 +1394,7 @@
 
 .segment-data-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   font-size: var(--font-size-body);
@@ -1401,16 +1402,7 @@
 }
 
 .segment-data-table thead {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: linear-gradient(
-    135deg,
-    rgba(14, 165, 164, 0.08),
-    rgba(59, 130, 246, 0.05)
-  );
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  position: static;
 }
 
 .segment-data-table thead tr {
@@ -1418,6 +1410,9 @@
 }
 
 .segment-data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   padding: 16px 20px;
   font-weight: 600;
   font-size: 11px;
@@ -1426,7 +1421,12 @@
   letter-spacing: 0.08em;
   text-align: left;
   white-space: nowrap;
-  background: transparent;
+  background: linear-gradient(
+    135deg,
+    rgba(241, 245, 249, 0.98),
+    rgba(226, 232, 240, 0.98)
+  );
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
 }
 
 .segment-data-table th.col-index {

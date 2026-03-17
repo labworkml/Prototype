@@ -1587,15 +1587,8 @@ export default function IntermediariesInsurance() {
               style={{ "--tab-accent": tab.accent }}
               onClick={() => {
                 setActiveTab(tab.id);
-                if (tab.id === "distribution-workforce") {
-                  setSelectedModule("individual-agents-life");
-                } else if (tab.id === "intermediary-efficiency") {
-                  setSelectedModule("avg-policies-sold");
-                } else if (tab.id === "state-wise-analysis") {
-                  setSelectedModule("distribution-individual-agents-life");
-                } else {
-                  setSelectedModule(null);
-                }
+                const firstModuleId = SUB_MODULES[tab.id]?.[0]?.id || null;
+                setSelectedModule(firstModuleId);
               }}
             >
               <IconComponent className="life-tab-icon" size={16} strokeWidth={2} />
@@ -2049,7 +2042,12 @@ export default function IntermediariesInsurance() {
                                 </td>
                                 <td className="col-value">
                                   <span className="value-amount">
-                                    {formatNumberForDisplay(item.agents)}
+                                    {activeTab === "distribution-workforce"
+                                      ? toNumericValue(item.agents).toLocaleString("en-IN", {
+                                          minimumFractionDigits: 0,
+                                          maximumFractionDigits: 0,
+                                        })
+                                      : formatNumberForDisplay(item.agents)}
                                   </span>
                                 </td>
                               </tr>
