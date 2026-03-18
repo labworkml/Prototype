@@ -21,7 +21,7 @@ const LIFE_INSURER_GROUP_NEW_BUSINESS_COLLECTION =
 const NON_LIFE_GENERAL_INSURANCE_CHANNEL_WISE_COLLECTION =
   "Sheet103_General_Insurance_Business_Channel_Wise";
 const NON_LIFE_HEALTH_INSURANCE_CHANNEL_WISE_COLLECTION =
-  "Sheet104_CHANNEL_WISE_HEALTH_INSURANCE_BUSINESS";
+  "Sheet104_CLEANED";
 
 const HEALTH_CATEGORY_DISPLAY_ORDER = [
   "Individual Business",
@@ -557,6 +557,8 @@ function resolveSchemeValue(data) {
 
 function resolveChannelName(data) {
   const candidates = [
+    data?.Channel,
+    data?.CHANNEL,
     data?.channel,
     data?.channel_name,
     data?.channelName,
@@ -620,6 +622,8 @@ function resolveSegmentName(data) {
 
 function resolveCategoryName(data) {
   const candidates = [
+    data?.Category,
+    data?.CATEGORY,
     data?.category,
     data?.category_name,
     data?.categoryName,
@@ -651,8 +655,9 @@ function resolveCategoryName(data) {
 
 function resolveMetricName(data) {
   const candidates = [
-    data?.metric,
     data?.Metric,
+    data?.METRIC,
+    data?.metric,
     data?.metric_name,
     data?.metricName,
     data?.measure,
@@ -818,13 +823,32 @@ function aggregateByYearForHealthMetricDocuments(documents) {
 
   documents.forEach((document) => {
     const data = document.data();
-    const yearInfo = resolveYearInfoFromData(data);
-    const metricValue = resolveMetricDataValue(data);
+    const yearValuePairs = extractYearValuePairsFromData(data);
 
+    if (yearValuePairs.length > 0) {
+      yearValuePairs.forEach(({ yearInfo, value }) => {
+        const existing = yearTotals.get(yearInfo.key);
+        if (existing) {
+          existing.agents += value;
+          return;
+        }
+
+        yearTotals.set(yearInfo.key, {
+          year: yearInfo.label,
+          sortValue: yearInfo.sortValue,
+          agents: value,
+        });
+      });
+      return;
+    }
+
+    // Fallback for row-wise schema where year is a value field.
+    const yearInfo = resolveYearInfoFromData(data);
     if (!yearInfo) {
       return;
     }
 
+    const metricValue = resolveMetricDataValue(data);
     const existing = yearTotals.get(yearInfo.key);
     if (existing) {
       existing.agents += metricValue;
@@ -847,6 +871,45 @@ function aggregateByYearForHealthMetricDocuments(documents) {
       return String(first.year).localeCompare(String(second.year));
     })
     .map(({ year, agents }) => ({ year, agents }));
+}
+
+function extractYearValuePairsFromData(data) {
+  const pairs = [];
+
+  Object.entries(data || {}).forEach(([fieldName, fieldValue]) => {
+    const yearInfo = resolveYearInfoFromFieldName(fieldName);
+    if (!yearInfo) {
+      return;
+    }
+
+    const value = parseNumericValue(fieldValue);
+    if (value === null) {
+      return;
+    }
+
+    pairs.push({ yearInfo, value });
+  });
+
+  return pairs;
+}
+
+function resolveYearInfoFromFieldName(fieldName) {
+  const normalizedFieldName = String(fieldName || "").trim();
+  if (!normalizedFieldName) {
+    return null;
+  }
+
+  const yearRangeMatch = normalizedFieldName.match(/\b\d{4}\s*[-/]\s*\d{2,4}\b/);
+  if (yearRangeMatch) {
+    return resolveYearInfo(yearRangeMatch[0].replace(/\s+/g, ""));
+  }
+
+  const yearMatch = normalizedFieldName.match(/\b\d{4}\b/);
+  if (yearMatch) {
+    return resolveYearInfo(yearMatch[0]);
+  }
+
+  return null;
 }
 
 function resolveMetricValueByField(data, metricField) {
