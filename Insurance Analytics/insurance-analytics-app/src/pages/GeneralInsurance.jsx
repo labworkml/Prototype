@@ -155,6 +155,15 @@ export default function GeneralInsurance() {
   const [selectedIssuedInsurerType, setSelectedIssuedInsurerType] = useState("");
   const [appliedIssuedInsurerType, setAppliedIssuedInsurerType] = useState("");
 
+  // Solvency Ratio state
+  const [solvencyRawDocs, setSolvencyRawDocs] = useState([]);
+  const [solvencyLoading, setSolvencyLoading] = useState(false);
+  const [solvencyError, setSolvencyError] = useState("");
+  const [selectedSolvencySector, setSelectedSolvencySector] = useState("");
+  const [selectedSolvencyInsurer, setSelectedSolvencyInsurer] = useState("");
+  const [appliedSolvencySector, setAppliedSolvencySector] = useState("");
+  const [appliedSolvencyInsurer, setAppliedSolvencyInsurer] = useState("");
+
   // Operational Analysis state
   const [operationalRawDocs, setOperationalRawDocs] = useState([]);
   const [operationalLoading, setOperationalLoading] = useState(false);
@@ -182,6 +191,8 @@ export default function GeneralInsurance() {
     activeTab === "market-overview" && selectedModule === "state-wise-analysis";
   const isIssuedPoliciesView =
     activeTab === "market-overview" && selectedModule === "issued-policies";
+  const isSolvencyRatioView =
+    activeTab === "market-overview" && selectedModule === "solvency-ratio";
   const isOperationalAnalysisView =
     activeTab === "claims-risk" && selectedModule === "underwriting-experience";
 
@@ -527,6 +538,60 @@ export default function GeneralInsurance() {
     setShowChartTypePicker(false);
     setShowTimelinePicker(false);
   }, [isIssuedPoliciesView]);
+
+  // Fetch Solvency Ratio data
+  useEffect(() => {
+    if (!isSolvencyRatioView || solvencyRawDocs.length > 0) {
+      return;
+    }
+
+    const fetchSolvencyDocs = async () => {
+      setSolvencyLoading(true);
+      setSolvencyError("");
+
+      try {
+        const snapshot = await getDocs(collection(db, "Sheet_49_Solvency_Ratio_Nonlife"));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setSolvencyRawDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch Solvency Ratio data:", error);
+        setSolvencyError("Unable to load Solvency Ratio data.");
+        setSolvencyRawDocs([]);
+      } finally {
+        setSolvencyLoading(false);
+      }
+    };
+
+    fetchSolvencyDocs();
+  }, [isSolvencyRatioView, solvencyRawDocs.length]);
+
+  // Reset Solvency Ratio filters when entering the view
+  useEffect(() => {
+    if (!isSolvencyRatioView) {
+      return;
+    }
+
+    setSelectedSolvencySector("");
+    setSelectedSolvencyInsurer("");
+    setAppliedSolvencySector("");
+    setAppliedSolvencyInsurer("");
+    setShowChartTypePicker(false);
+    setShowTimelinePicker(false);
+  }, [isSolvencyRatioView]);
+
+  // Reset Solvency insurer when sector changes
+  useEffect(() => {
+    if (!isSolvencyRatioView) {
+      return;
+    }
+
+    setSelectedSolvencyInsurer("");
+    setAppliedSolvencyInsurer("");
+  }, [isSolvencyRatioView, selectedSolvencySector]);
 
   useEffect(() => {
     if (!isOperationalAnalysisView || operationalRawDocs.length > 0) {
@@ -1006,6 +1071,72 @@ export default function GeneralInsurance() {
       .sort((first, second) => resolveYearSortValue(first.year) - resolveYearSortValue(second.year));
   }, [isIssuedPoliciesView, appliedIssuedInsurerType, issuedPoliciesRawDocs]);
 
+  const solvencySectorOptions = useMemo(() => {
+    return Array.from(
+      new Set(solvencyRawDocs.map((document) => resolveSector(document)).filter(Boolean))
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((sector) => ({ label: sector, value: sector }));
+  }, [solvencyRawDocs]);
+
+  const solvencyInsurerOptions = useMemo(() => {
+    const normalizedSector = normalizeText(selectedSolvencySector);
+
+    return Array.from(
+      new Set(
+        solvencyRawDocs
+          .filter((document) => {
+            if (!normalizedSector) {
+              return false;
+            }
+
+            return normalizeText(resolveSector(document)) === normalizedSector;
+          })
+          .map((document) => resolveInsurerName(document))
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((insurerName) => ({ label: insurerName, value: insurerName }));
+  }, [solvencyRawDocs, selectedSolvencySector]);
+
+  const solvencyAppliedRows = useMemo(() => {
+    if (!isSolvencyRatioView || !appliedSolvencySector || !appliedSolvencyInsurer) {
+      return [];
+    }
+
+    const normalizedSector = normalizeText(appliedSolvencySector);
+    const normalizedInsurer = normalizeText(appliedSolvencyInsurer);
+    const yearRatios = new Map();
+
+    solvencyRawDocs.forEach((document) => {
+      if (normalizeText(resolveSector(document)) !== normalizedSector) {
+        return;
+      }
+
+      if (normalizeText(resolveInsurerName(document)) !== normalizedInsurer) {
+        return;
+      }
+
+      const yearLabel = resolveYearLabel(document);
+      if (!yearLabel) {
+        return;
+      }
+
+      const ratioValue = resolveSolvencyRatioValue(document);
+      yearRatios.set(yearLabel, ratioValue);
+    });
+
+    return Array.from(yearRatios.entries())
+      .map(([year, value]) => ({ year, value }))
+      .sort((first, second) => resolveSolvencyPeriodSortValue(first.year) - resolveSolvencyPeriodSortValue(second.year));
+  }, [
+    isSolvencyRatioView,
+    appliedSolvencySector,
+    appliedSolvencyInsurer,
+    solvencyRawDocs,
+  ]);
+
   const operationalMetricFilterLabelMap = useMemo(
     () => ({}),
     []
@@ -1362,6 +1493,40 @@ export default function GeneralInsurance() {
     }
   }, [isIssuedPoliciesView, issuedPoliciesAppliedRows, timelineStartYear, timelineEndYear]);
 
+  useEffect(() => {
+    if (!isSolvencyRatioView) {
+      return;
+    }
+
+    if (solvencyAppliedRows.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const timelineYears = solvencyAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    if (timelineYears.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const minimumYear = String(timelineYears[0]);
+    const maximumYear = String(timelineYears[timelineYears.length - 1]);
+
+    if (!timelineStartYear) {
+      setTimelineStartYear(minimumYear);
+    }
+
+    if (!timelineEndYear) {
+      setTimelineEndYear(maximumYear);
+    }
+  }, [isSolvencyRatioView, solvencyAppliedRows, timelineStartYear, timelineEndYear]);
+
   // Timeline year options for Equity Capital
   const escTimelineYearOptions = useMemo(() => {
     const years = escAppliedRows
@@ -1499,6 +1664,33 @@ export default function GeneralInsurance() {
     });
   }, [issuedPoliciesAppliedRows, timelineStartYear, timelineEndYear]);
 
+  const solvencyTimelineYearOptions = useMemo(() => {
+    const years = solvencyAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    return Array.from(new Set(years));
+  }, [solvencyAppliedRows]);
+
+  const visibleSolvencyRows = useMemo(() => {
+    if (!solvencyAppliedRows.length) {
+      return [];
+    }
+
+    if (!timelineStartYear || !timelineEndYear) {
+      return solvencyAppliedRows;
+    }
+
+    const startYear = Number(timelineStartYear);
+    const endYear = Number(timelineEndYear);
+
+    return solvencyAppliedRows.filter((row) => {
+      const rowYear = resolveYearSortValue(row.year);
+      return rowYear >= startYear && rowYear <= endYear;
+    });
+  }, [solvencyAppliedRows, timelineStartYear, timelineEndYear]);
+
   const filterConfig = useMemo(
     () =>
       isGrossDirectPremiumView
@@ -1519,6 +1711,23 @@ export default function GeneralInsurance() {
               value: selectedIssuedInsurerType,
               onChange: setSelectedIssuedInsurerType,
               placeholder: "Select Type of Insurer",
+            },
+          ]
+        : isSolvencyRatioView
+        ? [
+            {
+              label: "Sector",
+              options: solvencySectorOptions,
+              value: selectedSolvencySector,
+              onChange: setSelectedSolvencySector,
+              placeholder: "Select Sector",
+            },
+            {
+              label: "Select Insurer",
+              options: solvencyInsurerOptions,
+              value: selectedSolvencyInsurer,
+              onChange: setSelectedSolvencyInsurer,
+              placeholder: "Select Insurer",
             },
           ]
         : isStatewisePremiumSegmentView
@@ -1636,6 +1845,11 @@ export default function GeneralInsurance() {
       isIssuedPoliciesView,
       issuedPoliciesInsurerTypeOptions,
       selectedIssuedInsurerType,
+      isSolvencyRatioView,
+      solvencySectorOptions,
+      selectedSolvencySector,
+      solvencyInsurerOptions,
+      selectedSolvencyInsurer,
       isStatewisePremiumSegmentView,
       stateGdpStateOptions,
       selectedStateGdpState,
@@ -1703,6 +1917,7 @@ export default function GeneralInsurance() {
       !isGrossDirectPremiumView &&
       !isPremiumSegmentAnalysisView &&
       !isStatewisePremiumSegmentView &&
+      !isSolvencyRatioView &&
       !isIssuedPoliciesView &&
       !isOperationalAnalysisView
     ) {
@@ -1713,6 +1928,8 @@ export default function GeneralInsurance() {
       ? visibleGdpRows
       : isOperationalAnalysisView
       ? visibleOperationalRows
+      : isSolvencyRatioView
+      ? visibleSolvencyRows
       : isIssuedPoliciesView
       ? visibleIssuedPoliciesRows
       : isStatewisePremiumSegmentView
@@ -1728,12 +1945,14 @@ export default function GeneralInsurance() {
     isAumInsurerWiseView,
     isGrossDirectPremiumView,
     isOperationalAnalysisView,
+    isSolvencyRatioView,
     isIssuedPoliciesView,
     isStatewisePremiumSegmentView,
     isPremiumSegmentAnalysisView,
     visibleAumRows,
     visibleGdpRows,
     visibleOperationalRows,
+    visibleSolvencyRows,
     visibleIssuedPoliciesRows,
     visibleStateSegmentRows,
     visibleSegmentRows,
@@ -1793,6 +2012,12 @@ export default function GeneralInsurance() {
         .join(" : ");
     }
 
+    if (isSolvencyRatioView) {
+      return [selectedSubModuleTitle, appliedSolvencySector, appliedSolvencyInsurer]
+        .filter(Boolean)
+        .join(" : ");
+    }
+
     if (isIssuedPoliciesView) {
       return [selectedSubModuleTitle, appliedIssuedInsurerType].filter(Boolean).join(" : ");
     }
@@ -1833,6 +2058,9 @@ export default function GeneralInsurance() {
     appliedOperationalSector,
     appliedOperationalInsurer,
     appliedOperationalMetric,
+    isSolvencyRatioView,
+    appliedSolvencySector,
+    appliedSolvencyInsurer,
     isIssuedPoliciesView,
     appliedIssuedInsurerType,
     isStatewisePremiumSegmentView,
@@ -1855,6 +2083,9 @@ export default function GeneralInsurance() {
     if (isOperationalAnalysisView) {
       return appliedOperationalMetric || "Underwriting Metric";
     }
+    if (isSolvencyRatioView) {
+      return "Solvency Ratio";
+    }
     if (isIssuedPoliciesView) {
       return "No. of Policies (Lakhs)";
     }
@@ -1873,6 +2104,7 @@ export default function GeneralInsurance() {
     isGrossDirectPremiumView,
     isOperationalAnalysisView,
     appliedOperationalMetric,
+    isSolvencyRatioView,
     isIssuedPoliciesView,
     isStatewisePremiumSegmentView,
     isPremiumSegmentAnalysisView,
@@ -1940,6 +2172,9 @@ export default function GeneralInsurance() {
     if (isOperationalAnalysisView) {
       return `${appliedOperationalMetric || "Underwriting Metric"} in Cr`;
     }
+    if (isSolvencyRatioView) {
+      return "Solvency Ratio";
+    }
     if (isIssuedPoliciesView) {
       return "No. of Policies (Lakhs)";
     }
@@ -1958,6 +2193,7 @@ export default function GeneralInsurance() {
     isGrossDirectPremiumView,
     isOperationalAnalysisView,
     appliedOperationalMetric,
+    isSolvencyRatioView,
     isIssuedPoliciesView,
     isStatewisePremiumSegmentView,
     isPremiumSegmentAnalysisView,
@@ -2026,6 +2262,8 @@ export default function GeneralInsurance() {
           { label: "Sector", value: appliedOperationalSector },
           { label: "Insurer Name", value: appliedOperationalInsurer },
           { label: "Metric", value: appliedOperationalMetric },
+          { label: "Sector", value: appliedSolvencySector },
+          { label: "Select Insurer", value: appliedSolvencyInsurer },
           { label: "Type of Insurer", value: appliedIssuedInsurerType },
           { label: "Sector", value: appliedAumSector },
           { label: "Select Insurer", value: appliedAumInsurer },
@@ -2047,6 +2285,8 @@ export default function GeneralInsurance() {
       appliedOperationalSector,
       appliedOperationalInsurer,
       appliedOperationalMetric,
+      appliedSolvencySector,
+      appliedSolvencyInsurer,
       appliedIssuedInsurerType,
       appliedAumSector,
       appliedAumInsurer,
@@ -2109,6 +2349,18 @@ export default function GeneralInsurance() {
       setTimelineStartYear("");
       setTimelineEndYear("");
       setIssuedPoliciesError("");
+      return;
+    }
+
+    if (isSolvencyRatioView) {
+      setSelectedSolvencySector("");
+      setSelectedSolvencyInsurer("");
+      setAppliedSolvencySector("");
+      setAppliedSolvencyInsurer("");
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      setSolvencyError("");
       return;
     }
 
@@ -2203,6 +2455,15 @@ export default function GeneralInsurance() {
 
     if (isIssuedPoliciesView) {
       setAppliedIssuedInsurerType(selectedIssuedInsurerType);
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    if (isSolvencyRatioView) {
+      setAppliedSolvencySector(selectedSolvencySector);
+      setAppliedSolvencyInsurer(selectedSolvencyInsurer);
       setShowTimelinePicker(false);
       setTimelineStartYear("");
       setTimelineEndYear("");
@@ -2411,6 +2672,60 @@ export default function GeneralInsurance() {
         ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
         [],
         ["Year", "No. of Policies (Lakhs)"],
+        ...dataRows,
+      ];
+
+      const fileBaseName = buildExportFileName(selectedSubModuleTitle, activeFilters);
+
+      try {
+        const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        XLSX.writeFile(workbook, `${fileBaseName}.xlsx`);
+        return;
+      } catch (error) {
+        const csvContent = exportRows
+          .map((row) => row.map(escapeCsvValue).join(","))
+          .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${fileBaseName}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+
+    if (isSolvencyRatioView) {
+      if (!appliedSolvencySector || !appliedSolvencyInsurer || visibleSolvencyRows.length === 0) {
+        return;
+      }
+
+      const activeFilters = [
+        { label: "Sector", value: appliedSolvencySector },
+        { label: "Select Insurer", value: appliedSolvencyInsurer },
+      ];
+
+      const dataRows = visibleSolvencyRows.map((row) => [
+        row.year,
+        Number(row.value || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      ]);
+
+      const exportRows = [
+        ["Sub Module", selectedSubModuleTitle],
+        [],
+        ["Applied Filters", "Value"],
+        ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
+        [],
+        ["Year", "Solvency Ratio"],
         ...dataRows,
       ];
 
@@ -2794,6 +3109,17 @@ export default function GeneralInsurance() {
                 Apply Filters
               </button>
             )}
+            {isSolvencyRatioView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={handleApplyFilters}
+                disabled={!selectedSolvencySector || !selectedSolvencyInsurer}
+                title="Apply Filters"
+              >
+                Apply Filters
+              </button>
+            )}
             {isPremiumSegmentAnalysisView && (
               <button
                 type="button"
@@ -2867,6 +3193,12 @@ export default function GeneralInsurance() {
             {stateSegmentGdpError && !stateSegmentGdpLoading && isStatewisePremiumSegmentView && (
               <p className="panel-placeholder">{stateSegmentGdpError}</p>
             )}
+            {solvencyLoading && isSolvencyRatioView && (
+              <p className="panel-placeholder">Loading filters...</p>
+            )}
+            {solvencyError && !solvencyLoading && isSolvencyRatioView && (
+              <p className="panel-placeholder">{solvencyError}</p>
+            )}
             {operationalLoading && isOperationalAnalysisView && (
               <p className="panel-placeholder">Loading filters...</p>
             )}
@@ -2917,6 +3249,17 @@ export default function GeneralInsurance() {
                 onClick={() => setShowTimelinePicker((previous) => !previous)}
                 title="Select Timeline"
                 disabled={issuedPoliciesAppliedRows.length === 0}
+              >
+                Select Timeline
+              </button>
+            )}
+            {isSolvencyRatioView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
+                disabled={solvencyAppliedRows.length === 0}
               >
                 Select Timeline
               </button>
@@ -3327,6 +3670,108 @@ export default function GeneralInsurance() {
                   variant="empty"
                   message="No data found for selected Type of Insurer."
                   hint="You can adjust filters and re-apply to refresh results."
+                />
+              )
+            ) : isSolvencyRatioView ? (
+              solvencyLoading ? (
+                <PanelState variant="loading" message="Loading data..." />
+              ) : solvencyError ? (
+                <PanelState variant="error" message={solvencyError} />
+              ) : !appliedSolvencySector || !appliedSolvencyInsurer ? (
+                <PanelState
+                  variant="empty"
+                  message="Select filters and click Apply Filters to view data."
+                  hint="Insurer options are shown based on selected sector."
+                />
+              ) : visibleSolvencyRows.length > 0 ? (
+                <>
+                  {showTimelinePicker && solvencyTimelineYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setTimelineStartYear(nextStartYear);
+
+                            if (timelineEndYear && Number(nextStartYear) > Number(timelineEndYear)) {
+                              setTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {solvencyTimelineYearOptions.map((year) => (
+                            <option key={`start-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setTimelineEndYear(nextEndYear);
+
+                            if (timelineStartYear && Number(nextEndYear) < Number(timelineStartYear)) {
+                              setTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {solvencyTimelineYearOptions.map((year) => (
+                            <option key={`end-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setShowTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Date</th>
+                          <th className="col-value">Solvency Ratio</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleSolvencyRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">
+                              <span className="year-badge">{row.year}</span>
+                            </td>
+                            <td className="col-value">
+                              <span className="value-amount">
+                                {Number(row.value || 0).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message="No data found for selected filters."
+                  hint="You can change sector or insurer to refresh results."
                 />
               )
             ) : isPremiumSegmentAnalysisView ? (
@@ -3803,7 +4248,7 @@ export default function GeneralInsurance() {
               <TrendingUp size={14} strokeWidth={2} />
             </div>
             <h3 className="panel-title section-title">Visualization Panel</h3>
-            {(isAumInsurerWiseView || isGrossDirectPremiumView || isIssuedPoliciesView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isOperationalAnalysisView || isEquityCapitalView) &&
+            {(isAumInsurerWiseView || isGrossDirectPremiumView || isIssuedPoliciesView || isSolvencyRatioView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isOperationalAnalysisView || isEquityCapitalView) &&
               activeVisualizationData.length > 0 && (
               <>
                 <button
@@ -3828,11 +4273,13 @@ export default function GeneralInsurance() {
             )}
           </div>
           <div className="panel-body viz-panel-body">
-            {isAumInsurerWiseView || isGrossDirectPremiumView || isIssuedPoliciesView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isOperationalAnalysisView ? (
+            {isAumInsurerWiseView || isGrossDirectPremiumView || isIssuedPoliciesView || isSolvencyRatioView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isOperationalAnalysisView ? (
               (isGrossDirectPremiumView
                 ? grossDirectPremiumLoading
                 : isOperationalAnalysisView
                 ? operationalLoading
+                : isSolvencyRatioView
+                ? solvencyLoading
                 : isIssuedPoliciesView
                 ? issuedPoliciesLoading
                 : isStatewisePremiumSegmentView
@@ -3849,6 +4296,8 @@ export default function GeneralInsurance() {
                 ? grossDirectPremiumError
                 : isOperationalAnalysisView
                 ? operationalError
+                : isSolvencyRatioView
+                ? solvencyError
                 : isIssuedPoliciesView
                 ? issuedPoliciesError
                 : isStatewisePremiumSegmentView
@@ -3863,6 +4312,8 @@ export default function GeneralInsurance() {
                       ? grossDirectPremiumError
                       : isOperationalAnalysisView
                       ? operationalError
+                      : isSolvencyRatioView
+                      ? solvencyError
                       : isIssuedPoliciesView
                       ? issuedPoliciesError
                       : isStatewisePremiumSegmentView
@@ -3921,6 +4372,8 @@ export default function GeneralInsurance() {
                       ? Boolean(appliedGdpInsurer)
                       : isOperationalAnalysisView
                       ? Boolean(appliedOperationalSector && appliedOperationalInsurer && appliedOperationalMetric)
+                      : isSolvencyRatioView
+                      ? Boolean(appliedSolvencySector && appliedSolvencyInsurer)
                       : isIssuedPoliciesView
                       ? Boolean(appliedIssuedInsurerType)
                       : isStatewisePremiumSegmentView
@@ -4250,11 +4703,55 @@ function resolveInsurerType(document) {
 }
 
 function resolveYearLabel(document) {
-  const candidates = [document?.year, document?.financial_year, document?.financialYear, document?.fy];
+  const candidates = [
+    document?.year,
+    document?.financial_year,
+    document?.financialYear,
+    document?.fy,
+    document?.date,
+    document?.as_on_date,
+    document?.asOnDate,
+    document?.reporting_date,
+    document?.reportingDate,
+    document?.period,
+    document?.month,
+    document?.month_year,
+    document?.monthYear,
+    document?.quarter,
+    document?.qtr,
+    document?.date_of_reporting,
+    document?.dateOfReporting,
+    document?.timestamp,
+    document?.created_at,
+    document?.updated_at,
+  ];
 
   for (const candidate of candidates) {
     if (candidate === null || candidate === undefined || candidate === "") {
       continue;
+    }
+
+    // Firestore Timestamp instance with toDate().
+    if (candidate && typeof candidate.toDate === "function") {
+      const dateValue = candidate.toDate();
+      if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+        return dateValue.toLocaleDateString("en-GB");
+      }
+    }
+
+    // Serialized timestamp object shape: { seconds, nanoseconds }.
+    if (
+      typeof candidate === "object" &&
+      Number.isFinite(candidate?.seconds)
+    ) {
+      const dateValue = new Date(candidate.seconds * 1000);
+      if (!Number.isNaN(dateValue.getTime())) {
+        return dateValue.toLocaleDateString("en-GB");
+      }
+    }
+
+    if (candidate instanceof Date && !Number.isNaN(candidate.getTime())) {
+      return candidate.toLocaleDateString("en-GB");
     }
 
     const yearValue = String(candidate).trim();
@@ -4430,6 +4927,94 @@ function resolveEquityCapitalValue(document) {
   }
 
   return 0;
+}
+
+function resolveSolvencyRatioValue(document) {
+  const preferredFields = [
+    "solvency_ratio",
+    "solvency_ratio_pct",
+    "solvency_ratio_percent",
+    "solvency_margin_ratio",
+    "ratio",
+    "value",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericFieldValue(document?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/solvency|ratio/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolveSolvencyPeriodSortValue(periodLabel) {
+  const label = String(periodLabel || "").trim().toLowerCase();
+  if (!label) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const yearMatch4 = label.match(/\b(19|20)\d{2}\b/);
+  const yearMatch2 = label.match(/\b\d{2}\b/);
+  const parsedYear = yearMatch4
+    ? Number(yearMatch4[0])
+    : yearMatch2
+    ? 2000 + Number(yearMatch2[0])
+    : Number.NaN;
+
+  let monthNumber = null;
+  const monthMatchers = [
+    { regex: /\bjan(?:uary)?\b/, month: 1 },
+    { regex: /\bfeb(?:ruary)?\b/, month: 2 },
+    { regex: /\bmar(?:ch)?\b/, month: 3 },
+    { regex: /\bapr(?:il)?\b/, month: 4 },
+    { regex: /\bmay\b/, month: 5 },
+    { regex: /\bjun(?:e)?\b/, month: 6 },
+    { regex: /\bjul(?:y)?\b/, month: 7 },
+    { regex: /\baug(?:ust)?\b/, month: 8 },
+    { regex: /\bsep(?:t|tember)?\b/, month: 9 },
+    { regex: /\boct(?:ober)?\b/, month: 10 },
+    { regex: /\bnov(?:ember)?\b/, month: 11 },
+    { regex: /\bdec(?:ember)?\b/, month: 12 },
+  ];
+
+  for (const matcher of monthMatchers) {
+    if (matcher.regex.test(label)) {
+      monthNumber = matcher.month;
+      break;
+    }
+  }
+
+  if (monthNumber === null) {
+    const quarterMatch = label.match(/\bq([1-4])\b/);
+    if (quarterMatch) {
+      const quarter = Number(quarterMatch[1]);
+      // Financial-year quarter sequence expected by user: Mar, Jun, Sep, Dec.
+      monthNumber = quarter * 3;
+    }
+  }
+
+  if (!Number.isFinite(parsedYear)) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  if (!Number.isFinite(monthNumber)) {
+    return parsedYear * 100;
+  }
+
+  return parsedYear * 100 + monthNumber;
 }
 
 function resolvePoliciesIssuedLakhsValue(document) {
