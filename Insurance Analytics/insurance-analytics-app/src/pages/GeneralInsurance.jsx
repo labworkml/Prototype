@@ -30,6 +30,7 @@ import {
   Users,
 } from "lucide-react";
 import { db } from "../firebase/firebaseConfig";
+import GeneralPolicyholderAccountsModule from "../components/GeneralPolicyholderAccountsModule";
 import "../styles/life-insurance.css";
 
 const Plot = PlotComponentModule?.default || PlotComponentModule;
@@ -195,6 +196,8 @@ export default function GeneralInsurance() {
     activeTab === "market-overview" && selectedModule === "solvency-ratio";
   const isOperationalAnalysisView =
     activeTab === "claims-risk" && selectedModule === "underwriting-experience";
+  const isPolicyholderAccountsView =
+    activeTab === "financials" && selectedModule === "policyholder-accounts";
 
   useEffect(() => {
     const fetchInsurers = async () => {
@@ -3037,8 +3040,14 @@ export default function GeneralInsurance() {
         })}
       </div>
 
-      <div className={`life-content ${showInsights ? "insights-expanded" : "insights-collapsed"}`}>
-        <div className="life-filters card">
+      {isPolicyholderAccountsView ? (
+        <GeneralPolicyholderAccountsModule
+          showInsights={showInsights}
+          setShowInsights={setShowInsights}
+        />
+      ) : (
+        <div className={`life-content ${showInsights ? "insights-expanded" : "insights-collapsed"}`}>
+          <div className="life-filters card">
           <div className="panel-header">
             <div className="panel-icon-badge">
               <Shuffle size={14} strokeWidth={2} />
@@ -4503,6 +4512,7 @@ export default function GeneralInsurance() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

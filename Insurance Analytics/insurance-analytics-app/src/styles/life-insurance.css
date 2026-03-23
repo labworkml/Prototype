@@ -473,6 +473,70 @@
 }
 
 /* =====================================================
+   POLICYHOLDER VIEW TOGGLE
+   ===================================================== */
+
+.policyholder-view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  background: rgba(248, 250, 252, 0.95);
+  width: 100%;
+}
+
+.policyholder-view-toggle-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.policyholder-view-toggle-btn:hover {
+  background: rgba(14, 165, 164, 0.08);
+  color: #0f766e;
+}
+
+.policyholder-view-toggle-btn.active {
+  background: linear-gradient(135deg, #24c8dd 0%, #11bfd5 52%, #06b6d4 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(6, 182, 212, 0.22);
+}
+
+.apply-filters-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0ea5a4 0%, #06b6d4 100%);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 180ms ease, box-shadow 180ms ease;
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.22);
+}
+
+.apply-filters-btn:hover {
+  opacity: 0.92;
+  box-shadow: 0 6px 16px rgba(6, 182, 212, 0.32);
+}
+
+/* =====================================================
    MAIN CONTENT AREA - 4 COLUMN GRID
    ===================================================== */
 
