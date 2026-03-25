@@ -178,6 +178,28 @@ export default function GeneralInsurance() {
   const [appliedOperationalSegment, setAppliedOperationalSegment] = useState("");
   const [appliedOperationalMetric, setAppliedOperationalMetric] = useState("");
 
+  // State-wise Office Distribution state
+  const [stateWiseOfficeRawDocs, setStateWiseOfficeRawDocs] = useState([]);
+  const [stateWiseOfficeLoading, setStateWiseOfficeLoading] = useState(false);
+  const [stateWiseOfficeError, setStateWiseOfficeError] = useState("");
+  const [selectedOfficeSector, setSelectedOfficeSector] = useState("");
+  const [selectedOfficeInsurer, setSelectedOfficeInsurer] = useState("");
+  const [selectedOfficeState, setSelectedOfficeState] = useState("");
+  const [appliedOfficeSector, setAppliedOfficeSector] = useState("");
+  const [appliedOfficeInsurer, setAppliedOfficeInsurer] = useState("");
+  const [appliedOfficeState, setAppliedOfficeState] = useState("");
+
+  // Rural and Social Sector Obligations state
+  const [ruralSocialRawDocs, setRuralSocialRawDocs] = useState([]);
+  const [ruralSocialLoading, setRuralSocialLoading] = useState(false);
+  const [ruralSocialError, setRuralSocialError] = useState("");
+  const [selectedRuralMetric, setSelectedRuralMetric] = useState("rural");
+  const [selectedRuralSector, setSelectedRuralSector] = useState("");
+  const [selectedRuralInsurer, setSelectedRuralInsurer] = useState("");
+  const [appliedRuralMetric, setAppliedRuralMetric] = useState("");
+  const [appliedRuralSector, setAppliedRuralSector] = useState("");
+  const [appliedRuralInsurer, setAppliedRuralInsurer] = useState("");
+
   const isInsurerDetailsView =
     activeTab === "market-overview" && selectedModule === "insurer-details";
   const isAumInsurerWiseView =
@@ -198,6 +220,10 @@ export default function GeneralInsurance() {
     activeTab === "claims-risk" && selectedModule === "underwriting-experience";
   const isPolicyholderAccountsView =
     activeTab === "financials" && selectedModule === "policyholder-accounts";
+  const isStateWiseOfficeDistributionView =
+    activeTab === "distribution" && selectedModule === "state-wise-office-distribution";
+  const isRuralSocialView =
+    activeTab === "insurer-performance" && selectedModule === "rural-social-sector";
 
   useEffect(() => {
     const fetchInsurers = async () => {
@@ -641,6 +667,126 @@ export default function GeneralInsurance() {
     setTimelineStartYear("");
     setTimelineEndYear("");
   }, [isOperationalAnalysisView]);
+
+  useEffect(() => {
+    if (!isStateWiseOfficeDistributionView || stateWiseOfficeRawDocs.length > 0) {
+      return;
+    }
+
+    const fetchStateWiseOfficeDocs = async () => {
+      setStateWiseOfficeLoading(true);
+      setStateWiseOfficeError("");
+
+      try {
+        const snapshot = await getDocs(collection(db, "Sheet_54_statewise_offices"));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setStateWiseOfficeRawDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch State-wise Office Distribution data:", error);
+        setStateWiseOfficeError("Unable to load State-wise Office Distribution data.");
+        setStateWiseOfficeRawDocs([]);
+      } finally {
+        setStateWiseOfficeLoading(false);
+      }
+    };
+
+    fetchStateWiseOfficeDocs();
+  }, [isStateWiseOfficeDistributionView, stateWiseOfficeRawDocs.length]);
+
+  useEffect(() => {
+    if (!isStateWiseOfficeDistributionView) {
+      return;
+    }
+
+    setSelectedOfficeSector("");
+    setSelectedOfficeInsurer("");
+    setSelectedOfficeState("");
+    setAppliedOfficeSector("");
+    setAppliedOfficeInsurer("");
+    setAppliedOfficeState("");
+    setShowChartTypePicker(false);
+    setShowTimelinePicker(false);
+    setTimelineStartYear("");
+    setTimelineEndYear("");
+  }, [isStateWiseOfficeDistributionView]);
+
+  useEffect(() => {
+    if (!isStateWiseOfficeDistributionView || !selectedOfficeSector) {
+      return;
+    }
+
+    setSelectedOfficeInsurer("");
+    setSelectedOfficeState("");
+  }, [isStateWiseOfficeDistributionView, selectedOfficeSector]);
+
+  useEffect(() => {
+    if (!isStateWiseOfficeDistributionView || !selectedOfficeInsurer) {
+      return;
+    }
+
+    setSelectedOfficeState("");
+  }, [isStateWiseOfficeDistributionView, selectedOfficeInsurer]);
+
+  // Fetch Rural and Social Sector Obligations data
+  useEffect(() => {
+    if (!isRuralSocialView || ruralSocialRawDocs.length > 0) {
+      return;
+    }
+
+    const fetchRuralSocialDocs = async () => {
+      setRuralSocialLoading(true);
+      setRuralSocialError("");
+
+      try {
+        const snapshot = await getDocs(collection(db, "sheet55_rural_social_obligations"));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setRuralSocialRawDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch Rural and Social Sector Obligations data:", error);
+        setRuralSocialError("Unable to load Rural and Social Sector Obligations data.");
+        setRuralSocialRawDocs([]);
+      } finally {
+        setRuralSocialLoading(false);
+      }
+    };
+
+    fetchRuralSocialDocs();
+  }, [isRuralSocialView, ruralSocialRawDocs.length]);
+
+  // Reset Rural and Social Sector Obligations filters when entering view
+  useEffect(() => {
+    if (!isRuralSocialView) {
+      return;
+    }
+
+    setSelectedRuralMetric("rural");
+    setSelectedRuralSector("");
+    setSelectedRuralInsurer("");
+    setAppliedRuralMetric("");
+    setAppliedRuralSector("");
+    setAppliedRuralInsurer("");
+    setShowChartTypePicker(false);
+    setShowTimelinePicker(false);
+    setTimelineStartYear("");
+    setTimelineEndYear("");
+  }, [isRuralSocialView]);
+
+  // Reset rural-social insurer when sector changes
+  useEffect(() => {
+    if (!isRuralSocialView || !selectedRuralSector) {
+      return;
+    }
+
+    setSelectedRuralInsurer("");
+  }, [isRuralSocialView, selectedRuralSector]);
 
   useEffect(() => {
     setPendingVisualizationType(visualizationType);
@@ -1140,6 +1286,109 @@ export default function GeneralInsurance() {
     solvencyRawDocs,
   ]);
 
+  const officeDistributionSectorOptions = useMemo(() => {
+    return Array.from(
+      new Set(stateWiseOfficeRawDocs.map((document) => resolveSector(document)).filter(Boolean))
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((sector) => ({ label: sector, value: sector }));
+  }, [stateWiseOfficeRawDocs]);
+
+  const officeDistributionInsurerOptions = useMemo(() => {
+    const normalizedSector = normalizeText(selectedOfficeSector);
+
+    return Array.from(
+      new Set(
+        stateWiseOfficeRawDocs
+          .filter((document) => {
+            if (!normalizedSector) {
+              return false;
+            }
+
+            return normalizeText(resolveSector(document)) === normalizedSector;
+          })
+          .map((document) => resolveInsurerName(document))
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((insurerName) => ({ label: insurerName, value: insurerName }));
+  }, [stateWiseOfficeRawDocs, selectedOfficeSector]);
+
+  const officeDistributionStateOptions = useMemo(() => {
+    const normalizedSector = normalizeText(selectedOfficeSector);
+    const normalizedInsurer = normalizeText(selectedOfficeInsurer);
+
+    return Array.from(
+      new Set(
+        stateWiseOfficeRawDocs
+          .filter((document) => {
+            if (!normalizedSector || !normalizedInsurer) {
+              return false;
+            }
+
+            if (normalizeText(resolveSector(document)) !== normalizedSector) {
+              return false;
+            }
+
+            return normalizeText(resolveInsurerName(document)) === normalizedInsurer;
+          })
+          .map((document) => resolveStateName(document))
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((stateName) => ({ label: stateName, value: stateName }));
+  }, [stateWiseOfficeRawDocs, selectedOfficeSector, selectedOfficeInsurer]);
+
+  const officeDistributionAppliedRows = useMemo(() => {
+    if (
+      !isStateWiseOfficeDistributionView ||
+      !appliedOfficeSector ||
+      !appliedOfficeInsurer ||
+      !appliedOfficeState
+    ) {
+      return [];
+    }
+
+    const normalizedSector = normalizeText(appliedOfficeSector);
+    const normalizedInsurer = normalizeText(appliedOfficeInsurer);
+    const normalizedState = normalizeText(appliedOfficeState);
+    const yearTotals = new Map();
+
+    stateWiseOfficeRawDocs.forEach((document) => {
+      if (normalizeText(resolveSector(document)) !== normalizedSector) {
+        return;
+      }
+
+      if (normalizeText(resolveInsurerName(document)) !== normalizedInsurer) {
+        return;
+      }
+
+      if (normalizeText(resolveStateName(document)) !== normalizedState) {
+        return;
+      }
+
+      const yearLabel = resolveYearLabel(document);
+      if (!yearLabel) {
+        return;
+      }
+
+      const officeCount = resolveOfficeCountValue(document);
+      yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + officeCount);
+    });
+
+    return Array.from(yearTotals.entries())
+      .map(([year, value]) => ({ year, value }))
+      .sort((first, second) => resolveYearSortValue(first.year) - resolveYearSortValue(second.year));
+  }, [
+    isStateWiseOfficeDistributionView,
+    appliedOfficeSector,
+    appliedOfficeInsurer,
+    appliedOfficeState,
+    stateWiseOfficeRawDocs,
+  ]);
+
   const operationalMetricFilterLabelMap = useMemo(
     () => ({}),
     []
@@ -1530,6 +1779,45 @@ export default function GeneralInsurance() {
     }
   }, [isSolvencyRatioView, solvencyAppliedRows, timelineStartYear, timelineEndYear]);
 
+  useEffect(() => {
+    if (!isStateWiseOfficeDistributionView) {
+      return;
+    }
+
+    if (officeDistributionAppliedRows.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const timelineYears = officeDistributionAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    if (timelineYears.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const minimumYear = String(timelineYears[0]);
+    const maximumYear = String(timelineYears[timelineYears.length - 1]);
+
+    if (!timelineStartYear) {
+      setTimelineStartYear(minimumYear);
+    }
+
+    if (!timelineEndYear) {
+      setTimelineEndYear(maximumYear);
+    }
+  }, [
+    isStateWiseOfficeDistributionView,
+    officeDistributionAppliedRows,
+    timelineStartYear,
+    timelineEndYear,
+  ]);
+
   // Timeline year options for Equity Capital
   const escTimelineYearOptions = useMemo(() => {
     const years = escAppliedRows
@@ -1694,6 +1982,160 @@ export default function GeneralInsurance() {
     });
   }, [solvencyAppliedRows, timelineStartYear, timelineEndYear]);
 
+  const officeDistributionTimelineYearOptions = useMemo(() => {
+    const years = officeDistributionAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    return Array.from(new Set(years));
+  }, [officeDistributionAppliedRows]);
+
+  const visibleOfficeDistributionRows = useMemo(() => {
+    if (!officeDistributionAppliedRows.length) {
+      return [];
+    }
+
+    if (!timelineStartYear || !timelineEndYear) {
+      return officeDistributionAppliedRows;
+    }
+
+    const startYear = Number(timelineStartYear);
+    const endYear = Number(timelineEndYear);
+
+    return officeDistributionAppliedRows.filter((row) => {
+      const rowYear = resolveYearSortValue(row.year);
+      return rowYear >= startYear && rowYear <= endYear;
+    });
+  }, [officeDistributionAppliedRows, timelineStartYear, timelineEndYear]);
+
+  // Rural and Social Sector Obligations memos
+  const ruralSocialSectorOptions = useMemo(() => {
+    return Array.from(
+      new Set(ruralSocialRawDocs.map((document) => resolveSector(document)).filter(Boolean))
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((sector) => ({ label: sector, value: sector }));
+  }, [ruralSocialRawDocs]);
+
+  const ruralSocialInsurerOptions = useMemo(() => {
+    const normalizedSector = normalizeText(selectedRuralSector);
+    return Array.from(
+      new Set(
+        ruralSocialRawDocs
+          .filter((document) => {
+            if (!normalizedSector) return true;
+            return normalizeText(resolveSector(document)) === normalizedSector;
+          })
+          .map((document) => resolveInsurerName(document))
+          .filter(Boolean)
+      )
+    )
+      .sort((first, second) => first.localeCompare(second))
+      .map((name) => ({ label: name, value: name }));
+  }, [ruralSocialRawDocs, selectedRuralSector]);
+
+  const ruralSocialAppliedRows = useMemo(() => {
+    if (!isRuralSocialView || !appliedRuralMetric || !appliedRuralSector || !appliedRuralInsurer) {
+      return [];
+    }
+
+    const normalizedMetric = normalizeText(appliedRuralMetric);
+    const normalizedSector = normalizeText(appliedRuralSector);
+    const normalizedInsurer = normalizeText(appliedRuralInsurer);
+    const yearData = new Map();
+
+    ruralSocialRawDocs.forEach((document) => {
+      if (normalizeText(resolveSector(document)) !== normalizedSector) return;
+      if (normalizeText(resolveInsurerName(document)) !== normalizedInsurer) return;
+
+      const docMetric = normalizeText(
+        document.metric ?? document.sector_type ?? document.category_type ?? ""
+      );
+      if (docMetric !== normalizedMetric) return;
+
+      const yearLabel = resolveYearLabel(document);
+      if (!yearLabel) return;
+
+      const dataType = normalizeText(document.data_type ?? document.type ?? "");
+      const value = Number(document.value ?? document.amount ?? 0);
+      if (!Number.isFinite(value)) return;
+
+      if (!yearData.has(yearLabel)) {
+        yearData.set(yearLabel, { target: 0, achieved: 0 });
+      }
+      const entry = yearData.get(yearLabel);
+      if (dataType === "target") {
+        entry.target += value;
+      } else if (dataType === "achieved") {
+        entry.achieved += value;
+      }
+    });
+
+    return Array.from(yearData.entries())
+      .map(([year, { target, achieved }]) => ({ year, target, achieved }))
+      .sort((first, second) => resolveYearSortValue(first.year) - resolveYearSortValue(second.year));
+  }, [
+    isRuralSocialView,
+    appliedRuralMetric,
+    appliedRuralSector,
+    appliedRuralInsurer,
+    ruralSocialRawDocs,
+  ]);
+
+  useEffect(() => {
+    if (!isRuralSocialView) {
+      return;
+    }
+
+    if (ruralSocialAppliedRows.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const timelineYears = ruralSocialAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+
+    if (timelineYears.length === 0) {
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
+    const minimumYear = String(timelineYears[0]);
+    const maximumYear = String(timelineYears[timelineYears.length - 1]);
+
+    if (!timelineStartYear) {
+      setTimelineStartYear(minimumYear);
+    }
+
+    if (!timelineEndYear) {
+      setTimelineEndYear(maximumYear);
+    }
+  }, [isRuralSocialView, ruralSocialAppliedRows, timelineStartYear, timelineEndYear]);
+
+  const ruralSocialTimelineYearOptions = useMemo(() => {
+    const years = ruralSocialAppliedRows
+      .map((row) => resolveYearSortValue(row.year))
+      .filter((year) => Number.isFinite(year) && year !== Number.MAX_SAFE_INTEGER)
+      .sort((first, second) => first - second);
+    return Array.from(new Set(years));
+  }, [ruralSocialAppliedRows]);
+
+  const visibleRuralSocialRows = useMemo(() => {
+    if (!ruralSocialAppliedRows.length) return [];
+    if (!timelineStartYear || !timelineEndYear) return ruralSocialAppliedRows;
+    const startYear = Number(timelineStartYear);
+    const endYear = Number(timelineEndYear);
+    return ruralSocialAppliedRows.filter((row) => {
+      const rowYear = resolveYearSortValue(row.year);
+      return rowYear >= startYear && rowYear <= endYear;
+    });
+  }, [ruralSocialAppliedRows, timelineStartYear, timelineEndYear]);
+
   const filterConfig = useMemo(
     () =>
       isGrossDirectPremiumView
@@ -1832,6 +2274,47 @@ export default function GeneralInsurance() {
               placeholder: "Select Insurer",
             },
           ]
+        : isStateWiseOfficeDistributionView
+        ? [
+            {
+              label: "Sector",
+              options: officeDistributionSectorOptions,
+              value: selectedOfficeSector,
+              onChange: setSelectedOfficeSector,
+              placeholder: "Select Sector",
+            },
+            {
+              label: "Select Insurer",
+              options: officeDistributionInsurerOptions,
+              value: selectedOfficeInsurer,
+              onChange: setSelectedOfficeInsurer,
+              placeholder: "Select Insurer",
+            },
+            {
+              label: "Select State",
+              options: officeDistributionStateOptions,
+              value: selectedOfficeState,
+              onChange: setSelectedOfficeState,
+              placeholder: "Select State",
+            },
+          ]
+        : isRuralSocialView
+        ? [
+            {
+              label: "Select Sector",
+              options: ruralSocialSectorOptions,
+              value: selectedRuralSector,
+              onChange: setSelectedRuralSector,
+              placeholder: "Select Sector",
+            },
+            {
+              label: "Select Insurer",
+              options: ruralSocialInsurerOptions,
+              value: selectedRuralInsurer,
+              onChange: setSelectedRuralInsurer,
+              placeholder: "Select Insurer",
+            },
+          ]
         : [
             {
               label: "Select Insurer",
@@ -1882,6 +2365,18 @@ export default function GeneralInsurance() {
       selectedEscSector,
       escInsurerOptions,
       selectedEscInsurer,
+      isStateWiseOfficeDistributionView,
+      officeDistributionSectorOptions,
+      selectedOfficeSector,
+      officeDistributionInsurerOptions,
+      selectedOfficeInsurer,
+      officeDistributionStateOptions,
+      selectedOfficeState,
+      isRuralSocialView,
+      ruralSocialSectorOptions,
+      selectedRuralSector,
+      ruralSocialInsurerOptions,
+      selectedRuralInsurer,
       insurerOptions,
       selectedInsurerRegNo,
     ]
@@ -1922,7 +2417,8 @@ export default function GeneralInsurance() {
       !isStatewisePremiumSegmentView &&
       !isSolvencyRatioView &&
       !isIssuedPoliciesView &&
-      !isOperationalAnalysisView
+      !isOperationalAnalysisView &&
+      !isStateWiseOfficeDistributionView
     ) {
       return [];
     }
@@ -1939,6 +2435,8 @@ export default function GeneralInsurance() {
       ? visibleStateSegmentRows
       : isPremiumSegmentAnalysisView
       ? visibleSegmentRows
+      : isStateWiseOfficeDistributionView
+      ? visibleOfficeDistributionRows
       : visibleAumRows;
 
     return rows
@@ -1952,6 +2450,7 @@ export default function GeneralInsurance() {
     isIssuedPoliciesView,
     isStatewisePremiumSegmentView,
     isPremiumSegmentAnalysisView,
+    isStateWiseOfficeDistributionView,
     visibleAumRows,
     visibleGdpRows,
     visibleOperationalRows,
@@ -1959,6 +2458,7 @@ export default function GeneralInsurance() {
     visibleIssuedPoliciesRows,
     visibleStateSegmentRows,
     visibleSegmentRows,
+    visibleOfficeDistributionRows,
   ]);
 
   // Equity Capital Visualization Data
@@ -1974,7 +2474,7 @@ export default function GeneralInsurance() {
 
   // Combined visualization data for chart rendering
   const activeVisualizationData = useMemo(() => {
-    return isAumInsurerWiseView || isGrossDirectPremiumView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isIssuedPoliciesView || isOperationalAnalysisView
+    return isAumInsurerWiseView || isGrossDirectPremiumView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isIssuedPoliciesView || isOperationalAnalysisView || isStateWiseOfficeDistributionView
       ? visualizationData
       : escVisualizationData;
   }, [
@@ -1984,6 +2484,7 @@ export default function GeneralInsurance() {
     isPremiumSegmentAnalysisView,
     isStatewisePremiumSegmentView,
     isIssuedPoliciesView,
+    isStateWiseOfficeDistributionView,
     visualizationData,
     escVisualizationData,
   ]);
@@ -2037,6 +2538,21 @@ export default function GeneralInsurance() {
         .join(" : ");
     }
 
+    if (isStateWiseOfficeDistributionView) {
+      return [selectedSubModuleTitle, appliedOfficeSector, appliedOfficeInsurer, appliedOfficeState]
+        .filter(Boolean)
+        .join(" : ");
+    }
+
+    if (isRuralSocialView) {
+      const metricLabel = appliedRuralMetric
+        ? appliedRuralMetric.charAt(0).toUpperCase() + appliedRuralMetric.slice(1)
+        : "";
+      return [selectedSubModuleTitle, metricLabel, appliedRuralSector, appliedRuralInsurer]
+        .filter(Boolean)
+        .join(" : ");
+    }
+
     if (isEquityCapitalView) {
       return [
         selectedSubModuleTitle,
@@ -2072,6 +2588,14 @@ export default function GeneralInsurance() {
     isPremiumSegmentAnalysisView,
     appliedSegmentInsurer,
     appliedSegment,
+    isStateWiseOfficeDistributionView,
+    appliedOfficeSector,
+    appliedOfficeInsurer,
+    appliedOfficeState,
+    isRuralSocialView,
+    appliedRuralMetric,
+    appliedRuralSector,
+    appliedRuralInsurer,
     appliedEscSector,
     appliedEscInsurer,
   ]);
@@ -2101,6 +2625,12 @@ export default function GeneralInsurance() {
     if (isEquityCapitalView) {
       return "Equity Share Capital";
     }
+    if (isStateWiseOfficeDistributionView) {
+      return "Number of Offices";
+    }
+    if (isRuralSocialView) {
+      return "Value";
+    }
     return "Value";
   }, [
     isAumInsurerWiseView,
@@ -2112,9 +2642,96 @@ export default function GeneralInsurance() {
     isStatewisePremiumSegmentView,
     isPremiumSegmentAnalysisView,
     isEquityCapitalView,
+    isStateWiseOfficeDistributionView,
+    isRuralSocialView,
   ]);
 
   const plotTraces = useMemo(() => {
+    if (isRuralSocialView) {
+      const xValues = visibleRuralSocialRows.map((row) => String(row.year));
+      const targetValues = visibleRuralSocialRows.map((row) => Number(row.target || 0));
+      const achievedValues = visibleRuralSocialRows.map((row) => Number(row.achieved || 0));
+
+      if (visualizationType === "bar") {
+        return [
+          {
+            type: "bar",
+            name: "Target",
+            x: xValues,
+            y: targetValues,
+            marker: {
+              color: "rgba(14, 165, 164, 0.88)",
+              line: { color: "rgba(15, 118, 110, 0.95)", width: 1 },
+            },
+            hovertemplate: `%{x}<br>Target: %{y:,}<extra></extra>`,
+          },
+          {
+            type: "bar",
+            name: "Achieved",
+            x: xValues,
+            y: achievedValues,
+            marker: {
+              color: "rgba(2, 132, 199, 0.88)",
+              line: { color: "rgba(3, 105, 161, 0.95)", width: 1 },
+            },
+            hovertemplate: `%{x}<br>Achieved: %{y:,}<extra></extra>`,
+          },
+        ];
+      }
+
+      if (visualizationType === "area") {
+        return [
+          {
+            type: "scatter",
+            mode: "lines+markers",
+            name: "Target",
+            x: xValues,
+            y: targetValues,
+            line: { color: "#0ea5a4", width: 3 },
+            marker: { color: "#0ea5a4", size: 8 },
+            fill: "tozeroy",
+            fillcolor: "rgba(14, 165, 164, 0.14)",
+            hovertemplate: `%{x}<br>Target: %{y:,}<extra></extra>`,
+          },
+          {
+            type: "scatter",
+            mode: "lines+markers",
+            name: "Achieved",
+            x: xValues,
+            y: achievedValues,
+            line: { color: "#0284c7", width: 3 },
+            marker: { color: "#0284c7", size: 8 },
+            fill: "tozeroy",
+            fillcolor: "rgba(2, 132, 199, 0.14)",
+            hovertemplate: `%{x}<br>Achieved: %{y:,}<extra></extra>`,
+          },
+        ];
+      }
+
+      return [
+        {
+          type: "scatter",
+          mode: "lines+markers",
+          name: "Target",
+          x: xValues,
+          y: targetValues,
+          line: { color: "#0ea5a4", width: 3 },
+          marker: { color: "#0ea5a4", size: 8 },
+          hovertemplate: `%{x}<br>Target: %{y:,}<extra></extra>`,
+        },
+        {
+          type: "scatter",
+          mode: "lines+markers",
+          name: "Achieved",
+          x: xValues,
+          y: achievedValues,
+          line: { color: "#0284c7", width: 3 },
+          marker: { color: "#0284c7", size: 8 },
+          hovertemplate: `%{x}<br>Achieved: %{y:,}<extra></extra>`,
+        },
+      ];
+    }
+
     const xValues = activeVisualizationData.map((item) => String(item.year));
     const yValues = activeVisualizationData.map((item) => Number(item.value || 0));
 
@@ -2163,7 +2780,7 @@ export default function GeneralInsurance() {
         hovertemplate: `%{x}<br>${dataLabel}: %{y:,}<extra></extra>`,
       },
     ];
-  }, [activeVisualizationData, visualizationType, dataLabel]);
+  }, [activeVisualizationData, visualizationType, dataLabel, isRuralSocialView, visibleRuralSocialRows]);
 
   const yaxisTitle = useMemo(() => {
     if (isAumInsurerWiseView) {
@@ -2190,6 +2807,12 @@ export default function GeneralInsurance() {
     if (isEquityCapitalView) {
       return "Equity Share Capital in Cr";
     }
+    if (isStateWiseOfficeDistributionView) {
+      return "Number of Offices";
+    }
+    if (isRuralSocialView) {
+      return "Value";
+    }
     return "Value";
   }, [
     isAumInsurerWiseView,
@@ -2201,6 +2824,8 @@ export default function GeneralInsurance() {
     isStatewisePremiumSegmentView,
     isPremiumSegmentAnalysisView,
     isEquityCapitalView,
+    isStateWiseOfficeDistributionView,
+    isRuralSocialView,
   ]);
 
   const plotLayout = useMemo(
@@ -2246,8 +2871,9 @@ export default function GeneralInsurance() {
         y: -0.16,
         font: { size: 14, color: "#334155" },
       },
+      ...(isRuralSocialView && visualizationType === "bar" ? { barmode: "group" } : {}),
     }),
-    [chartTitle, yaxisTitle]
+    [chartTitle, yaxisTitle, isRuralSocialView, visualizationType]
   );
 
   const plotConfig = useMemo(
@@ -2271,6 +2897,12 @@ export default function GeneralInsurance() {
           { label: "Sector", value: appliedAumSector },
           { label: "Select Insurer", value: appliedAumInsurer },
           { label: "Category", value: appliedInvestmentCategory },
+          { label: "Sector", value: appliedOfficeSector },
+          { label: "Select Insurer", value: appliedOfficeInsurer },
+          { label: "Select State", value: appliedOfficeState },
+          { label: "Metric", value: appliedRuralMetric },
+          { label: "Sector", value: appliedRuralSector },
+          { label: "Select Insurer", value: appliedRuralInsurer },
         ])}_chart`,
         width: 1280,
         height: 720,
@@ -2294,6 +2926,12 @@ export default function GeneralInsurance() {
       appliedAumSector,
       appliedAumInsurer,
       appliedInvestmentCategory,
+      appliedOfficeSector,
+      appliedOfficeInsurer,
+      appliedOfficeState,
+      appliedRuralMetric,
+      appliedRuralSector,
+      appliedRuralInsurer,
     ]
   );
 
@@ -2319,6 +2957,20 @@ export default function GeneralInsurance() {
   };
 
   const handleResetFilters = () => {
+    if (isStateWiseOfficeDistributionView) {
+      setSelectedOfficeSector("");
+      setSelectedOfficeInsurer("");
+      setSelectedOfficeState("");
+      setAppliedOfficeSector("");
+      setAppliedOfficeInsurer("");
+      setAppliedOfficeState("");
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      setStateWiseOfficeError("");
+      return;
+    }
+
     if (isOperationalAnalysisView) {
       setSelectedOperationalSector("");
       setSelectedOperationalInsurer("");
@@ -2389,6 +3041,20 @@ export default function GeneralInsurance() {
       return;
     }
 
+    if (isRuralSocialView) {
+      setSelectedRuralMetric("rural");
+      setSelectedRuralSector("");
+      setSelectedRuralInsurer("");
+      setAppliedRuralMetric("");
+      setAppliedRuralSector("");
+      setAppliedRuralInsurer("");
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      setRuralSocialError("");
+      return;
+    }
+
     if (isAumInsurerWiseView) {
       setSelectedAumSector("");
       setSelectedAumInsurer("");
@@ -2421,6 +3087,16 @@ export default function GeneralInsurance() {
   };
 
   const handleApplyFilters = () => {
+    if (isStateWiseOfficeDistributionView) {
+      setAppliedOfficeSector(selectedOfficeSector);
+      setAppliedOfficeInsurer(selectedOfficeInsurer);
+      setAppliedOfficeState(selectedOfficeState);
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
+
     if (isStatewisePremiumSegmentView) {
       setAppliedStateGdpState(selectedStateGdpState);
       setAppliedStateGdpSegment(selectedStateGdpSegment);
@@ -2491,9 +3167,79 @@ export default function GeneralInsurance() {
       setTimelineEndYear("");
       return;
     }
+
+    if (isRuralSocialView) {
+      setAppliedRuralMetric(selectedRuralMetric);
+      setAppliedRuralSector(selectedRuralSector);
+      setAppliedRuralInsurer(selectedRuralInsurer);
+      setShowTimelinePicker(false);
+      setTimelineStartYear("");
+      setTimelineEndYear("");
+      return;
+    }
   };
 
   const handleExportData = async () => {
+    if (isStateWiseOfficeDistributionView) {
+      if (
+        !appliedOfficeSector ||
+        !appliedOfficeInsurer ||
+        !appliedOfficeState ||
+        visibleOfficeDistributionRows.length === 0
+      ) {
+        return;
+      }
+
+      const activeFilters = [
+        { label: "Sector", value: appliedOfficeSector },
+        { label: "Select Insurer", value: appliedOfficeInsurer },
+        { label: "Select State", value: appliedOfficeState },
+      ];
+
+      const dataRows = visibleOfficeDistributionRows.map((row) => [
+        row.year,
+        Number(row.value || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }),
+      ]);
+
+      const exportRows = [
+        ["Sub Module", selectedSubModuleTitle],
+        [],
+        ["Applied Filters", "Value"],
+        ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
+        [],
+        ["Year", "Number of Offices"],
+        ...dataRows,
+      ];
+
+      const fileBaseName = buildExportFileName(selectedSubModuleTitle, activeFilters);
+
+      try {
+        const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        XLSX.writeFile(workbook, `${fileBaseName}.xlsx`);
+        return;
+      } catch (error) {
+        const csvContent = exportRows
+          .map((row) => row.map(escapeCsvValue).join(","))
+          .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${fileBaseName}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+
     if (isStatewisePremiumSegmentView) {
       if (!appliedStateGdpState || !appliedStateGdpSegment || visibleStateSegmentRows.length === 0) {
         return;
@@ -2930,6 +3676,70 @@ export default function GeneralInsurance() {
       return;
     }
 
+    if (isRuralSocialView) {
+      if (
+        !appliedRuralMetric ||
+        !appliedRuralSector ||
+        !appliedRuralInsurer ||
+        visibleRuralSocialRows.length === 0
+      ) {
+        return;
+      }
+
+      const activeFilters = [
+        { label: "Metric", value: appliedRuralMetric.charAt(0).toUpperCase() + appliedRuralMetric.slice(1) },
+        { label: "Sector", value: appliedRuralSector },
+        { label: "Select Insurer", value: appliedRuralInsurer },
+      ];
+
+      const dataRows = visibleRuralSocialRows.map((row) => [
+        row.year,
+        Number(row.target || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        Number(row.achieved || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      ]);
+
+      const exportRows = [
+        ["Sub Module", selectedSubModuleTitle],
+        [],
+        ["Applied Filters", "Value"],
+        ...activeFilters.map((filter) => [filter.label, formatFieldValue(filter.value)]),
+        [],
+        ["Year", "Target", "Achieved"],
+        ...dataRows,
+      ];
+
+      const fileBaseName = buildExportFileName(selectedSubModuleTitle, activeFilters);
+
+      try {
+        const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        XLSX.writeFile(workbook, `${fileBaseName}.xlsx`);
+        return;
+      } catch (error) {
+        const csvContent = exportRows
+          .map((row) => row.map(escapeCsvValue).join(","))
+          .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${fileBaseName}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+
     if (!isInsurerDetailsView || !selectedInsurerRegNo || insurerDetailRows.length === 0) {
       return;
     }
@@ -3064,6 +3874,27 @@ export default function GeneralInsurance() {
             </button>
           </div>
           <div className="filters-body">
+            {isRuralSocialView && (
+              <div className="filter-item">
+                <label className="filter-label label-text">Metric</label>
+                <div className="premium-toggle-group">
+                  <button
+                    type="button"
+                    className={`premium-toggle-btn ${selectedRuralMetric === "rural" ? "active" : ""}`}
+                    onClick={() => setSelectedRuralMetric("rural")}
+                  >
+                    Rural
+                  </button>
+                  <button
+                    type="button"
+                    className={`premium-toggle-btn ${selectedRuralMetric === "social" ? "active" : ""}`}
+                    onClick={() => setSelectedRuralMetric("social")}
+                  >
+                    Social
+                  </button>
+                </div>
+              </div>
+            )}
             {filterConfig.map((filter) => (
               <FilterSelect
                 key={filter.label}
@@ -3166,6 +3997,28 @@ export default function GeneralInsurance() {
                 Apply Filters
               </button>
             )}
+            {isStateWiseOfficeDistributionView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={handleApplyFilters}
+                disabled={!selectedOfficeSector || !selectedOfficeInsurer || !selectedOfficeState}
+                title="Apply Filters"
+              >
+                Apply Filters
+              </button>
+            )}
+            {isRuralSocialView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={handleApplyFilters}
+                disabled={!selectedRuralSector || !selectedRuralInsurer}
+                title="Apply Filters"
+              >
+                Apply Filters
+              </button>
+            )}
             {insurersLoading && !isAumInsurerWiseView && !isEquityCapitalView && !isGrossDirectPremiumView && !isIssuedPoliciesView && !isPremiumSegmentAnalysisView && !isStatewisePremiumSegmentView && (
               <p className="panel-placeholder">Loading insurers...</p>
             )}
@@ -3219,6 +4072,18 @@ export default function GeneralInsurance() {
             )}
             {equityCapitalError && !equityCapitalLoading && isEquityCapitalView && (
               <p className="panel-placeholder">{equityCapitalError}</p>
+            )}
+            {stateWiseOfficeLoading && isStateWiseOfficeDistributionView && (
+              <p className="panel-placeholder">Loading filters...</p>
+            )}
+            {stateWiseOfficeError && !stateWiseOfficeLoading && isStateWiseOfficeDistributionView && (
+              <p className="panel-placeholder">{stateWiseOfficeError}</p>
+            )}
+            {ruralSocialLoading && isRuralSocialView && (
+              <p className="panel-placeholder">Loading filters...</p>
+            )}
+            {ruralSocialError && !ruralSocialLoading && isRuralSocialView && (
+              <p className="panel-placeholder">{ruralSocialError}</p>
             )}
           </div>
         </div>
@@ -3313,6 +4178,28 @@ export default function GeneralInsurance() {
                 onClick={() => setShowTimelinePicker((previous) => !previous)}
                 title="Select Timeline"
                 disabled={escAppliedRows.length === 0}
+              >
+                Select Timeline
+              </button>
+            )}
+            {isStateWiseOfficeDistributionView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
+                disabled={officeDistributionAppliedRows.length === 0}
+              >
+                Select Timeline
+              </button>
+            )}
+            {isRuralSocialView && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
+                disabled={ruralSocialAppliedRows.length === 0}
               >
                 Select Timeline
               </button>
@@ -4239,6 +5126,217 @@ export default function GeneralInsurance() {
                   hint="You can adjust filters and re-apply to refresh results."
                 />
               )
+            ) : isStateWiseOfficeDistributionView ? (
+              stateWiseOfficeLoading ? (
+                <PanelState variant="loading" message="Loading data..." />
+              ) : stateWiseOfficeError ? (
+                <PanelState variant="error" message={stateWiseOfficeError} />
+              ) : !appliedOfficeSector || !appliedOfficeInsurer || !appliedOfficeState ? (
+                <PanelState
+                  variant="empty"
+                  message="Select filters and click Apply Filters to view data."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              ) : visibleOfficeDistributionRows.length > 0 ? (
+                <>
+                  {showTimelinePicker && officeDistributionTimelineYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setTimelineStartYear(nextStartYear);
+
+                            if (timelineEndYear && Number(nextStartYear) > Number(timelineEndYear)) {
+                              setTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {officeDistributionTimelineYearOptions.map((year) => (
+                            <option key={`start-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setTimelineEndYear(nextEndYear);
+
+                            if (timelineStartYear && Number(nextEndYear) < Number(timelineStartYear)) {
+                              setTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {officeDistributionTimelineYearOptions.map((year) => (
+                            <option key={`end-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setShowTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Year</th>
+                          <th className="col-value">Number of Offices</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleOfficeDistributionRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">
+                              <span className="year-badge">{row.year}</span>
+                            </td>
+                            <td className="col-value">
+                              <span className="value-amount">
+                                {Number(row.value || 0).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 0,
+                                })}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message="No data found for selected filters."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              )
+            ) : isRuralSocialView ? (
+              ruralSocialLoading ? (
+                <PanelState variant="loading" message="Loading data..." />
+              ) : ruralSocialError ? (
+                <PanelState variant="error" message={ruralSocialError} />
+              ) : !appliedRuralMetric || !appliedRuralSector || !appliedRuralInsurer ? (
+                <PanelState
+                  variant="empty"
+                  message="Select filters and click Apply Filters to view data."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              ) : visibleRuralSocialRows.length > 0 ? (
+                <>
+                  {showTimelinePicker && ruralSocialTimelineYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setTimelineStartYear(nextStartYear);
+                            if (timelineEndYear && Number(nextStartYear) > Number(timelineEndYear)) {
+                              setTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {ruralSocialTimelineYearOptions.map((year) => (
+                            <option key={`start-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={timelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setTimelineEndYear(nextEndYear);
+                            if (timelineStartYear && Number(nextEndYear) < Number(timelineStartYear)) {
+                              setTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {ruralSocialTimelineYearOptions.map((year) => (
+                            <option key={`end-${year}`} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setShowTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Year</th>
+                          <th className="col-value">Target</th>
+                          <th className="col-value">Achieved</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleRuralSocialRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">
+                              <span className="year-badge">{row.year}</span>
+                            </td>
+                            <td className="col-value">
+                              <span className="value-amount">
+                                {Number(row.target || 0).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </td>
+                            <td className="col-value">
+                              <span className="value-amount">
+                                {Number(row.achieved || 0).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message="No data found for selected filters."
+                  hint="You can adjust filters and re-apply to refresh results."
+                />
+              )
             ) : (
               <div className="data-table-container">
                 <PanelState
@@ -4257,8 +5355,9 @@ export default function GeneralInsurance() {
               <TrendingUp size={14} strokeWidth={2} />
             </div>
             <h3 className="panel-title section-title">Visualization Panel</h3>
-            {(isAumInsurerWiseView || isGrossDirectPremiumView || isIssuedPoliciesView || isSolvencyRatioView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isOperationalAnalysisView || isEquityCapitalView) &&
-              activeVisualizationData.length > 0 && (
+            {((isAumInsurerWiseView || isGrossDirectPremiumView || isIssuedPoliciesView || isSolvencyRatioView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isOperationalAnalysisView || isStateWiseOfficeDistributionView || isEquityCapitalView) &&
+              activeVisualizationData.length > 0 ||
+              (isRuralSocialView && visibleRuralSocialRows.length > 0)) && (
               <>
                 <button
                   type="button"
@@ -4282,11 +5381,13 @@ export default function GeneralInsurance() {
             )}
           </div>
           <div className="panel-body viz-panel-body">
-            {isAumInsurerWiseView || isGrossDirectPremiumView || isIssuedPoliciesView || isSolvencyRatioView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isOperationalAnalysisView ? (
+            {isAumInsurerWiseView || isGrossDirectPremiumView || isIssuedPoliciesView || isSolvencyRatioView || isPremiumSegmentAnalysisView || isStatewisePremiumSegmentView || isOperationalAnalysisView || isStateWiseOfficeDistributionView ? (
               (isGrossDirectPremiumView
                 ? grossDirectPremiumLoading
                 : isOperationalAnalysisView
                 ? operationalLoading
+                : isStateWiseOfficeDistributionView
+                ? stateWiseOfficeLoading
                 : isSolvencyRatioView
                 ? solvencyLoading
                 : isIssuedPoliciesView
@@ -4305,6 +5406,8 @@ export default function GeneralInsurance() {
                 ? grossDirectPremiumError
                 : isOperationalAnalysisView
                 ? operationalError
+                : isStateWiseOfficeDistributionView
+                ? stateWiseOfficeError
                 : isSolvencyRatioView
                 ? solvencyError
                 : isIssuedPoliciesView
@@ -4321,6 +5424,8 @@ export default function GeneralInsurance() {
                       ? grossDirectPremiumError
                       : isOperationalAnalysisView
                       ? operationalError
+                      : isStateWiseOfficeDistributionView
+                      ? stateWiseOfficeError
                       : isSolvencyRatioView
                       ? solvencyError
                       : isIssuedPoliciesView
@@ -4389,6 +5494,8 @@ export default function GeneralInsurance() {
                       ? Boolean(appliedStateGdpState && appliedStateGdpSegment)
                       : isPremiumSegmentAnalysisView
                       ? Boolean(appliedSegmentInsurer && appliedSegment)
+                      : isStateWiseOfficeDistributionView
+                      ? Boolean(appliedOfficeSector && appliedOfficeInsurer && appliedOfficeState)
                       : Boolean(appliedAumSector && appliedAumInsurer && appliedInvestmentCategory);
 
                     return hasFilterSelection
@@ -4453,6 +5560,67 @@ export default function GeneralInsurance() {
                   variant="empty"
                   message={
                     !appliedEscSector || !appliedEscInsurer
+                      ? "Select filters and click Apply Filters to view visualization."
+                      : "No data found for selected filters."
+                  }
+                  hint="Try changing filters."
+                />
+              )
+            ) : isRuralSocialView ? (
+              ruralSocialLoading ? (
+                <PanelState
+                  variant="loading"
+                  message="Loading visualization"
+                  hint="Rendering chart for selected filters."
+                />
+              ) : ruralSocialError ? (
+                <PanelState variant="error" message={ruralSocialError} />
+              ) : visibleRuralSocialRows.length > 0 ? (
+                <>
+                  {showChartTypePicker && (
+                    <div className="timeline-filter-row chart-type-picker-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">Chart Type</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={pendingVisualizationType}
+                          onChange={(event) => setPendingVisualizationType(event.target.value)}
+                        >
+                          <option value="line">Line Chart</option>
+                          <option value="area">Area Chart</option>
+                          <option value="bar">Bar Chart</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => {
+                          setVisualizationType(pendingVisualizationType);
+                          setShowChartTypePicker(false);
+                        }}
+                        title="Apply chart type"
+                      >
+                        Apply Chart Type
+                      </button>
+                    </div>
+                  )}
+                  <div className="chart-wrapper plotly-chart-wrapper">
+                    <Plot
+                      data={plotTraces}
+                      layout={plotLayout}
+                      config={plotConfig}
+                      style={{ width: "100%", height: "100%" }}
+                      useResizeHandler
+                      onInitialized={(_, graphDiv) => setChartGraphDiv(graphDiv)}
+                      onUpdate={(_, graphDiv) => setChartGraphDiv(graphDiv)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message={
+                    !appliedRuralMetric || !appliedRuralSector || !appliedRuralInsurer
                       ? "Select filters and click Apply Filters to view visualization."
                       : "No data found for selected filters."
                   }
@@ -5049,6 +6217,38 @@ function resolvePoliciesIssuedLakhsValue(document) {
 
   for (const [fieldName, fieldValue] of Object.entries(document || {})) {
     if (!/polic|issue/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolveOfficeCountValue(document) {
+  const preferredFields = [
+    "office_count",
+    "number_of_offices",
+    "no_of_offices",
+    "offices",
+    "count",
+    "value",
+    "amount",
+  ];
+
+  for (const fieldName of preferredFields) {
+    const parsedValue = parseNumericFieldValue(document?.[fieldName]);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/office|count/i.test(fieldName)) {
       continue;
     }
 
