@@ -46,6 +46,7 @@ import {
   getImfData,
   getLifeBusinessChannels,
   getLifeBusinessInsurers,
+  getLifeBusinessInsurerYears,
   getLifeBusinessInsurerChannelData,
   getLifeBusinessYearwiseData,
   getNonLifeBusinessChannels,
@@ -112,7 +113,7 @@ const STATE_WISE_MODULE_CONFIG = {
     getStates: getStatewiseStates,
     getData: getStatewiseData,
     requiresInsurerAndState: true,
-    metricLabel: "Agents",
+    metricLabel: "Number of Agents",
   },
   "registered-brokers": {
     collectionName: "sheet97_statewise_registered_brokers",
@@ -307,9 +308,11 @@ export default function IntermediariesInsurance() {
   const [selectedLifeBusinessType, setSelectedLifeBusinessType] = useState("");
   const [selectedLifeBusinessChannel, setSelectedLifeBusinessChannel] = useState("");
   const [selectedLifeBusinessInsurer, setSelectedLifeBusinessInsurer] = useState("");
+  const [selectedLifeBusinessYear, setSelectedLifeBusinessYear] = useState("");
   const [selectedLifeBusinessMetric, setSelectedLifeBusinessMetric] = useState("");
   const [lifeBusinessChannelOptions, setLifeBusinessChannelOptions] = useState([]);
   const [lifeBusinessInsurerOptions, setLifeBusinessInsurerOptions] = useState([]);
+  const [lifeBusinessYearOptions, setLifeBusinessYearOptions] = useState([]);
   const [selectedNonLifeSegment, setSelectedNonLifeSegment] = useState("");
   const [selectedNonLifeChannel, setSelectedNonLifeChannel] = useState("");
   const [nonLifeSegmentOptions, setNonLifeSegmentOptions] = useState([]);
@@ -349,6 +352,7 @@ export default function IntermediariesInsurance() {
     setSelectedLifeBusinessType("");
     setSelectedLifeBusinessChannel("");
     setSelectedLifeBusinessInsurer("");
+    setSelectedLifeBusinessYear("");
     setSelectedLifeBusinessMetric("");
     setSelectedNonLifeSegment("");
     setSelectedNonLifeChannel("");
@@ -357,6 +361,7 @@ export default function IntermediariesInsurance() {
     setSelectedHealthMetric("");
     setLifeBusinessInsurerOptions([]);
     setLifeBusinessChannelOptions([]);
+    setLifeBusinessYearOptions([]);
     setNonLifeSegmentOptions([]);
     setNonLifeChannelOptions([]);
     setHealthChannelOptions([]);
@@ -471,6 +476,40 @@ export default function IntermediariesInsurance() {
 
     fetchInsurers();
   }, [distributionAgentModuleConfig, selectedLifeBusinessType]);
+
+  useEffect(() => {
+    if (!distributionAgentModuleConfig?.requiresBusinessTypeInsurer) {
+      setLifeBusinessYearOptions([]);
+      setSelectedLifeBusinessYear("");
+      return;
+    }
+
+    if (!selectedLifeBusinessType || !selectedLifeBusinessInsurer) {
+      setLifeBusinessYearOptions([]);
+      setSelectedLifeBusinessYear("");
+      return;
+    }
+
+    const fetchYears = async () => {
+      try {
+        const years = await getLifeBusinessInsurerYears(
+          selectedLifeBusinessType,
+          selectedLifeBusinessInsurer
+        );
+        setLifeBusinessYearOptions(years);
+      } catch (error) {
+        console.error("Failed to fetch insurer-wise life business years:", error);
+        setLifeBusinessYearOptions([]);
+        setSelectedLifeBusinessYear("");
+      }
+    };
+
+    fetchYears();
+  }, [
+    distributionAgentModuleConfig,
+    selectedLifeBusinessType,
+    selectedLifeBusinessInsurer,
+  ]);
 
   // Fetch insurers and states for state-wise analysis
   useEffect(() => {
@@ -639,6 +678,13 @@ export default function IntermediariesInsurance() {
       return;
     }
 
+    if (
+      selectedModule === "registered-brokers" ||
+      selectedModule === "insurance-marketing-firms"
+    ) {
+      return;
+    }
+
     if (!selectedStatewiseState) {
       setRawData([]);
       setData([]);
@@ -664,7 +710,7 @@ export default function IntermediariesInsurance() {
     };
 
     fetchStateOnlyData();
-  }, [distributionAgentModuleConfig, selectedStatewiseState]);
+  }, [distributionAgentModuleConfig, selectedStatewiseState, selectedModule]);
 
   useEffect(() => {
     if (rawData.length === 0) {
@@ -771,7 +817,10 @@ export default function IntermediariesInsurance() {
       return data
         .map((item) => ({
           year: item.channel,
-          value: toNumericValue(item.premium_crore),
+          value:
+            selectedLifeBusinessType === "Group New Business"
+              ? toNumericValue(item.lives_covered)
+              : toNumericValue(item.premium_crore),
         }))
         .filter((item) => item.year && Number.isFinite(item.value));
     }
@@ -779,10 +828,10 @@ export default function IntermediariesInsurance() {
     return data
       .map((item) => ({
         year: item.year,
-        value: toNumericValue(item.agents),
+        value: getDistributionMetricValue(item, selectedModule),
       }))
       .filter((item) => Number.isFinite(item.value));
-  }, [data, distributionAgentModuleConfig]);
+  }, [data, distributionAgentModuleConfig, selectedModule, selectedLifeBusinessType]);
 
   const selectedSubModuleTitle =
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
@@ -963,7 +1012,7 @@ export default function IntermediariesInsurance() {
     : distributionAgentModuleConfig?.requiresStateOnly
     ? Boolean(selectedStatewiseState)
     : distributionAgentModuleConfig?.requiresBusinessTypeInsurer
-    ? Boolean(selectedLifeBusinessType && selectedLifeBusinessInsurer)
+    ? Boolean(selectedLifeBusinessType && selectedLifeBusinessInsurer && selectedLifeBusinessYear)
     : distributionAgentModuleConfig?.requiresBusinessType
     ? Boolean(selectedLifeBusinessType && selectedLifeBusinessChannel && selectedLifeBusinessMetric)
     : distributionAgentModuleConfig?.requiresSegmentChannel
@@ -1029,6 +1078,9 @@ export default function IntermediariesInsurance() {
     if (selectedLifeBusinessType) filterParts.push(`Business Type: ${selectedLifeBusinessType}`);
     if (selectedLifeBusinessChannel) filterParts.push(`Channel: ${selectedLifeBusinessChannel}`);
     if (selectedLifeBusinessInsurer) filterParts.push(`Life Insurer: ${selectedLifeBusinessInsurer}`);
+    if (selectedLifeBusinessYear) {
+      filterParts.push(`Year: ${selectedLifeBusinessYear}`);
+    }
     if (selectedNonLifeSegment) filterParts.push(`Segment: ${selectedNonLifeSegment}`);
     if (selectedNonLifeChannel) filterParts.push(`Non-Life Channel: ${selectedNonLifeChannel}`);
     if (selectedHealthChannel) filterParts.push(`Health Channel: ${selectedHealthChannel}`);
@@ -1143,6 +1195,9 @@ export default function IntermediariesInsurance() {
       if (selectedLifeBusinessType) filterParts.push(`Business Type: ${selectedLifeBusinessType}`);
       if (selectedLifeBusinessChannel) filterParts.push(`Channel: ${selectedLifeBusinessChannel}`);
       if (selectedLifeBusinessInsurer) filterParts.push(`Life Insurer: ${selectedLifeBusinessInsurer}`);
+      if (selectedLifeBusinessYear) {
+        filterParts.push(`Year: ${selectedLifeBusinessYear}`);
+      }
       if (selectedNonLifeSegment) filterParts.push(`Segment: ${selectedNonLifeSegment}`);
       if (selectedNonLifeChannel) filterParts.push(`Non-Life Channel: ${selectedNonLifeChannel}`);
       if (selectedHealthChannel) filterParts.push(`Health Channel: ${selectedHealthChannel}`);
@@ -1195,6 +1250,7 @@ export default function IntermediariesInsurance() {
       setSelectedLifeBusinessType("");
       setSelectedLifeBusinessChannel("");
       setSelectedLifeBusinessInsurer("");
+      setSelectedLifeBusinessYear("");
       setSelectedLifeBusinessMetric("");
       setSelectedNonLifeSegment("");
       setSelectedNonLifeChannel("");
@@ -1203,6 +1259,7 @@ export default function IntermediariesInsurance() {
       setSelectedHealthMetric("");
       setLifeBusinessChannelOptions([]);
       setLifeBusinessInsurerOptions([]);
+      setLifeBusinessYearOptions([]);
       setNonLifeSegmentOptions([]);
       setNonLifeChannelOptions([]);
       setHealthChannelOptions([]);
@@ -1247,13 +1304,21 @@ export default function IntermediariesInsurance() {
           return;
         }
 
+        if (!selectedLifeBusinessYear) {
+          setAgentsError("Please select a year.");
+          setRawData([]);
+          setData([]);
+          return;
+        }
+
         setAgentsLoading(true);
         setAgentsError("");
 
         try {
           const result = await getLifeBusinessInsurerChannelData(
             selectedLifeBusinessType,
-            selectedLifeBusinessInsurer
+            selectedLifeBusinessInsurer,
+            selectedLifeBusinessYear
           );
           setRawData(result);
         } catch (error) {
@@ -1423,6 +1488,28 @@ export default function IntermediariesInsurance() {
     }
 
     if (distributionAgentModuleConfig?.requiresStateOnly) {
+      if (!selectedStatewiseState) {
+        setAgentsError("Please select a state.");
+        setRawData([]);
+        setData([]);
+        return;
+      }
+
+      setAgentsLoading(true);
+      setAgentsError("");
+
+      try {
+        const result = await distributionAgentModuleConfig.getData(selectedStatewiseState);
+        setRawData(result);
+      } catch (error) {
+        console.error("Failed to apply state-only filters:", error);
+        setAgentsError("Unable to load data for selected state.");
+        setRawData([]);
+        setData([]);
+      } finally {
+        setAgentsLoading(false);
+      }
+
       return;
     }
 
@@ -1488,6 +1575,7 @@ export default function IntermediariesInsurance() {
       ? [
           { label: "Business Type", value: selectedLifeBusinessType },
           { label: "Insurer", value: selectedLifeBusinessInsurer },
+          { label: "Year", value: selectedLifeBusinessYear },
         ]
       : distributionAgentModuleConfig?.requiresBusinessType
       ? [
@@ -1525,18 +1613,22 @@ export default function IntermediariesInsurance() {
           }
 
           return [
+            row.year || selectedLifeBusinessYear,
             row.channel,
-            Number(row.premium_crore || 0).toLocaleString("en-IN"),
             Number(row.lives_covered || 0).toLocaleString("en-IN"),
+            Number(row.premium_crore || 0).toLocaleString("en-IN"),
             Number(row.scheme || 0).toLocaleString("en-IN"),
           ];
         })
-      : data.map((row) => [row.year, Number(row.agents || 0).toLocaleString("en-IN")]);
+      : data.map((row) => [
+          row.year,
+          getDistributionMetricValue(row, selectedModule).toLocaleString("en-IN"),
+        ]);
 
     const exportHeader = distributionAgentModuleConfig?.requiresBusinessTypeInsurer
       ? selectedLifeBusinessType === "Individual New Business"
         ? ["Channel", "Premium (Crore)", "Policies"]
-        : ["Channel", "Premium (Crore)", "Lives Covered", "Schemes"]
+        : ["Year", "Channel", "Premium (Crore)", "Lives Covered", "Schemes"]
       : ["Year", metricLabel];
 
     const exportRows = [
@@ -1655,6 +1747,7 @@ export default function IntermediariesInsurance() {
                             onClick={() => {
                               setSelectedLifeBusinessType(businessType);
                               setSelectedLifeBusinessInsurer("");
+                              setSelectedLifeBusinessYear("");
                               setSelectedLifeBusinessChannel("");
                               setSelectedLifeBusinessMetric("");
                               setAgentsError("");
@@ -1676,6 +1769,7 @@ export default function IntermediariesInsurance() {
                           value={selectedLifeBusinessInsurer}
                           onChange={(nextInsurer) => {
                             setSelectedLifeBusinessInsurer(nextInsurer);
+                            setSelectedLifeBusinessYear("");
                             setAgentsError("");
                             setRawData([]);
                             setData([]);
@@ -1727,6 +1821,21 @@ export default function IntermediariesInsurance() {
                           </div>
                         )}
                       </>
+                    )}
+
+                    {distributionAgentModuleConfig?.requiresBusinessTypeInsurer &&
+                      selectedLifeBusinessInsurer && (
+                      <FilterSelect
+                        label="Select Year"
+                        options={lifeBusinessYearOptions}
+                        value={selectedLifeBusinessYear}
+                        onChange={(nextYear) => {
+                          setSelectedLifeBusinessYear(nextYear);
+                          setAgentsError("");
+                          setRawData([]);
+                          setData([]);
+                        }}
+                      />
                     )}
                   </>
                 ) : distributionAgentModuleConfig?.requiresSegmentChannel ? (
@@ -1848,7 +1957,9 @@ export default function IntermediariesInsurance() {
                     />
                   </>
                 )}
-                {!distributionAgentModuleConfig?.requiresStateOnly && (
+                {(selectedModule === "registered-brokers" ||
+                  selectedModule === "insurance-marketing-firms" ||
+                  !distributionAgentModuleConfig?.requiresStateOnly) && (
                   <button
                     type="button"
                     className="data-export-btn"
@@ -2004,31 +2115,42 @@ export default function IntermediariesInsurance() {
                       <tbody>
                         {distributionAgentModuleConfig?.requiresBusinessTypeInsurer
                           ? data.map((item) => (
-                              <tr key={item.channel}>
+                              <tr key={`${item.channel}-${item.year || selectedLifeBusinessYear}`}>
                                 <td className="col-year">
                                   <span className="year-badge">{item.channel}</span>
                                 </td>
                                 <td className="col-value">
                                   <span className="value-amount">
-                                    {formatNumberForDisplay(item.premium_crore)}
+                                    {selectedLifeBusinessType === "Individual New Business"
+                                      ? formatNumberForDisplay(item.premium_crore)
+                                      : formatNumberForDisplay(item.lives_covered)}
                                   </span>
                                 </td>
                                 {selectedLifeBusinessType === "Individual New Business" ? (
                                   <td className="col-value">
                                     <span className="value-amount">
-                                      {formatNumberForDisplay(item.policies)}
+                                      {toNumericValue(item.policies).toLocaleString("en-IN", {
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0,
+                                      })}
                                     </span>
                                   </td>
                                 ) : (
                                   <>
                                     <td className="col-value">
                                       <span className="value-amount">
-                                        {formatNumberForDisplay(item.lives_covered)}
+                                        {toNumericValue(item.premium_crore).toLocaleString("en-IN", {
+                                          minimumFractionDigits: 0,
+                                          maximumFractionDigits: 0,
+                                        })}
                                       </span>
                                     </td>
                                     <td className="col-value">
                                       <span className="value-amount">
-                                        {formatNumberForDisplay(item.scheme)}
+                                        {toNumericValue(item.scheme).toLocaleString("en-IN", {
+                                          minimumFractionDigits: 0,
+                                          maximumFractionDigits: 0,
+                                        })}
                                       </span>
                                     </td>
                                   </>
@@ -2042,12 +2164,21 @@ export default function IntermediariesInsurance() {
                                 </td>
                                 <td className="col-value">
                                   <span className="value-amount">
-                                    {activeTab === "distribution-workforce"
-                                      ? toNumericValue(item.agents).toLocaleString("en-IN", {
+                                    {activeTab === "distribution-workforce" ||
+                                    selectedModule === "distribution-individual-agents-life" ||
+                                    selectedModule === "registered-brokers" ||
+                                    selectedModule === "insurance-marketing-firms" ||
+                                    (selectedModule === "Channel-wise - Business" &&
+                                      (selectedLifeBusinessMetric === "policies" ||
+                                        selectedLifeBusinessMetric === "lives_covered" ||
+                                        selectedLifeBusinessMetric === "scheme")) ||
+                                    (distributionAgentModuleConfig?.requiresHealthChannelCategoryMetric &&
+                                      isHealthMetricInteger(selectedHealthMetric, healthMetricOptions))
+                                      ? getDistributionMetricValue(item, selectedModule).toLocaleString("en-IN", {
                                           minimumFractionDigits: 0,
                                           maximumFractionDigits: 0,
                                         })
-                                      : formatNumberForDisplay(item.agents)}
+                                      : formatNumberForDisplay(getDistributionMetricValue(item, selectedModule))}
                                   </span>
                                 </td>
                               </tr>
@@ -2066,7 +2197,7 @@ export default function IntermediariesInsurance() {
                       ? "Select a state to view year-wise data."
                       : distributionAgentModuleConfig?.requiresBusinessType
                       ? distributionAgentModuleConfig?.requiresBusinessTypeInsurer
-                        ? "Choose business type and insurer, then click Apply Filters."
+                        ? "Choose business type, insurer and year, then click Apply Filters."
                         : "Choose business type, channel and metric, then click Apply Filters."
                       : distributionAgentModuleConfig?.requiresSegmentChannel
                       ? "Choose segment and channel, then click Apply Filters."
@@ -2165,7 +2296,7 @@ export default function IntermediariesInsurance() {
                       ? "Select a state to view visualization."
                       : distributionAgentModuleConfig?.requiresBusinessType
                       ? distributionAgentModuleConfig?.requiresBusinessTypeInsurer
-                        ? "Choose business type and insurer, then click Apply Filters."
+                        ? "Choose business type, insurer and year, then click Apply Filters."
                         : "Choose business type, channel and metric, then click Apply Filters."
                       : distributionAgentModuleConfig?.requiresSegmentChannel
                       ? "Choose segment and channel, then click Apply Filters."
@@ -2542,6 +2673,77 @@ function toNumericValue(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function getDistributionMetricValue(row, moduleId) {
+  if (!row) {
+    return 0;
+  }
+
+  if (moduleId === "avg-policies-sold") {
+    const candidates = [
+      row.agents,
+      row.policies,
+      row.avg_policies,
+      row.average_policies,
+      row.policies_sold,
+      row.individual_policies,
+      row.no_of_policies,
+      row.number_of_policies,
+      row.policy_count,
+      row.value,
+    ];
+
+    for (const candidate of candidates) {
+      if (candidate !== null && candidate !== undefined && candidate !== "") {
+        return toNumericValue(candidate);
+      }
+    }
+
+    return 0;
+  }
+
+  if (moduleId === "avg-new-business-premium") {
+    const candidates = [
+      row.agents,
+      row.premium,
+      row.avg_premium,
+      row.average_premium,
+      row.new_business_premium,
+      row.new_business_premium_income,
+      row.amount,
+      row.value,
+    ];
+
+    for (const candidate of candidates) {
+      if (candidate !== null && candidate !== undefined && candidate !== "") {
+        return toNumericValue(candidate);
+      }
+    }
+
+    return 0;
+  }
+
+  if (moduleId === "avg-premium-per-policy") {
+    const candidates = [
+      row.agents,
+      row.premium_per_policy,
+      row.avg_premium_per_policy,
+      row.average_premium_per_policy,
+      row.amount,
+      row.value,
+    ];
+
+    for (const candidate of candidates) {
+      if (candidate !== null && candidate !== undefined && candidate !== "") {
+        return toNumericValue(candidate);
+      }
+    }
+
+    return 0;
+  }
+
+  return toNumericValue(row.agents ?? row.value ?? row.count ?? row.number ?? 0);
+}
+
 function formatNumberForDisplay(value) {
   return toNumericValue(value).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
@@ -2576,4 +2778,11 @@ function getHealthMetricLabel(metricValue, metricOptions) {
 
   const matchedMetric = (metricOptions || []).find((option) => option?.value === metricValue);
   return matchedMetric?.label || metricValue;
+}
+
+function isHealthMetricInteger(metricValue, metricOptions) {
+  const metricLabel = getHealthMetricLabel(metricValue, metricOptions).toLowerCase();
+
+  return /claims|claim count|no of|number of|count|policies|lives|persons|covered/i.test(metricLabel) &&
+    !/premium|amount|incurred|ratio|average|crore|lakhs|lakhs?/i.test(metricLabel);
 }

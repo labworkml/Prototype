@@ -1231,6 +1231,8 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+  font-size: inherit;
+  line-height: 1.2;
 }
 
 .plot-component-fill {
@@ -1477,14 +1479,17 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: 16px 20px;
+  padding: 12px 12px;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  text-align: left;
-  white-space: nowrap;
+  letter-spacing: 0.05em;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.25;
   background: linear-gradient(
     135deg,
     rgba(241, 245, 249, 0.98),
@@ -1500,10 +1505,11 @@
 
 .segment-data-table th.col-year {
   width: 35%;
+  text-align: center;
 }
 
 .segment-data-table th.col-value {
-  text-align: right;
+  text-align: center;
 }
 
 .segment-data-table tbody tr {
@@ -1541,6 +1547,7 @@
   font-weight: 400;
   vertical-align: middle;
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .segment-data-table td.col-index {
@@ -1548,7 +1555,7 @@
 }
 
 .segment-data-table td.col-value {
-  text-align: right;
+  text-align: center;
 }
 
 /* Row Number Badge */
@@ -1596,7 +1603,7 @@
 .value-amount {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   min-width: 0;
   font-size: 13px;
   font-weight: 500;

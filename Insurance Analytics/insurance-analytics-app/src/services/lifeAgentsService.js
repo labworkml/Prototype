@@ -275,7 +275,7 @@ export async function getLifeBusinessInsurers(businessType) {
   }
 }
 
-export async function getLifeBusinessInsurerChannelData(businessType, insurer) {
+export async function getLifeBusinessInsurerChannelData(businessType, insurer, selectedYear = "") {
   const targetCollection = resolveLifeBusinessInsurerCollection(businessType);
   if (!targetCollection || !insurer) {
     return [];
@@ -288,9 +288,51 @@ export async function getLifeBusinessInsurerChannelData(businessType, insurer) {
       matchesInsurerName(document.data(), insurer)
     );
 
-    return aggregateByChannelForInsurerBusiness(filteredDocuments, businessType);
+    return aggregateByChannelForInsurerBusiness(filteredDocuments, businessType, selectedYear);
   } catch (error) {
     console.error("Failed to fetch insurer-wise life business data:", error);
+    return [];
+  }
+}
+
+export async function getLifeBusinessInsurerYears(businessType, insurer) {
+  const targetCollection = resolveLifeBusinessInsurerCollection(businessType);
+  if (!targetCollection || !insurer) {
+    return [];
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, targetCollection));
+    const yearOptions = new Map();
+
+    snapshot.docs.forEach((document) => {
+      const data = document.data();
+      if (!matchesInsurerName(data, insurer)) {
+        return;
+      }
+
+      const yearInfo = resolveYearInfoFromData(data);
+      if (!yearInfo || yearOptions.has(yearInfo.key)) {
+        return;
+      }
+
+      yearOptions.set(yearInfo.key, {
+        label: yearInfo.label,
+        sortValue: yearInfo.sortValue,
+      });
+    });
+
+    return Array.from(yearOptions.entries())
+      .sort((first, second) => {
+        if (first[1].sortValue !== second[1].sortValue) {
+          return first[1].sortValue - second[1].sortValue;
+        }
+
+        return String(first[1].label).localeCompare(String(second[1].label));
+      })
+      .map((item) => item[1].label);
+  } catch (error) {
+    console.error("Failed to fetch insurer-wise life business years:", error);
     return [];
   }
 }
@@ -361,20 +403,31 @@ function resolveLifeBusinessInsurerCollection(businessType) {
   return "";
 }
 
-function aggregateByChannelForInsurerBusiness(documents, businessType) {
+function aggregateByChannelForInsurerBusiness(documents, businessType, selectedYear = "") {
+  const normalizedSelectedYear = normalizeComparableText(selectedYear);
   const channelTotals = new Map();
 
   documents.forEach((document) => {
     const data = document.data();
+    if (normalizedSelectedYear) {
+      const yearInfo = resolveYearInfoFromData(data);
+      if (!yearInfo || normalizeComparableText(yearInfo.label) !== normalizedSelectedYear) {
+        return;
+      }
+    }
+
     const channel = resolveChannelName(data);
 
     if (!channel) {
       return;
     }
 
+    const rowYear = resolveYearInfoFromData(data)?.label || String(selectedYear || "").trim();
+
     const existing =
       channelTotals.get(channel) ||
       {
+        year: rowYear,
         channel,
         premium_crore: 0,
         policies: 0,
