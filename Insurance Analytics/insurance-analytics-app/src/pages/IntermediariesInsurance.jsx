@@ -6,6 +6,7 @@ import {
   BarChart2,
   BarChart3,
   Building2,
+  Check,
   FileText,
   Globe,
   Handshake,
@@ -287,7 +288,13 @@ export default function IntermediariesInsurance() {
   const [showInsights, setShowInsights] = useState(false);
   const [visualizationType, setVisualizationType] = useState("line");
   const [pendingVisualizationType, setPendingVisualizationType] = useState("line");
+  const [selectedLifeBusinessVisualizationMetric, setSelectedLifeBusinessVisualizationMetric] = useState("");
+  const [pendingLifeBusinessVisualizationMetric, setPendingLifeBusinessVisualizationMetric] = useState("");
   const [showChartTypePicker, setShowChartTypePicker] = useState(false);
+  const [showMetricPicker, setShowMetricPicker] = useState(false);
+  const [selectedHealthVisualizationMetric, setSelectedHealthVisualizationMetric] = useState("");
+  const [pendingHealthVisualizationMetric, setPendingHealthVisualizationMetric] = useState("");
+  const [showHealthMetricPicker, setShowHealthMetricPicker] = useState(false);
   const [insightsQuestion, setInsightsQuestion] = useState("");
   const [aiMessages, setAiMessages] = useState([]);
   const [isAILoading, setIsAILoading] = useState(false);
@@ -309,7 +316,7 @@ export default function IntermediariesInsurance() {
   const [selectedLifeBusinessChannel, setSelectedLifeBusinessChannel] = useState("");
   const [selectedLifeBusinessInsurer, setSelectedLifeBusinessInsurer] = useState("");
   const [selectedLifeBusinessYear, setSelectedLifeBusinessYear] = useState("");
-  const [selectedLifeBusinessMetric, setSelectedLifeBusinessMetric] = useState("");
+  const [selectedLifeBusinessMetrics, setSelectedLifeBusinessMetrics] = useState([]);
   const [lifeBusinessChannelOptions, setLifeBusinessChannelOptions] = useState([]);
   const [lifeBusinessInsurerOptions, setLifeBusinessInsurerOptions] = useState([]);
   const [lifeBusinessYearOptions, setLifeBusinessYearOptions] = useState([]);
@@ -319,7 +326,7 @@ export default function IntermediariesInsurance() {
   const [nonLifeChannelOptions, setNonLifeChannelOptions] = useState([]);
   const [selectedHealthChannel, setSelectedHealthChannel] = useState("");
   const [selectedHealthCategory, setSelectedHealthCategory] = useState("");
-  const [selectedHealthMetric, setSelectedHealthMetric] = useState("");
+  const [selectedHealthMetrics, setSelectedHealthMetrics] = useState([]);
   const [healthChannelOptions, setHealthChannelOptions] = useState([]);
   const [healthCategoryOptions, setHealthCategoryOptions] = useState([]);
   const [healthMetricOptions, setHealthMetricOptions] = useState([]);
@@ -338,6 +345,72 @@ export default function IntermediariesInsurance() {
       : null;
 
   const isDistributionAgentsView = Boolean(distributionAgentModuleConfig);
+  const isLifeBusinessChannelwiseView = Boolean(
+    distributionAgentModuleConfig?.requiresBusinessType &&
+      !distributionAgentModuleConfig?.requiresBusinessTypeInsurer
+  );
+  const selectedLifeBusinessMetric = selectedLifeBusinessMetrics[0] || "";
+
+  const availableLifeBusinessMetrics =
+    selectedLifeBusinessType === "Individual New Business"
+      ? ["policies", "premium_crore"]
+      : ["lives_covered", "premium_crore", "scheme"];
+
+  const effectiveVisualizationMetric =
+    isLifeBusinessChannelwiseView && selectedLifeBusinessVisualizationMetric
+      ? selectedLifeBusinessVisualizationMetric
+      : selectedLifeBusinessMetric;
+
+  const handleLifeBusinessMetricToggle = (metric) => {
+    const isSelected = selectedLifeBusinessMetrics.includes(metric);
+
+    if (isSelected) {
+      setSelectedLifeBusinessMetrics((previous) => previous.filter((item) => item !== metric));
+      setAgentsError("");
+      setRawData([]);
+      setData([]);
+      return;
+    }
+
+    if (selectedLifeBusinessMetrics.length >= 2) {
+      setAgentsError("Please select up to 2 metrics.");
+      return;
+    }
+
+    setSelectedLifeBusinessMetrics((previous) => [...previous, metric]);
+    setAgentsError("");
+    setRawData([]);
+    setData([]);
+  };
+
+  const isHealthBusinessView = Boolean(distributionAgentModuleConfig?.requiresHealthChannelCategoryMetric);
+  const selectedHealthMetric = selectedHealthMetrics[0] || "";
+  const effectiveHealthVisualizationMetric =
+    isHealthBusinessView && selectedHealthVisualizationMetric
+      ? selectedHealthVisualizationMetric
+      : selectedHealthMetrics[0] || "";
+
+  const handleHealthMetricToggle = (metric) => {
+    const isSelected = selectedHealthMetrics.includes(metric);
+
+    if (isSelected) {
+      setSelectedHealthMetrics((prev) => prev.filter((m) => m !== metric));
+      setAgentsError("");
+      setRawData([]);
+      setData([]);
+      return;
+    }
+
+    if (selectedHealthMetrics.length >= 2) {
+      setAgentsError("Please select up to 2 metrics.");
+      return;
+    }
+
+    setSelectedHealthMetrics((prev) => [...prev, metric]);
+    setAgentsError("");
+    setRawData([]);
+    setData([]);
+  };
 
   useEffect(() => {
     if (!isDistributionAgentsView) {
@@ -353,12 +426,15 @@ export default function IntermediariesInsurance() {
     setSelectedLifeBusinessChannel("");
     setSelectedLifeBusinessInsurer("");
     setSelectedLifeBusinessYear("");
-    setSelectedLifeBusinessMetric("");
+    setSelectedLifeBusinessMetrics([]);
     setSelectedNonLifeSegment("");
     setSelectedNonLifeChannel("");
     setSelectedHealthChannel("");
     setSelectedHealthCategory("");
-    setSelectedHealthMetric("");
+    setSelectedHealthMetrics([]);
+    setSelectedHealthVisualizationMetric("");
+    setPendingHealthVisualizationMetric("");
+    setShowHealthMetricPicker(false);
     setLifeBusinessInsurerOptions([]);
     setLifeBusinessChannelOptions([]);
     setLifeBusinessYearOptions([]);
@@ -369,6 +445,9 @@ export default function IntermediariesInsurance() {
     setHealthMetricOptions([]);
     setShowTimelinePicker(false);
     setShowChartTypePicker(false);
+    setShowMetricPicker(false);
+    setSelectedLifeBusinessVisualizationMetric("");
+    setPendingLifeBusinessVisualizationMetric("");
     setAgentsError("");
     setRawData([]);
     setData([]);
@@ -378,6 +457,70 @@ export default function IntermediariesInsurance() {
   useEffect(() => {
     setPendingVisualizationType(visualizationType);
   }, [visualizationType]);
+
+  useEffect(() => {
+    if (!isLifeBusinessChannelwiseView) {
+      setSelectedLifeBusinessVisualizationMetric("");
+      setPendingLifeBusinessVisualizationMetric("");
+      setShowMetricPicker(false);
+      return;
+    }
+
+    if (selectedLifeBusinessMetrics.length === 0) {
+      setSelectedLifeBusinessVisualizationMetric("");
+      setPendingLifeBusinessVisualizationMetric("");
+      setShowMetricPicker(false);
+      return;
+    }
+
+    if (
+      selectedLifeBusinessVisualizationMetric &&
+      selectedLifeBusinessMetrics.includes(selectedLifeBusinessVisualizationMetric)
+    ) {
+      setPendingLifeBusinessVisualizationMetric(selectedLifeBusinessVisualizationMetric);
+      return;
+    }
+
+    const firstMetric = selectedLifeBusinessMetrics[0];
+    setSelectedLifeBusinessVisualizationMetric(firstMetric);
+    setPendingLifeBusinessVisualizationMetric(firstMetric);
+  }, [
+    isLifeBusinessChannelwiseView,
+    selectedLifeBusinessMetrics,
+    selectedLifeBusinessVisualizationMetric,
+  ]);
+
+  useEffect(() => {
+    if (!isHealthBusinessView) {
+      setSelectedHealthVisualizationMetric("");
+      setPendingHealthVisualizationMetric("");
+      setShowHealthMetricPicker(false);
+      return;
+    }
+
+    if (selectedHealthMetrics.length === 0) {
+      setSelectedHealthVisualizationMetric("");
+      setPendingHealthVisualizationMetric("");
+      setShowHealthMetricPicker(false);
+      return;
+    }
+
+    if (
+      selectedHealthVisualizationMetric &&
+      selectedHealthMetrics.includes(selectedHealthVisualizationMetric)
+    ) {
+      setPendingHealthVisualizationMetric(selectedHealthVisualizationMetric);
+      return;
+    }
+
+    const firstMetric = selectedHealthMetrics[0];
+    setSelectedHealthVisualizationMetric(firstMetric);
+    setPendingHealthVisualizationMetric(firstMetric);
+  }, [
+    isHealthBusinessView,
+    selectedHealthMetrics,
+    selectedHealthVisualizationMetric,
+  ]);
 
   useEffect(() => {
     const fetchInsurers = async () => {
@@ -825,13 +968,40 @@ export default function IntermediariesInsurance() {
         .filter((item) => item.year && Number.isFinite(item.value));
     }
 
+    if (isLifeBusinessChannelwiseView && effectiveVisualizationMetric) {
+      return data
+        .map((item) => ({
+          year: item.year,
+          value: toNumericValue(item[effectiveVisualizationMetric]),
+        }))
+        .filter((item) => Number.isFinite(item.value));
+    }
+
+    if (isHealthBusinessView && effectiveHealthVisualizationMetric) {
+      return data
+        .map((item) => ({
+          year: item.year,
+          value: toNumericValue(item[effectiveHealthVisualizationMetric]),
+        }))
+        .filter((item) => Number.isFinite(item.value));
+    }
+
     return data
       .map((item) => ({
         year: item.year,
         value: getDistributionMetricValue(item, selectedModule),
       }))
       .filter((item) => Number.isFinite(item.value));
-  }, [data, distributionAgentModuleConfig, selectedModule, selectedLifeBusinessType]);
+  }, [
+    data,
+    distributionAgentModuleConfig,
+    selectedModule,
+    selectedLifeBusinessType,
+    isLifeBusinessChannelwiseView,
+    effectiveVisualizationMetric,
+    isHealthBusinessView,
+    effectiveHealthVisualizationMetric,
+  ]);
 
   const selectedSubModuleTitle =
     SUB_MODULES[activeTab]?.find((module) => module.id === selectedModule)?.title || "Overview";
@@ -843,6 +1013,13 @@ export default function IntermediariesInsurance() {
     : distributionAgentModuleConfig?.requiresHealthChannelCategoryMetric
     ? getHealthMetricLabel(selectedHealthMetric, healthMetricOptions) || "Value"
     : distributionAgentModuleConfig?.metricLabel || "Agents";
+
+  const chartMetricLabel =
+    isLifeBusinessChannelwiseView && effectiveVisualizationMetric
+      ? getLifeBusinessMetricLabel(effectiveVisualizationMetric) || "Value"
+      : isHealthBusinessView && effectiveHealthVisualizationMetric
+      ? getHealthMetricLabel(effectiveHealthVisualizationMetric, healthMetricOptions) || "Value"
+      : metricLabel;
 
   const chartExportFileName = useMemo(
     () =>
@@ -860,14 +1037,14 @@ export default function IntermediariesInsurance() {
       return [
         {
           type: "bar",
-          name: metricLabel,
+          name: chartMetricLabel,
           x: xValues,
           y: yValues,
           marker: {
             color: "rgba(14, 165, 164, 0.88)",
             line: { color: "rgba(15, 118, 110, 0.95)", width: 1 },
           },
-          hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+          hovertemplate: `%{x}<br>${chartMetricLabel}: %{y:,}<extra></extra>`,
         },
       ];
     }
@@ -877,14 +1054,14 @@ export default function IntermediariesInsurance() {
         {
           type: "scatter",
           mode: "lines+markers",
-          name: metricLabel,
+          name: chartMetricLabel,
           x: xValues,
           y: yValues,
           line: { color: "#0ea5a4", width: 3 },
           marker: { color: "#0ea5a4", size: 8 },
           fill: "tozeroy",
           fillcolor: "rgba(14, 165, 164, 0.14)",
-          hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+          hovertemplate: `%{x}<br>${chartMetricLabel}: %{y:,}<extra></extra>`,
         },
       ];
     }
@@ -893,15 +1070,15 @@ export default function IntermediariesInsurance() {
       {
         type: "scatter",
         mode: "lines+markers",
-        name: metricLabel,
+        name: chartMetricLabel,
         x: xValues,
         y: yValues,
         line: { color: "#0ea5a4", width: 3 },
         marker: { color: "#0ea5a4", size: 8 },
-        hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+        hovertemplate: `%{x}<br>${chartMetricLabel}: %{y:,}<extra></extra>`,
       },
     ];
-  }, [visualizationData, visualizationType, metricLabel]);
+  }, [visualizationData, visualizationType, chartMetricLabel]);
 
   const plotLayout = useMemo(
     () => ({
@@ -920,7 +1097,7 @@ export default function IntermediariesInsurance() {
         tickfont: { size: 12, color: "#334155" },
       },
       yaxis: {
-        title: { text: metricLabel, font: { size: 12, color: "#475569" } },
+        title: { text: chartMetricLabel, font: { size: 12, color: "#475569" } },
         showgrid: true,
         gridcolor: "rgba(148, 163, 184, 0.16)",
         zeroline: false,
@@ -939,7 +1116,7 @@ export default function IntermediariesInsurance() {
         font: { color: "#0f172a", size: 12 },
       },
     }),
-    [metricLabel, distributionAgentModuleConfig]
+    [chartMetricLabel, distributionAgentModuleConfig]
   );
 
   const plotConfig = useMemo(
@@ -1014,11 +1191,15 @@ export default function IntermediariesInsurance() {
     : distributionAgentModuleConfig?.requiresBusinessTypeInsurer
     ? Boolean(selectedLifeBusinessType && selectedLifeBusinessInsurer && selectedLifeBusinessYear)
     : distributionAgentModuleConfig?.requiresBusinessType
-    ? Boolean(selectedLifeBusinessType && selectedLifeBusinessChannel && selectedLifeBusinessMetric)
+    ? Boolean(
+        selectedLifeBusinessType &&
+          selectedLifeBusinessChannel &&
+          selectedLifeBusinessMetrics.length > 0
+      )
     : distributionAgentModuleConfig?.requiresSegmentChannel
     ? Boolean(selectedNonLifeSegment && selectedNonLifeChannel)
     : distributionAgentModuleConfig?.requiresHealthChannelCategoryMetric
-    ? Boolean(selectedHealthChannel && selectedHealthCategory && selectedHealthMetric)
+    ? Boolean(selectedHealthChannel && selectedHealthCategory && selectedHealthMetrics.length > 0)
     : distributionAgentModuleConfig?.requiresAgentType
     ? Boolean(selectedAgentType && (selectedAgentInsurer || selectedAgentSector))
     : Boolean(selectedAgentInsurer || selectedAgentSector);
@@ -1251,12 +1432,15 @@ export default function IntermediariesInsurance() {
       setSelectedLifeBusinessChannel("");
       setSelectedLifeBusinessInsurer("");
       setSelectedLifeBusinessYear("");
-      setSelectedLifeBusinessMetric("");
+      setSelectedLifeBusinessMetrics([]);
       setSelectedNonLifeSegment("");
       setSelectedNonLifeChannel("");
       setSelectedHealthChannel("");
       setSelectedHealthCategory("");
-      setSelectedHealthMetric("");
+      setSelectedHealthMetrics([]);
+      setSelectedHealthVisualizationMetric("");
+      setPendingHealthVisualizationMetric("");
+      setShowHealthMetricPicker(false);
       setLifeBusinessChannelOptions([]);
       setLifeBusinessInsurerOptions([]);
       setLifeBusinessYearOptions([]);
@@ -1267,6 +1451,7 @@ export default function IntermediariesInsurance() {
       setHealthMetricOptions([]);
       setShowTimelinePicker(false);
       setShowChartTypePicker(false);
+      setShowMetricPicker(false);
       setAgentsError("");
       setRawData([]);
       setData([]);
@@ -1347,8 +1532,8 @@ export default function IntermediariesInsurance() {
         return;
       }
 
-      if (!selectedLifeBusinessMetric) {
-        setAgentsError("Please select a metric.");
+      if (selectedLifeBusinessMetrics.length === 0) {
+        setAgentsError("Please select at least one metric.");
         setRawData([]);
         setData([]);
         return;
@@ -1361,7 +1546,7 @@ export default function IntermediariesInsurance() {
         const result = await getLifeBusinessYearwiseData(
           selectedLifeBusinessType,
           selectedLifeBusinessChannel,
-          selectedLifeBusinessMetric
+          selectedLifeBusinessMetrics
         );
         setRawData(result);
       } catch (error) {
@@ -1428,7 +1613,7 @@ export default function IntermediariesInsurance() {
         return;
       }
 
-      if (!selectedHealthMetric) {
+      if (selectedHealthMetrics.length === 0) {
         setAgentsError("Please select a metric.");
         setRawData([]);
         setData([]);
@@ -1439,13 +1624,30 @@ export default function IntermediariesInsurance() {
       setAgentsError("");
 
       try {
-        const result = await getHealthBusinessYearwiseData(
-          distributionAgentModuleConfig.collectionName,
-          selectedHealthChannel,
-          selectedHealthCategory,
-          selectedHealthMetric
+        const metricResults = await Promise.all(
+          selectedHealthMetrics.map((metric) =>
+            getHealthBusinessYearwiseData(
+              distributionAgentModuleConfig.collectionName,
+              selectedHealthChannel,
+              selectedHealthCategory,
+              metric
+            )
+          )
         );
-        setRawData(result);
+
+        // Merge per-metric results by year into one row per year
+        const mergedByYear = new Map();
+        selectedHealthMetrics.forEach((metric, idx) => {
+          metricResults[idx].forEach((row) => {
+            if (!mergedByYear.has(row.year)) {
+              mergedByYear.set(row.year, { year: row.year });
+            }
+            mergedByYear.get(row.year)[metric] = row.agents;
+          });
+        });
+
+        const merged = Array.from(mergedByYear.values());
+        setRawData(merged);
       } catch (error) {
         console.error("Failed to apply health business filters:", error);
         setAgentsError("Unable to load data for selected filters.");
@@ -1581,7 +1783,10 @@ export default function IntermediariesInsurance() {
       ? [
           { label: "Business Type", value: selectedLifeBusinessType },
           { label: "Channel", value: selectedLifeBusinessChannel },
-          { label: "Metric", value: getLifeBusinessMetricLabel(selectedLifeBusinessMetric) },
+          {
+            label: "Metric",
+            value: selectedLifeBusinessMetrics.map((metric) => getLifeBusinessMetricLabel(metric)).join(", "),
+          },
         ]
       : distributionAgentModuleConfig?.requiresSegmentChannel
       ? [
@@ -1592,7 +1797,10 @@ export default function IntermediariesInsurance() {
       ? [
           { label: "Channel", value: selectedHealthChannel },
           { label: "Category", value: selectedHealthCategory },
-          { label: "Metric", value: getHealthMetricLabel(selectedHealthMetric, healthMetricOptions) },
+          {
+            label: "Metric",
+            value: selectedHealthMetrics.map((m) => getHealthMetricLabel(m, healthMetricOptions)).join(", "),
+          },
         ]
       : [
           ...(distributionAgentModuleConfig?.requiresAgentType 
@@ -1620,6 +1828,33 @@ export default function IntermediariesInsurance() {
             Number(row.scheme || 0).toLocaleString("en-IN"),
           ];
         })
+      : distributionAgentModuleConfig?.requiresBusinessType &&
+        !distributionAgentModuleConfig?.requiresBusinessTypeInsurer &&
+        selectedLifeBusinessMetrics.length > 0
+      ? data.map((row) => [
+          row.year,
+          ...selectedLifeBusinessMetrics.map((metric) =>
+            ["policies", "lives_covered", "scheme"].includes(metric)
+              ? toNumericValue(row[metric]).toLocaleString("en-IN", {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })
+              : formatNumberForDisplay(row[metric])
+          ),
+        ])
+      : distributionAgentModuleConfig?.requiresHealthChannelCategoryMetric &&
+        selectedHealthMetrics.length > 0
+      ? data.map((row) => [
+          row.year,
+          ...selectedHealthMetrics.map((metric) =>
+            isHealthMetricInteger(metric, healthMetricOptions)
+              ? Number(row[metric] || 0).toLocaleString("en-IN", {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })
+              : formatNumberForDisplay(row[metric])
+          ),
+        ])
       : data.map((row) => [
           row.year,
           getDistributionMetricValue(row, selectedModule).toLocaleString("en-IN"),
@@ -1629,6 +1864,13 @@ export default function IntermediariesInsurance() {
       ? selectedLifeBusinessType === "Individual New Business"
         ? ["Channel", "Premium (Crore)", "Policies"]
         : ["Year", "Channel", "Premium (Crore)", "Lives Covered", "Schemes"]
+      : distributionAgentModuleConfig?.requiresBusinessType &&
+        !distributionAgentModuleConfig?.requiresBusinessTypeInsurer &&
+        selectedLifeBusinessMetrics.length > 0
+      ? ["Year", ...selectedLifeBusinessMetrics.map((metric) => getLifeBusinessMetricLabel(metric))]
+      : distributionAgentModuleConfig?.requiresHealthChannelCategoryMetric &&
+        selectedHealthMetrics.length > 0
+      ? ["Year", ...selectedHealthMetrics.map((m) => getHealthMetricLabel(m, healthMetricOptions))]
       : ["Year", metricLabel];
 
     const exportRows = [
@@ -1749,7 +1991,7 @@ export default function IntermediariesInsurance() {
                               setSelectedLifeBusinessInsurer("");
                               setSelectedLifeBusinessYear("");
                               setSelectedLifeBusinessChannel("");
-                              setSelectedLifeBusinessMetric("");
+                              setSelectedLifeBusinessMetrics([]);
                               setAgentsError("");
                               setRawData([]);
                               setData([]);
@@ -1785,7 +2027,7 @@ export default function IntermediariesInsurance() {
                             value={selectedLifeBusinessChannel}
                             onChange={(nextChannel) => {
                               setSelectedLifeBusinessChannel(nextChannel);
-                              setSelectedLifeBusinessMetric("");
+                              setSelectedLifeBusinessMetrics([]);
                               setAgentsError("");
                               setRawData([]);
                               setData([]);
@@ -1797,24 +2039,21 @@ export default function IntermediariesInsurance() {
                           <div className="filter-item">
                             <label className="filter-label label-text">Metric</label>
                             <div className="premium-toggle-group">
-                              {(selectedLifeBusinessType === "Individual New Business"
-                                ? ["policies", "premium_crore"]
-                                : ["lives_covered", "premium_crore", "scheme"]
-                              ).map((metric) => (
+                              {availableLifeBusinessMetrics.map((metric) => (
                                 <button
                                   key={metric}
                                   type="button"
                                   className={`premium-toggle-btn ${
-                                    selectedLifeBusinessMetric === metric ? "active" : ""
+                                    selectedLifeBusinessMetrics.includes(metric) ? "active" : ""
                                   }`}
-                                  onClick={() => {
-                                    setSelectedLifeBusinessMetric(metric);
-                                    setAgentsError("");
-                                    setRawData([]);
-                                    setData([]);
-                                  }}
+                                  onClick={() => handleLifeBusinessMetricToggle(metric)}
                                 >
-                                  {getLifeBusinessMetricLabel(metric)}
+                                  <span className="metric-toggle-btn-content">
+                                    {getLifeBusinessMetricLabel(metric)}
+                                    {selectedLifeBusinessMetrics.includes(metric) && (
+                                      <Check size={14} strokeWidth={2.5} className="metric-check-icon" />
+                                    )}
+                                  </span>
                                 </button>
                               ))}
                             </div>
@@ -1874,7 +2113,10 @@ export default function IntermediariesInsurance() {
                       onChange={(nextChannel) => {
                         setSelectedHealthChannel(nextChannel);
                         setSelectedHealthCategory("");
-                        setSelectedHealthMetric("");
+                        setSelectedHealthMetrics([]);
+                        setSelectedHealthVisualizationMetric("");
+                        setPendingHealthVisualizationMetric("");
+                        setShowHealthMetricPicker(false);
                         setAgentsError("");
                         setRawData([]);
                         setData([]);
@@ -1886,25 +2128,40 @@ export default function IntermediariesInsurance() {
                       value={selectedHealthCategory}
                       onChange={(nextCategory) => {
                         setSelectedHealthCategory(nextCategory);
-                        setSelectedHealthMetric("");
+                        setSelectedHealthMetrics([]);
+                        setSelectedHealthVisualizationMetric("");
+                        setPendingHealthVisualizationMetric("");
+                        setShowHealthMetricPicker(false);
                         setAgentsError("");
                         setRawData([]);
                         setData([]);
                       }}
                       disabled={!selectedHealthChannel}
                     />
-                    <FilterSelect
-                      label="Select Metric"
-                      options={healthMetricOptions}
-                      value={selectedHealthMetric}
-                      onChange={(nextMetric) => {
-                        setSelectedHealthMetric(nextMetric);
-                        setAgentsError("");
-                        setRawData([]);
-                        setData([]);
-                      }}
-                      disabled={!selectedHealthCategory}
-                    />
+                    {selectedHealthCategory && healthMetricOptions.length > 0 && (
+                      <div className="filter-item">
+                        <label className="filter-label label-text">Metric</label>
+                        <div className="premium-toggle-group">
+                          {healthMetricOptions.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              className={`premium-toggle-btn ${
+                                selectedHealthMetrics.includes(option.value) ? "active" : ""
+                              }`}
+                              onClick={() => handleHealthMetricToggle(option.value)}
+                            >
+                              <span className="metric-toggle-btn-content">
+                                {option.label}
+                                {selectedHealthMetrics.includes(option.value) && (
+                                  <Check size={14} strokeWidth={2.5} className="metric-check-icon" />
+                                )}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : distributionAgentModuleConfig?.requiresInsurerAndState ? (
                   <>
@@ -2097,18 +2354,32 @@ export default function IntermediariesInsurance() {
                         ) : (
                           <tr>
                             <th className="col-year">Year</th>
-                            <th className="col-value">
-                              {distributionAgentModuleConfig?.requiresSegmentChannel ? (
-                                <span
-                                  className="metric-heading-inline"
-                                >
-                                  <IndianRupeeIcon size={14} strokeWidth={2.2} />
-                                  Gross Direct Premium in Cr
-                                </span>
-                              ) : (
-                                metricLabel
+                            {isLifeBusinessChannelwiseView && selectedLifeBusinessMetrics.length > 0
+                              ? selectedLifeBusinessMetrics.map((metric) => (
+                                  <th key={`metric-${metric}`} className="col-value">
+                                    {getLifeBusinessMetricLabel(metric)}
+                                  </th>
+                                ))
+                              : isHealthBusinessView && selectedHealthMetrics.length > 0
+                              ? selectedHealthMetrics.map((metric) => (
+                                  <th key={`hmetric-${metric}`} className="col-value">
+                                    {getHealthMetricLabel(metric, healthMetricOptions)}
+                                  </th>
+                                ))
+                              : (
+                                <th className="col-value">
+                                  {distributionAgentModuleConfig?.requiresSegmentChannel ? (
+                                    <span
+                                      className="metric-heading-inline"
+                                    >
+                                      <IndianRupeeIcon size={14} strokeWidth={2.2} />
+                                      Gross Direct Premium in Cr
+                                    </span>
+                                  ) : (
+                                    metricLabel
+                                  )}
+                                </th>
                               )}
-                            </th>
                           </tr>
                         )}
                       </thead>
@@ -2162,25 +2433,49 @@ export default function IntermediariesInsurance() {
                                 <td className="col-year">
                                   <span className="year-badge">{item.year}</span>
                                 </td>
-                                <td className="col-value">
-                                  <span className="value-amount">
-                                    {activeTab === "distribution-workforce" ||
-                                    selectedModule === "distribution-individual-agents-life" ||
-                                    selectedModule === "registered-brokers" ||
-                                    selectedModule === "insurance-marketing-firms" ||
-                                    (selectedModule === "Channel-wise - Business" &&
-                                      (selectedLifeBusinessMetric === "policies" ||
-                                        selectedLifeBusinessMetric === "lives_covered" ||
-                                        selectedLifeBusinessMetric === "scheme")) ||
-                                    (distributionAgentModuleConfig?.requiresHealthChannelCategoryMetric &&
-                                      isHealthMetricInteger(selectedHealthMetric, healthMetricOptions))
-                                      ? getDistributionMetricValue(item, selectedModule).toLocaleString("en-IN", {
-                                          minimumFractionDigits: 0,
-                                          maximumFractionDigits: 0,
-                                        })
-                                      : formatNumberForDisplay(getDistributionMetricValue(item, selectedModule))}
-                                  </span>
-                                </td>
+                                {isLifeBusinessChannelwiseView && selectedLifeBusinessMetrics.length > 0 ? (
+                                  selectedLifeBusinessMetrics.map((metric) => (
+                                    <td key={`${item.year}-${metric}`} className="col-value">
+                                      <span className="value-amount">
+                                        {["policies", "lives_covered", "scheme"].includes(metric)
+                                          ? toNumericValue(item[metric]).toLocaleString("en-IN", {
+                                              minimumFractionDigits: 0,
+                                              maximumFractionDigits: 0,
+                                            })
+                                          : formatNumberForDisplay(item[metric])}
+                                      </span>
+                                    </td>
+                                  ))
+                                ) : isHealthBusinessView && selectedHealthMetrics.length > 0 ? (
+                                  selectedHealthMetrics.map((metric) => (
+                                    <td key={`${item.year}-hmetric-${metric}`} className="col-value">
+                                      <span className="value-amount">
+                                        {isHealthMetricInteger(metric, healthMetricOptions)
+                                          ? Number(item[metric] || 0).toLocaleString("en-IN", {
+                                              minimumFractionDigits: 0,
+                                              maximumFractionDigits: 0,
+                                            })
+                                          : formatNumberForDisplay(item[metric])}
+                                      </span>
+                                    </td>
+                                  ))
+                                ) : (
+                                  <td className="col-value">
+                                    <span className="value-amount">
+                                      {activeTab === "distribution-workforce" ||
+                                      selectedModule === "distribution-individual-agents-life" ||
+                                      selectedModule === "registered-brokers" ||
+                                      selectedModule === "insurance-marketing-firms" ||
+                                      (distributionAgentModuleConfig?.requiresHealthChannelCategoryMetric &&
+                                        isHealthMetricInteger(selectedHealthMetric, healthMetricOptions))
+                                        ? getDistributionMetricValue(item, selectedModule).toLocaleString("en-IN", {
+                                            minimumFractionDigits: 0,
+                                            maximumFractionDigits: 0,
+                                          })
+                                        : formatNumberForDisplay(getDistributionMetricValue(item, selectedModule))}
+                                    </span>
+                                  </td>
+                                )}
                               </tr>
                             ))}
                       </tbody>
@@ -2236,6 +2531,32 @@ export default function IntermediariesInsurance() {
                 Select Chart Type
               </button>
             )}
+            {isDistributionAgentsView &&
+              isLifeBusinessChannelwiseView &&
+              selectedLifeBusinessMetrics.length > 1 &&
+              visualizationData.length > 0 && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowMetricPicker((previous) => !previous)}
+                title="Select visualization metric"
+              >
+                Select Metric
+              </button>
+            )}
+            {isDistributionAgentsView &&
+              isHealthBusinessView &&
+              selectedHealthMetrics.length > 1 &&
+              visualizationData.length > 0 && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowHealthMetricPicker((previous) => !previous)}
+                title="Select visualization metric"
+              >
+                Select Metric
+              </button>
+            )}
           </div>
           <div className="panel-body viz-panel-body">
             {isDistributionAgentsView ? (
@@ -2273,6 +2594,76 @@ export default function IntermediariesInsurance() {
                         title="Apply chart type"
                       >
                         Apply Chart Type
+                      </button>
+                    </div>
+                  )}
+                  {showMetricPicker &&
+                    isLifeBusinessChannelwiseView &&
+                    selectedLifeBusinessMetrics.length > 1 && (
+                    <div className="timeline-filter-row chart-type-picker-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">Metric</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={pendingLifeBusinessVisualizationMetric}
+                          onChange={(event) =>
+                            setPendingLifeBusinessVisualizationMetric(event.target.value)
+                          }
+                        >
+                          {selectedLifeBusinessMetrics.map((metric) => (
+                            <option key={`viz-metric-${metric}`} value={metric}>
+                              {getLifeBusinessMetricLabel(metric)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => {
+                          setSelectedLifeBusinessVisualizationMetric(
+                            pendingLifeBusinessVisualizationMetric || selectedLifeBusinessMetrics[0]
+                          );
+                          setShowMetricPicker(false);
+                        }}
+                        title="Apply metric"
+                      >
+                        Apply Metric
+                      </button>
+                    </div>
+                  )}
+                  {showHealthMetricPicker &&
+                    isHealthBusinessView &&
+                    selectedHealthMetrics.length > 1 && (
+                    <div className="timeline-filter-row chart-type-picker-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">Metric</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={pendingHealthVisualizationMetric}
+                          onChange={(event) =>
+                            setPendingHealthVisualizationMetric(event.target.value)
+                          }
+                        >
+                          {selectedHealthMetrics.map((metric) => (
+                            <option key={`health-viz-metric-${metric}`} value={metric}>
+                              {getHealthMetricLabel(metric, healthMetricOptions)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => {
+                          setSelectedHealthVisualizationMetric(
+                            pendingHealthVisualizationMetric || selectedHealthMetrics[0]
+                          );
+                          setShowHealthMetricPicker(false);
+                        }}
+                        title="Apply metric"
+                      >
+                        Apply Metric
                       </button>
                     </div>
                   )}

@@ -359,9 +359,15 @@ export async function getLifeBusinessChannels(businessType) {
   }
 }
 
-export async function getLifeBusinessYearwiseData(businessType, channel, metric) {
+export async function getLifeBusinessYearwiseData(businessType, channel, metricOrMetrics) {
   const targetCollection = resolveLifeBusinessCollection(businessType);
-  if (!targetCollection || !channel || !metric) {
+  const metricList = Array.isArray(metricOrMetrics)
+    ? metricOrMetrics.filter(Boolean)
+    : metricOrMetrics
+    ? [metricOrMetrics]
+    : [];
+
+  if (!targetCollection || !channel || metricList.length === 0) {
     return [];
   }
 
@@ -372,7 +378,7 @@ export async function getLifeBusinessYearwiseData(businessType, channel, metric)
       matchesChannelName(document.data(), channel)
     );
 
-    return aggregateByYearForBusinessMetric(filteredDocuments, metric);
+    return aggregateByYearForBusinessMetrics(filteredDocuments, metricList);
   } catch (error) {
     console.error("Failed to fetch life business yearwise data:", error);
     return [];
@@ -452,29 +458,41 @@ function aggregateByChannelForInsurerBusiness(documents, businessType, selectedY
   );
 }
 
-function aggregateByYearForBusinessMetric(documents, metric) {
+function aggregateByYearForBusinessMetrics(documents, metricList) {
+  const resolvedMetricList = (metricList || []).filter(Boolean);
+  if (resolvedMetricList.length === 0) {
+    return [];
+  }
+
+  const primaryMetric = resolvedMetricList[0];
   const yearTotals = new Map();
 
   documents.forEach((document) => {
     const data = document.data();
     const yearInfo = resolveYearInfo(data.year);
-    const metricValue = resolveBusinessMetricValue(data, metric);
 
     if (!yearInfo) {
       return;
     }
 
-    const existing = yearTotals.get(yearInfo.key);
-    if (existing) {
-      existing.agents += metricValue;
-      return;
-    }
+    const existing =
+      yearTotals.get(yearInfo.key) ||
+      {
+        year: yearInfo.label,
+        sortValue: yearInfo.sortValue,
+        agents: 0,
+      };
 
-    yearTotals.set(yearInfo.key, {
-      year: yearInfo.label,
-      sortValue: yearInfo.sortValue,
-      agents: metricValue,
+    resolvedMetricList.forEach((metric) => {
+      const metricValue = resolveBusinessMetricValue(data, metric);
+      existing[metric] = Number(existing[metric] || 0) + metricValue;
+
+      if (metric === primaryMetric) {
+        existing.agents += metricValue;
+      }
     });
+
+    yearTotals.set(yearInfo.key, existing);
   });
 
   return Array.from(yearTotals.values())
@@ -485,7 +503,7 @@ function aggregateByYearForBusinessMetric(documents, metric) {
 
       return String(first.year).localeCompare(String(second.year));
     })
-    .map(({ year, agents }) => ({ year, agents }));
+    .map(({ sortValue, ...row }) => row);
 }
 
 function resolveBusinessMetricValue(data, metric) {
