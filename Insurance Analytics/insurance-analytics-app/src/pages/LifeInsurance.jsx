@@ -19,12 +19,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { 
-  BarChart3, TrendingUp, AlertTriangle, DollarSign, Globe, Shield,
+  BarChart3, TrendingUp, AlertTriangle, DollarSign, Globe, Shield, Check,
   FileText, PieChart, MapPin, Files, CheckCircle, Building2,
   Banknote, BarChart2, Link2, CreditCard, TrendingDown, Sprout,
   Zap, Clock, Search, Calendar, Gem, Pin, Users, Briefcase,
   Shuffle, Building, Network, Phone, Scale, RefreshCw,
-  IndianRupeeIcon, Lightbulb
+  IndianRupeeIcon, Lightbulb, Info, Loader2
 } from "lucide-react";
 import { db } from "../firebase/firebaseConfig";
 import SegmentAnalysisFilters from "../components/SegmentAnalysisFilters";
@@ -33,7 +33,10 @@ import {
   transformToTableRows, 
   transformToChartData 
 } from "../firebase/segmentAnalysisService";
+import PlotComponentModule from "react-plotly.js";
 import "../styles/life-insurance.css";
+
+const Plot = PlotComponentModule?.default || PlotComponentModule;
 
 const TABS = [
   { id: "market-overview", label: "Market Overview", icon: BarChart3 },
@@ -85,6 +88,22 @@ const SUB_MODULES = {
   ],
 };
 
+const STATEWISE_COLLECTIONS = {
+  Individual: {
+    Total: "sheet5_statewise_individual_newbusiness_life",
+    "Insurer Wise": "sheet6_statewise_insurerwise_individual",
+  },
+  Group: {
+    Total: "sheet7_statewise_group",
+    "Insurer Wise": "sheet8_statewise_insurerwise_group",
+  },
+};
+
+const STATEWISE_METRICS = {
+  Individual: ["Policies", "Premium"],
+  Group: ["Lives", "Schemes", "Premium"],
+};
+
 export default function LifeInsurance() {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState("market-overview");
@@ -129,6 +148,41 @@ export default function LifeInsurance() {
   const [segmentLoading, setSegmentLoading] = useState(false);
   const [segmentError, setSegmentError] = useState("");
   const [visualizationType, setVisualizationType] = useState("line"); // "line", "bar", "area", "pie"
+
+  // State Wise Analysis Filters
+  const [stateBusinessType, setStateBusinessType] = useState("");
+  const [stateSelectedState, setStateSelectedState] = useState("");
+  const [stateAggregationType, setStateAggregationType] = useState("");
+  const [stateSelectedInsurer, setStateSelectedInsurer] = useState("");
+  const [stateMetrics, setStateMetrics] = useState([]);
+
+  // State Wise Analysis — Applied Filters (set when user clicks Apply Filters)
+  const [appliedStateBusinessType, setAppliedStateBusinessType] = useState("");
+  const [appliedStateSelectedState, setAppliedStateSelectedState] = useState("");
+  const [appliedStateAggregationType, setAppliedStateAggregationType] = useState("");
+  const [appliedStateSelectedInsurer, setAppliedStateSelectedInsurer] = useState("");
+  const [appliedStateMetrics, setAppliedStateMetrics] = useState([]);
+
+  // State Wise Analysis — visualization controls
+  const [stateWiseVisualizationType, setStateWiseVisualizationType] = useState("line");
+  const [stateWisePendingVisualizationType, setStateWisePendingVisualizationType] = useState("line");
+  const [stateWiseShowChartTypePicker, setStateWiseShowChartTypePicker] = useState(false);
+  const [stateWiseShowTimelinePicker, setStateWiseShowTimelinePicker] = useState(false);
+  const [stateWiseTimelineStartYear, setStateWiseTimelineStartYear] = useState("");
+  const [stateWiseTimelineEndYear, setStateWiseTimelineEndYear] = useState("");
+  const [stateWiseVisualizationMetric, setStateWiseVisualizationMetric] = useState("");
+  const [stateWisePendingVisualizationMetric, setStateWisePendingVisualizationMetric] = useState("");
+  const [stateWiseShowMetricPicker, setStateWiseShowMetricPicker] = useState(false);
+
+  // State Wise Analysis Data State
+  const [stateWiseDocsByCollection, setStateWiseDocsByCollection] = useState({
+    sheet5_statewise_individual_newbusiness_life: [],
+    sheet6_statewise_insurerwise_individual: [],
+    sheet7_statewise_group: [],
+    sheet8_statewise_insurerwise_group: [],
+  });
+  const [stateWiseLoading, setStateWiseLoading] = useState(false);
+  const [stateWiseError, setStateWiseError] = useState("");
 
   // Fetch Segment Analysis Data when filters are applied
   useEffect(() => {
@@ -184,6 +238,77 @@ export default function LifeInsurance() {
   const showOnlyInsurerFilter = activeTab === "market-overview" && selectedModule === 1;
   const isTotalNewBusinessPremiumModule =
     activeTab === "insurer-performance" && selectedModule === 1;
+  const isStateWiseAnalysisModule =
+    activeTab === "market-overview" && selectedModule === 3;
+
+  useEffect(() => {
+    const allowedMetrics = STATEWISE_METRICS[stateBusinessType] || [];
+    setStateMetrics((prev) => prev.filter((m) => allowedMetrics.includes(m)));
+  }, [stateBusinessType]);
+
+  useEffect(() => {
+    setStateWisePendingVisualizationType(stateWiseVisualizationType);
+  }, [stateWiseVisualizationType]);
+
+  useEffect(() => {
+    if (!isStateWiseAnalysisModule || appliedStateMetrics.length === 0) {
+      setStateWiseVisualizationMetric("");
+      setStateWisePendingVisualizationMetric("");
+      setStateWiseShowMetricPicker(false);
+      return;
+    }
+    if (stateWiseVisualizationMetric && appliedStateMetrics.includes(stateWiseVisualizationMetric)) {
+      setStateWisePendingVisualizationMetric(stateWiseVisualizationMetric);
+      return;
+    }
+    setStateWiseVisualizationMetric(appliedStateMetrics[0]);
+    setStateWisePendingVisualizationMetric(appliedStateMetrics[0]);
+  }, [isStateWiseAnalysisModule, appliedStateMetrics, stateWiseVisualizationMetric]);
+
+  useEffect(() => {
+    if (!isStateWiseAnalysisModule) {
+      return;
+    }
+
+    const collectionName = resolveStateWiseCollectionName(
+      stateBusinessType,
+      stateAggregationType
+    );
+
+    if (!collectionName || (stateWiseDocsByCollection[collectionName] || []).length > 0) {
+      return;
+    }
+
+    const fetchStateWiseDocs = async () => {
+      setStateWiseLoading(true);
+      setStateWiseError("");
+
+      try {
+        const snapshot = await getDocs(collection(db, collectionName));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setStateWiseDocsByCollection((previous) => ({
+          ...previous,
+          [collectionName]: documents,
+        }));
+      } catch (error) {
+        console.error("Failed to fetch state wise analysis data:", error);
+        setStateWiseError("Unable to load state-wise analysis data.");
+      } finally {
+        setStateWiseLoading(false);
+      }
+    };
+
+    fetchStateWiseDocs();
+  }, [
+    isStateWiseAnalysisModule,
+    stateBusinessType,
+    stateAggregationType,
+    stateWiseDocsByCollection,
+  ]);
 
   useEffect(() => {
     if (!showOnlyInsurerFilter || lifeInsurerDocs.length > 0) {
@@ -291,6 +416,250 @@ export default function LifeInsurance() {
 
     return ["All Insurers", ...names];
   }, [lifeInsurerDocs]);
+
+  const stateWiseDraftCollectionName = useMemo(
+    () => resolveStateWiseCollectionName(stateBusinessType, stateAggregationType),
+    [stateBusinessType, stateAggregationType]
+  );
+
+  const stateWiseDraftDocs = useMemo(
+    () => stateWiseDocsByCollection[stateWiseDraftCollectionName] || [],
+    [stateWiseDocsByCollection, stateWiseDraftCollectionName]
+  );
+
+  const stateWiseAppliedCollectionName = useMemo(
+    () => resolveStateWiseCollectionName(appliedStateBusinessType, appliedStateAggregationType),
+    [appliedStateBusinessType, appliedStateAggregationType]
+  );
+
+  const stateWiseAppliedDocs = useMemo(
+    () => stateWiseDocsByCollection[stateWiseAppliedCollectionName] || [],
+    [stateWiseDocsByCollection, stateWiseAppliedCollectionName]
+  );
+
+  const stateWiseStateOptions = useMemo(() => {
+    return Array.from(
+      new Set(stateWiseDraftDocs.map((document) => resolveStateNameFromDoc(document)).filter(Boolean))
+    ).sort((first, second) => first.localeCompare(second));
+  }, [stateWiseDraftDocs]);
+
+  const stateWiseInsurerOptions = useMemo(() => {
+    return Array.from(
+      new Set(stateWiseDraftDocs.map((document) => resolveInsurerNameFromDoc(document)).filter(Boolean))
+    ).sort((first, second) => first.localeCompare(second));
+  }, [stateWiseDraftDocs]);
+
+  useEffect(() => {
+    if (stateSelectedState && !stateWiseStateOptions.includes(stateSelectedState)) {
+      setStateSelectedState("");
+    }
+  }, [stateSelectedState, stateWiseStateOptions]);
+
+  useEffect(() => {
+    if (stateSelectedInsurer && !stateWiseInsurerOptions.includes(stateSelectedInsurer)) {
+      setStateSelectedInsurer("");
+    }
+  }, [stateSelectedInsurer, stateWiseInsurerOptions]);
+
+  const stateWiseRows = useMemo(() => {
+    if (
+      !isStateWiseAnalysisModule ||
+      !appliedStateBusinessType ||
+      !appliedStateAggregationType ||
+      !appliedStateSelectedState ||
+      appliedStateMetrics.length === 0
+    ) {
+      return [];
+    }
+
+    if (appliedStateAggregationType === "Insurer Wise" && !appliedStateSelectedInsurer) {
+      return [];
+    }
+
+    const normalizedState = normalizeText(appliedStateSelectedState);
+    const normalizedInsurer = normalizeText(appliedStateSelectedInsurer);
+    const yearData = new Map();
+
+    appliedStateMetrics.forEach((metric) => {
+      const normalizedMetric = normalizeMetricLabel(metric);
+      const yearTotals = new Map();
+
+      stateWiseAppliedDocs.forEach((document) => {
+        if (normalizeText(resolveStateNameFromDoc(document)) !== normalizedState) {
+          return;
+        }
+        if (
+          appliedStateAggregationType === "Insurer Wise" &&
+          normalizeText(resolveInsurerNameFromDoc(document)) !== normalizedInsurer
+        ) {
+          return;
+        }
+        const docLongMetric = resolveDocLongFormatMetric(document);
+        if (docLongMetric !== null) {
+          if (normalizeMetricLabel(docLongMetric) !== normalizedMetric) {
+            return;
+          }
+          const longValue = resolveDocLongFormatValue(document);
+          const yearLabel = resolveYearLabel(document) || "Overall";
+          yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + longValue);
+          return;
+        }
+        const yearLabel = resolveYearLabel(document) || "Overall";
+        const metricValue = resolveStateWiseMetricValue(
+          document,
+          appliedStateBusinessType,
+          metric
+        );
+        yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + metricValue);
+      });
+
+      yearTotals.forEach((value, year) => {
+        if (!yearData.has(year)) yearData.set(year, {});
+        yearData.get(year)[metric] = value;
+      });
+    });
+
+    return Array.from(yearData.entries())
+      .map(([year, values]) => ({ year, ...values }))
+      .sort(
+        (first, second) =>
+          resolveYearSortValue(first.year) - resolveYearSortValue(second.year)
+      );
+  }, [
+    isStateWiseAnalysisModule,
+    appliedStateBusinessType,
+    appliedStateAggregationType,
+    appliedStateSelectedState,
+    appliedStateSelectedInsurer,
+    appliedStateMetrics,
+    stateWiseAppliedDocs,
+  ]);
+
+  const stateWiseFiltersModified = useMemo(() => {
+    if (!appliedStateBusinessType) return false;
+    return (
+      stateBusinessType !== appliedStateBusinessType ||
+      stateSelectedState !== appliedStateSelectedState ||
+      stateAggregationType !== appliedStateAggregationType ||
+      stateSelectedInsurer !== appliedStateSelectedInsurer ||
+      JSON.stringify(stateMetrics) !== JSON.stringify(appliedStateMetrics)
+    );
+  }, [
+    stateBusinessType,
+    stateSelectedState,
+    stateAggregationType,
+    stateSelectedInsurer,
+    stateMetrics,
+    appliedStateBusinessType,
+    appliedStateSelectedState,
+    appliedStateAggregationType,
+    appliedStateSelectedInsurer,
+    appliedStateMetrics,
+  ]);
+
+  const stateWiseTimelineYearOptions = useMemo(() => {
+    const uniqueYears = Array.from(new Set(stateWiseRows.map((r) => r.year)));
+    return uniqueYears.sort((a, b) => resolveYearSortValue(a) - resolveYearSortValue(b));
+  }, [stateWiseRows]);
+
+  useEffect(() => {
+    if (!isStateWiseAnalysisModule || stateWiseRows.length === 0) {
+      setStateWiseTimelineStartYear("");
+      setStateWiseTimelineEndYear("");
+      return;
+    }
+    const years = stateWiseTimelineYearOptions;
+    if (!years.length) return;
+    setStateWiseTimelineStartYear(years[0]);
+    setStateWiseTimelineEndYear(years[years.length - 1]);
+  }, [isStateWiseAnalysisModule, stateWiseRows, stateWiseTimelineYearOptions]);
+
+  const stateWiseVisibleRows = useMemo(() => {
+    if (!stateWiseRows.length) return [];
+    if (!stateWiseTimelineStartYear || !stateWiseTimelineEndYear) return stateWiseRows;
+    const start = resolveYearSortValue(stateWiseTimelineStartYear);
+    const end = resolveYearSortValue(stateWiseTimelineEndYear);
+    return stateWiseRows.filter((row) => {
+      const y = resolveYearSortValue(row.year);
+      return y >= start && y <= end;
+    });
+  }, [stateWiseRows, stateWiseTimelineStartYear, stateWiseTimelineEndYear]);
+
+  const stateWisePlotTraces = useMemo(() => {
+    const effectiveMetric = stateWiseVisualizationMetric || appliedStateMetrics[0] || "";
+    const metricLabel = effectiveMetric === "Premium" ? "Premium in Cr (₹)" : effectiveMetric;
+    const xValues = stateWiseVisibleRows.map((r) => String(r.year));
+    const yValues = stateWiseVisibleRows.map((r) => r[effectiveMetric] ?? 0);
+    if (stateWiseVisualizationType === "bar") {
+      return [{
+        type: "bar",
+        name: metricLabel,
+        x: xValues,
+        y: yValues,
+        marker: { color: "rgba(14, 165, 164, 0.88)", line: { color: "rgba(15, 118, 110, 0.95)", width: 1 } },
+        hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+      }];
+    }
+    if (stateWiseVisualizationType === "area") {
+      return [{
+        type: "scatter",
+        mode: "lines+markers",
+        name: metricLabel,
+        x: xValues,
+        y: yValues,
+        line: { color: "#0ea5a4", width: 3 },
+        marker: { color: "#0ea5a4", size: 8 },
+        fill: "tozeroy",
+        fillcolor: "rgba(14, 165, 164, 0.14)",
+        hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+      }];
+    }
+    return [{
+      type: "scatter",
+      mode: "lines+markers",
+      name: metricLabel,
+      x: xValues,
+      y: yValues,
+      line: { color: "#0ea5a4", width: 3 },
+      marker: { color: "#0ea5a4", size: 8 },
+      hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+    }];
+  }, [stateWiseVisibleRows, stateWiseVisualizationType, appliedStateMetrics, stateWiseVisualizationMetric]);
+
+  const stateWisePlotLayout = useMemo(() => {
+    const effectiveMetric = stateWiseVisualizationMetric || appliedStateMetrics[0] || "";
+    const metricLabel = effectiveMetric === "Premium" ? "Premium in Cr (₹)" : effectiveMetric;
+    return {
+      autosize: true,
+      paper_bgcolor: "rgba(0, 0, 0, 0)",
+      plot_bgcolor: "rgba(0, 0, 0, 0)",
+      margin: { l: 60, r: 18, t: 20, b: 52 },
+      xaxis: {
+        title: { text: "Year", font: { size: 12, color: "#475569" } },
+        showgrid: true,
+        gridcolor: "rgba(148, 163, 184, 0.16)",
+        zeroline: false,
+        tickfont: { size: 12, color: "#334155" },
+      },
+      yaxis: {
+        title: { text: metricLabel, font: { size: 12, color: "#475569" } },
+        showgrid: true,
+        gridcolor: "rgba(148, 163, 184, 0.16)",
+        zeroline: false,
+        tickfont: { size: 12, color: "#334155" },
+        separatethousands: true,
+      },
+      legend: { orientation: "h", x: 0, y: -0.16, font: { size: 14, color: "#334155" } },
+      hoverlabel: { bgcolor: "#ffffff", bordercolor: "rgba(148, 163, 184, 0.4)", font: { color: "#0f172a", size: 12 } },
+    };
+  }, [appliedStateMetrics, stateWiseVisualizationMetric]);
+
+  const stateWisePlotConfig = useMemo(() => ({
+    responsive: true,
+    displaylogo: false,
+    toImageButtonOptions: { format: "png", filename: "state_wise_analysis_chart", width: 1280, height: 720, scale: 2 },
+    modeBarButtonsToRemove: ["select2d", "lasso2d", "toggleSpikelines", "autoScale2d"],
+  }), []);
 
   const selectedInsurerDocument = useMemo(() => {
     if (!showOnlyInsurerFilter || !appliedInsurer || appliedInsurer === "All Insurers") {
@@ -516,6 +885,26 @@ export default function LifeInsurance() {
     setSelectedCategory("");
     setSelectedSegment("");
     setSelectedPremiumType("");
+    setStateBusinessType("");
+    setStateSelectedState("");
+    setStateAggregationType("");
+    setStateSelectedInsurer("");
+    setStateMetrics([]);
+    setAppliedStateBusinessType("");
+    setAppliedStateSelectedState("");
+    setAppliedStateAggregationType("");
+    setAppliedStateSelectedInsurer("");
+    setAppliedStateMetrics([]);
+      setStateWiseVisualizationMetric("");
+      setStateWisePendingVisualizationMetric("");
+      setStateWiseShowMetricPicker(false);
+    setStateWiseError("");
+    setStateWiseVisualizationType("line");
+    setStateWisePendingVisualizationType("line");
+    setStateWiseShowChartTypePicker(false);
+    setStateWiseShowTimelinePicker(false);
+    setStateWiseTimelineStartYear("");
+    setStateWiseTimelineEndYear("");
   };
 
   const handleResetSegmentAnalysisFilters = () => {
@@ -533,6 +922,20 @@ export default function LifeInsurance() {
   };
 
   const handleApplyFilters = () => {
+    if (isStateWiseAnalysisModule) {
+      setAppliedStateBusinessType(stateBusinessType);
+      setAppliedStateSelectedState(stateSelectedState);
+      setAppliedStateAggregationType(stateAggregationType);
+      setAppliedStateSelectedInsurer(stateSelectedInsurer);
+      setAppliedStateMetrics([...stateMetrics]);
+      setStateWiseVisualizationMetric("");
+      setStateWisePendingVisualizationMetric("");
+      setStateWiseShowMetricPicker(false);
+      setStateWiseTimelineStartYear("");
+      setStateWiseTimelineEndYear("");
+      return;
+    }
+
     if (isTotalNewBusinessPremiumModule) {
       setAppliedPerformancePremiumType(insurerPremiumFilterType);
       setAppliedPerformanceInsurer(selectedPerformanceInsurer);
@@ -551,6 +954,18 @@ export default function LifeInsurance() {
     setAppliedSegmentParticipation(segmentParticipation);
     setAppliedSegmentPremiumType(segmentPremiumType);
     setAppliedSegmentViewMode(segmentViewMode);
+  };
+
+  const handleStateMetricToggle = (metric) => {
+    const isSelected = stateMetrics.includes(metric);
+    if (isSelected) {
+      setStateMetrics((prev) => prev.filter((m) => m !== metric));
+      return;
+    }
+    if (stateMetrics.length >= 2) {
+      return;
+    }
+    setStateMetrics((prev) => [...prev, metric]);
   };
 
   const segmentChartData = useMemo(() => {
@@ -625,6 +1040,7 @@ export default function LifeInsurance() {
   const handleExportData = async () => {
     const isSegmentAnalysis = selectedModule === 2;
     const isPerformancePremiumModule = isTotalNewBusinessPremiumModule;
+    const isStateWiseAnalysis = isStateWiseAnalysisModule;
 
     const activeFilters = isSegmentAnalysis
       ? [
@@ -641,6 +1057,20 @@ export default function LifeInsurance() {
       ? [
           { label: "Premium Type", value: appliedPerformancePremiumType || "-" },
           { label: "Select Insurer", value: appliedPerformanceInsurer || "-" },
+        ]
+      : isStateWiseAnalysis
+      ? [
+          { label: "Business Type", value: appliedStateBusinessType || "-" },
+          { label: "State", value: appliedStateSelectedState || "-" },
+          { label: "View Type", value: appliedStateAggregationType || "-" },
+          {
+            label: "Insurer",
+            value:
+              appliedStateAggregationType === "Insurer Wise"
+                ? appliedStateSelectedInsurer || "-"
+                : "-",
+          },
+          { label: "Metrics", value: appliedStateMetrics.join(", ") || "-" },
         ]
       : filterConfig.map((filter) => ({
           label: filter.label,
@@ -667,6 +1097,18 @@ export default function LifeInsurance() {
             maximumFractionDigits: 2,
           }),
         ])
+      : isStateWiseAnalysis
+      ? stateWiseVisibleRows.map((row) => [
+          row.year,
+          stateMetric === "Premium"
+            ? Number(row.value || 0).toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            : Number(row.value || 0).toLocaleString("en-IN", {
+                maximumFractionDigits: 0,
+              }),
+        ])
       : displayedDataRows.map((row) => [row.label, formatFieldValue(row.value)]);
 
     const exportRows = [
@@ -684,6 +1126,8 @@ export default function LifeInsurance() {
               ? "New Business Premium in Cr (₹)"
               : "Total Premium in Cr (₹)",
           ]
+        : isStateWiseAnalysis
+        ? ["Year", ...appliedStateMetrics.map((m) => m === "Premium" ? "Premium in Cr (₹)" : m)]
         : ["Data Panel Fields", "Value"],
       ...dataRows,
     ];
@@ -806,6 +1250,104 @@ export default function LifeInsurance() {
                 setViewMode={setSegmentViewMode}
                 onApply={handleApplySegmentFilters}
               />
+            ) : isStateWiseAnalysisModule ? (
+              <>
+                <div className="filter-item">
+                  <label className="filter-label label-text">Business Type</label>
+                  <div className="premium-toggle-group">
+                    {["Individual", "Group"].map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`premium-toggle-btn ${
+                          stateBusinessType === option ? "active" : ""
+                        }`}
+                        onClick={() => {
+                          setStateBusinessType(option);
+                          setStateSelectedInsurer("");
+                        }}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="filter-item">
+                  <label className="filter-label label-text">Select View</label>
+                  <div className="premium-toggle-group">
+                    {["Total", "Insurer Wise"].map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`premium-toggle-btn ${
+                          stateAggregationType === option ? "active" : ""
+                        }`}
+                        onClick={() => {
+                          setStateAggregationType(option);
+                          setStateSelectedInsurer("");
+                        }}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {stateAggregationType === "Insurer Wise" && (
+                  <FilterSelect
+                    label="Select Insurer"
+                    options={stateWiseInsurerOptions}
+                    value={stateSelectedInsurer}
+                    onChange={setStateSelectedInsurer}
+                  />
+                )}
+
+                <FilterSelect
+                  label="Select State"
+                  options={stateWiseStateOptions}
+                  value={stateSelectedState}
+                  onChange={setStateSelectedState}
+                />
+
+                <div className="filter-item">
+                  <label className="filter-label label-text">Metric</label>
+                  <div className="premium-toggle-group">
+                    {(STATEWISE_METRICS[stateBusinessType] || []).map((metricOption) => (
+                      <button
+                        key={metricOption}
+                        type="button"
+                        className={`premium-toggle-btn ${stateMetrics.includes(metricOption) ? "active" : ""}`}
+                        onClick={() => handleStateMetricToggle(metricOption)}
+                      >
+                        <span className="metric-toggle-btn-content">
+                          {metricOption}
+                          {stateMetrics.includes(metricOption) && (
+                            <Check size={14} strokeWidth={2.5} className="metric-check-icon" />
+                          )}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="data-export-btn"
+                  onClick={handleApplyFilters}
+                  disabled={
+                    !stateBusinessType ||
+                    !stateAggregationType ||
+                    !stateSelectedState ||
+                    stateMetrics.length === 0 ||
+                    (stateAggregationType === "Insurer Wise" && !stateSelectedInsurer)
+                  }
+                  title="Apply Filters"
+                >
+                  Apply Filters
+                </button>
+
+              </>
             ) : isTotalNewBusinessPremiumModule ? (
               <>
                 <div className="filter-item">
@@ -885,6 +1427,16 @@ export default function LifeInsurance() {
                 onClick={() => setShowPerformanceTimelinePicker((previous) => !previous)}
                 title="Select Timeline"
                 disabled={performanceVisibleRows.length === 0}
+              >
+                Select Timeline
+              </button>
+            )}
+            {isStateWiseAnalysisModule && stateWiseVisibleRows.length > 0 && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setStateWiseShowTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
               >
                 Select Timeline
               </button>
@@ -1007,6 +1559,104 @@ export default function LifeInsurance() {
               ) : (
                 <p className="panel-placeholder">No data found for selected insurer.</p>
               )
+            ) : isStateWiseAnalysisModule ? (
+              !appliedStateBusinessType || stateWiseFiltersModified ? (
+                <PanelState variant="empty" message="Select filters and click Apply Filters to view state-wise analysis." hint="Choose Business Type, View, State and Metric, then click Apply Filters." />
+              ) : stateWiseLoading && stateWiseAppliedDocs.length === 0 ? (
+                <PanelState variant="loading" message="Loading data" hint="Please wait while state-wise data is fetched." />
+              ) : stateWiseError && stateWiseAppliedDocs.length === 0 ? (
+                <PanelState variant="error" message={stateWiseError} />
+              ) : stateWiseVisibleRows.length > 0 ? (
+                <>
+                  {stateWiseShowTimelinePicker && stateWiseTimelineYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={stateWiseTimelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setStateWiseTimelineStartYear(nextStartYear);
+                            if (stateWiseTimelineEndYear && resolveYearSortValue(nextStartYear) > resolveYearSortValue(stateWiseTimelineEndYear)) {
+                              setStateWiseTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {stateWiseTimelineYearOptions.map((yearStr) => (
+                            <option key={`start-${yearStr}`} value={yearStr}>{yearStr}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={stateWiseTimelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setStateWiseTimelineEndYear(nextEndYear);
+                            if (stateWiseTimelineStartYear && resolveYearSortValue(nextEndYear) < resolveYearSortValue(stateWiseTimelineStartYear)) {
+                              setStateWiseTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {stateWiseTimelineYearOptions.map((yearStr) => (
+                            <option key={`end-${yearStr}`} value={yearStr}>{yearStr}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setStateWiseShowTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Year</th>
+                          {appliedStateMetrics.map((metric) => (
+                            <th key={metric} className="col-value">
+                              {metric === "Premium" ? "Premium in Cr (₹)" : metric}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stateWiseVisibleRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">
+                              <span className="year-badge">{row.year}</span>
+                            </td>
+                            {appliedStateMetrics.map((metric) => (
+                              <td key={metric} className="col-value">
+                                <span className="value-amount">
+                                  {metric === "Premium"
+                                    ? Number(row[metric] || 0).toLocaleString("en-IN", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })
+                                    : Number(row[metric] || 0).toLocaleString("en-IN", {
+                                        maximumFractionDigits: 0,
+                                      })}
+                                </span>
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <PanelState variant="empty" message="No data found for the applied filters." hint="Try adjusting your filters and applying again." />
+              )
             ) : selectedModule === 2 ? (
               // Segment Analysis Module
               segmentLoading ? (
@@ -1075,6 +1725,26 @@ export default function LifeInsurance() {
                 <option value="area">Area Graph</option>
                 <option value="pie">Pie Chart</option>
               </select>
+            )}
+            {isStateWiseAnalysisModule && appliedStateMetrics.length > 1 && stateWiseVisibleRows.length > 0 && !stateWiseFiltersModified && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setStateWiseShowMetricPicker((prev) => !prev)}
+                title="Select visualization metric"
+              >
+                Select Metric
+              </button>
+            )}
+            {isStateWiseAnalysisModule && stateWiseVisibleRows.length > 0 && !stateWiseFiltersModified && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setStateWiseShowChartTypePicker((previous) => !previous)}
+                title="Select chart type"
+              >
+                Select Chart Type
+              </button>
             )}
           </div>
           <div className="panel-body viz-panel-body">
@@ -1300,8 +1970,88 @@ export default function LifeInsurance() {
                     : "Select filters and click Apply Filters to view visualization."}
                 </p>
               )
+            ) : isStateWiseAnalysisModule ? (
+              !appliedStateBusinessType || stateWiseFiltersModified ? (
+                <PanelState variant="empty" message="Select filters and click Apply Filters to view visualization." hint="Choose Business Type, View, State and Metric, then click Apply Filters." />
+              ) : stateWiseLoading && stateWiseAppliedDocs.length === 0 ? (
+                <PanelState variant="loading" message="Loading visualization" hint="Please wait while data is fetched." />
+              ) : stateWiseVisibleRows.length > 0 ? (
+                <>
+                  {stateWiseShowChartTypePicker && (
+                    <div className="timeline-filter-row chart-type-picker-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">Chart Type</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={stateWisePendingVisualizationType}
+                          onChange={(event) => setStateWisePendingVisualizationType(event.target.value)}
+                        >
+                          <option value="line">Line Chart</option>
+                          <option value="area">Area Chart</option>
+                          <option value="bar">Bar Chart</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => {
+                          setStateWiseVisualizationType(stateWisePendingVisualizationType);
+                          setStateWiseShowChartTypePicker(false);
+                        }}
+                        title="Apply chart type"
+                      >
+                        Apply Chart Type
+                      </button>
+                    </div>
+                  )}
+                  <div className="chart-wrapper plotly-chart-wrapper">
+                                      {stateWiseShowMetricPicker && appliedStateMetrics.length > 1 && (
+                                        <div className="timeline-filter-row chart-type-picker-row">
+                                          <div className="timeline-field">
+                                            <label className="filter-label label-text">Metric</label>
+                                            <select
+                                              className="filter-select timeline-select"
+                                              value={stateWisePendingVisualizationMetric}
+                                              onChange={(e) => setStateWisePendingVisualizationMetric(e.target.value)}
+                                            >
+                                              {appliedStateMetrics.map((metric) => (
+                                                <option key={`viz-metric-${metric}`} value={metric}>
+                                                  {metric === "Premium" ? "Premium in Cr (₹)" : metric}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            className="timeline-apply-btn"
+                                            onClick={() => {
+                                              setStateWiseVisualizationMetric(stateWisePendingVisualizationMetric || appliedStateMetrics[0]);
+                                              setStateWiseShowMetricPicker(false);
+                                            }}
+                                            title="Apply metric"
+                                          >
+                                            Apply Metric
+                                          </button>
+                                        </div>
+                                      )}
+                    <Plot
+                      className="plot-component-fill"
+                      data={stateWisePlotTraces}
+                      layout={stateWisePlotLayout}
+                      config={stateWisePlotConfig}
+                      useResizeHandler
+                    />
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message="No data found for the applied filters."
+                  hint="Try adjusting your filters and applying again."
+                />
+              )
             ) : (
-              <p className="panel-placeholder">Select an insurer to view analytics.</p>
+              <PanelState variant="empty" message="Select an insurer to view analytics." hint="Choose a module and apply filters to get started." />
             )}
           </div>
         </div>
@@ -1420,7 +2170,43 @@ function normalizeText(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeFieldKey(key) {
+  return String(key || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getValueFromAliases(document, aliases) {
+  const entries = Object.entries(document || {});
+  const aliasKeys = aliases.map((alias) => normalizeFieldKey(alias));
+
+  for (const [key, value] of entries) {
+    if (aliasKeys.includes(normalizeFieldKey(key)) && value !== null && value !== undefined && value !== "") {
+      return value;
+    }
+  }
+
+  return null;
+}
+
 function resolveInsurerNameFromDoc(document) {
+  const aliases = [
+    "insurer",
+    "insurer_name",
+    "insurerName",
+    "name_of_insurer",
+    "insurer name",
+    "insurer/office",
+    "company",
+    "company_name",
+    "name",
+  ];
+
+  const mappedValue = getValueFromAliases(document, aliases);
+  if (mappedValue !== null) {
+    return String(mappedValue).trim();
+  }
+
   const candidates = [
     document?.insurer,
     document?.insurer_name,
@@ -1440,7 +2226,174 @@ function resolveInsurerNameFromDoc(document) {
   return "";
 }
 
+function resolveStateWiseCollectionName(businessType, aggregationType) {
+  return STATEWISE_COLLECTIONS[businessType]?.[aggregationType] || "";
+}
+
+function resolveStateNameFromDoc(document) {
+  const aliases = [
+    "state",
+    "state_name",
+    "stateName",
+    "state_label",
+    "state/ut",
+    "state_ut",
+    "state ut",
+    "name_of_state",
+    "region",
+    "region_name",
+  ];
+
+  const mappedValue = getValueFromAliases(document, aliases);
+  if (mappedValue !== null) {
+    return String(mappedValue).trim();
+  }
+
+  const candidates = [
+    document?.state,
+    document?.state_name,
+    document?.stateName,
+    document?.state_label,
+    document?.region,
+    document?.region_name,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function resolveStateWiseMetricValue(document, businessType, metric) {
+  const premiumFields = [
+    "premium_in_cr",
+    "premium_in_crores",
+    "premium_cr",
+    "premium",
+    "premium in cr",
+    "premium (in cr)",
+    "premium (in crore)",
+    "premium in crore",
+    "total_premium_in_cr",
+    "total_premium",
+    "amount",
+    "value",
+  ];
+
+  const metricFieldsByBusinessType = {
+    Individual: {
+      Policies: [
+        "policies",
+        "policy_count",
+        "number_of_policies",
+        "number of policies",
+        "no_of_policies",
+        "no. of policies",
+        "individual_policies",
+      ],
+      Premium: premiumFields,
+    },
+    Group: {
+      Lives: [
+        "lives",
+        "number_of_lives",
+        "number of lives",
+        "no_of_lives",
+        "no. of lives",
+        "group_lives",
+      ],
+      Schemes: [
+        "schemes",
+        "number_of_schemes",
+        "number of schemes",
+        "no_of_schemes",
+        "no. of schemes",
+        "group_schemes",
+      ],
+      Premium: premiumFields,
+    },
+  };
+
+  const preferredFields = metricFieldsByBusinessType[businessType]?.[metric] || [];
+
+  const directValue = getValueFromAliases(document, preferredFields);
+  const parsedDirectValue = parseNumericFieldValue(directValue);
+  if (parsedDirectValue !== null) {
+    return parsedDirectValue;
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!new RegExp(metric, "i").test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+// ----- Long-format collection helpers -----
+// Returns the metric name stored in the row (e.g. "policies"), or null if the
+// doc does not follow the long-format pattern.
+// Strips metric-name suffixes so "lives_covered" matches "lives",
+// "premium_in_cr" matches "premium", etc.
+function normalizeMetricLabel(str) {
+  return String(str || "")
+    .toLowerCase()
+    .replace(/_covered|_count|_total|_amount|_in_cr|_crores?/g, "")
+    .replace(/[^a-z]/g, "");
+}
+
+function resolveDocLongFormatMetric(document) {
+  const metricFieldAliases = ["metric", "measure", "indicator", "category", "type"];
+  for (const alias of metricFieldAliases) {
+    const raw = document?.[alias];
+    if (raw !== null && raw !== undefined && raw !== "") {
+      const str = String(raw).trim();
+      // Only treat as a metric identifier if it looks like a label, not a number
+      if (str && !/^\d/.test(str)) {
+        return str;
+      }
+    }
+  }
+  return null;
+}
+
+// Returns the numeric value for a long-format row.
+function resolveDocLongFormatValue(document) {
+  const valueFieldAliases = ["value", "amount", "total", "count", "number", "qty", "quantity"];
+  const found = getValueFromAliases(document, valueFieldAliases);
+  return parseNumericFieldValue(found) ?? 0;
+}
+// -------------------------------------------
+
 function resolveYearLabel(document) {
+  const yearAliases = [
+    "year",
+    "financial_year",
+    "financial year",
+    "financialYear",
+    "fy",
+    "year_range",
+    "year range",
+  ];
+
+  const mappedYearValue = getValueFromAliases(document, yearAliases);
+  if (mappedYearValue !== null) {
+    const mappedYear = String(mappedYearValue).trim();
+    if (mappedYear) {
+      return mappedYear;
+    }
+  }
+
   const candidates = [document?.year, document?.financial_year, document?.financialYear, document?.fy];
 
   for (const candidate of candidates) {
@@ -1519,12 +2472,19 @@ function parseNumericFieldValue(value) {
   }
 
   if (typeof value === "string") {
-    const normalized = value.replace(/,/g, "").trim();
-    if (!normalized) {
+    const normalized = value
+      .replace(/,/g, "")
+      .replace(/₹/g, "")
+      .replace(/cr\.?/gi, "")
+      .replace(/crore(s)?/gi, "")
+      .trim();
+
+    const numericPart = normalized.match(/-?\d+(\.\d+)?/g)?.join("") || "";
+    if (!numericPart) {
       return null;
     }
 
-    const parsedValue = Number(normalized);
+    const parsedValue = Number(numericPart);
     return Number.isFinite(parsedValue) ? parsedValue : null;
   }
 
@@ -1539,4 +2499,21 @@ function resolveYearSortValue(yearLabel) {
 
   const parsedYear = Number(match[0]);
   return Number.isFinite(parsedYear) ? parsedYear : Number.MAX_SAFE_INTEGER;
+}
+
+function PanelState({ variant = "empty", message, hint = "" }) {
+  const icon =
+    variant === "loading" ? (
+      <Loader2 className="panel-state-icon spinning" size={20} strokeWidth={2.2} />
+    ) : (
+      <Info className="panel-state-icon" size={20} strokeWidth={2.2} />
+    );
+
+  return (
+    <div className={`panel-state panel-state-${variant}`}>
+      {icon}
+      <p className="panel-placeholder">{message}</p>
+      {hint ? <p className="panel-state-hint">{hint}</p> : null}
+    </div>
+  );
 }
