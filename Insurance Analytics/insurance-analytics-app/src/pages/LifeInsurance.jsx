@@ -104,6 +104,17 @@ const STATEWISE_METRICS = {
   Group: ["Lives", "Schemes", "Premium"],
 };
 
+const INDIVIDUAL_POLICIES_COLLECTION_NAME = "Sheet9_number_policies_issued";
+
+const INDIVIDUAL_POLICIES_DEFAULT_SECTORS = ["Public", "Private"];
+
+const INFORCE_INDIVIDUAL_BUSINESS_COLLECTION_CANDIDATES = ["sheet_10_11_v2"];
+
+const INFORCE_METRIC_OPTIONS = ["Policies", "Sum Assured"];
+const INFORCE_BUSINESS_TYPE_OPTIONS = ["Non-Linked", "Linked"];
+const INFORCE_BUSINESS_SEGMENT_OPTIONS = ["Life", "General Annuity", "Pension", "Health"];
+const INFORCE_MEASURE_OPTIONS = ["Start of Year", "Additions", "Deletions", "End of Year"];
+
 export default function LifeInsurance() {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState("market-overview");
@@ -129,6 +140,35 @@ export default function LifeInsurance() {
   const [showPerformanceTimelinePicker, setShowPerformanceTimelinePicker] = useState(false);
   const [performanceTimelineStartYear, setPerformanceTimelineStartYear] = useState("");
   const [performanceTimelineEndYear, setPerformanceTimelineEndYear] = useState("");
+
+  // Number of Individual Policies — Filters/Data/Viz State
+  const [individualPoliciesDocs, setIndividualPoliciesDocs] = useState([]);
+  const [individualPoliciesLoading, setIndividualPoliciesLoading] = useState(false);
+  const [individualPoliciesError, setIndividualPoliciesError] = useState("");
+  const [selectedPoliciesInsurer, setSelectedPoliciesInsurer] = useState("");
+  const [appliedPoliciesInsurer, setAppliedPoliciesInsurer] = useState("");
+  const [selectedPoliciesSector, setSelectedPoliciesSector] = useState("");
+  const [appliedPoliciesSector, setAppliedPoliciesSector] = useState("");
+  const [showPoliciesTimelinePicker, setShowPoliciesTimelinePicker] = useState(false);
+  const [policiesTimelineStartYear, setPoliciesTimelineStartYear] = useState("");
+  const [policiesTimelineEndYear, setPoliciesTimelineEndYear] = useState("");
+  const [policiesVisualizationType, setPoliciesVisualizationType] = useState("line");
+  const [pendingPoliciesVisualizationType, setPendingPoliciesVisualizationType] = useState("line");
+  const [showPoliciesChartTypePicker, setShowPoliciesChartTypePicker] = useState(false);
+  const [inforceIndividualBusinessDocs, setInforceIndividualBusinessDocs] = useState([]);
+  const [inforceIndividualBusinessLoading, setInforceIndividualBusinessLoading] = useState(false);
+  const [inforceIndividualBusinessError, setInforceIndividualBusinessError] = useState("");
+  const [selectedInforceMetric, setSelectedInforceMetric] = useState("Policies");
+  const [appliedInforceMetric, setAppliedInforceMetric] = useState("");
+  const [selectedInforceInsurer, setSelectedInforceInsurer] = useState("All Insurers");
+  const [appliedInforceInsurer, setAppliedInforceInsurer] = useState("");
+  const [selectedInforceBusinessType, setSelectedInforceBusinessType] = useState("");
+  const [appliedInforceBusinessType, setAppliedInforceBusinessType] = useState("");
+  const [selectedInforceBusinessSegment, setSelectedInforceBusinessSegment] = useState("");
+  const [appliedInforceBusinessSegment, setAppliedInforceBusinessSegment] = useState("");
+  const [selectedInforceMeasure, setSelectedInforceMeasure] = useState("End of Year");
+  const [appliedInforceMeasure, setAppliedInforceMeasure] = useState("");
+
   // Segment Analysis Filters
   const [segmentCategory, setSegmentCategory] = useState("");
   const [segmentType, setSegmentType] = useState("");
@@ -236,10 +276,67 @@ export default function LifeInsurance() {
   ]);
 
   const showOnlyInsurerFilter = activeTab === "market-overview" && selectedModule === 1;
+  const isSegmentAnalysisModule =
+    activeTab === "market-overview" && selectedModule === 2;
   const isTotalNewBusinessPremiumModule =
     activeTab === "insurer-performance" && selectedModule === 1;
+  const isInforceIndividualBusinessModule =
+    activeTab === "insurer-performance" && selectedModule === 2;
   const isStateWiseAnalysisModule =
     activeTab === "market-overview" && selectedModule === 3;
+  const isIndividualPoliciesModule =
+    activeTab === "market-overview" && selectedModule === 4;
+  const isYearWiseSectorModule =
+    isIndividualPoliciesModule || isInforceIndividualBusinessModule;
+  const activeYearWiseSectorDocs = isInforceIndividualBusinessModule
+    ? inforceIndividualBusinessDocs
+    : individualPoliciesDocs;
+  const activeYearWiseSectorLoading = isInforceIndividualBusinessModule
+    ? inforceIndividualBusinessLoading
+    : individualPoliciesLoading;
+  const activeYearWiseSectorError = isInforceIndividualBusinessModule
+    ? inforceIndividualBusinessError
+    : individualPoliciesError;
+  const activeYearWiseFiltersApplied = isInforceIndividualBusinessModule
+    ? Boolean(appliedInforceMetric && appliedInforceMeasure)
+    : Boolean(appliedPoliciesSector);
+  const activeYearWiseSectorMetricLabel = isInforceIndividualBusinessModule
+    ? appliedInforceMetric || selectedInforceMetric || "Policies"
+    : "Number of Individual Policies";
+  const activeYearWiseSectorTableHeader = isInforceIndividualBusinessModule
+    ? (appliedInforceMetric || selectedInforceMetric) === "Sum Assured"
+      ? "Sum Assured in Crore (₹)"
+      : "Number of Policies in '000s"
+    : "Individual New Policies in Lakhs";
+
+  const inforceFiltersModified = useMemo(() => {
+    if (!appliedInforceMetric && !appliedInforceMeasure) {
+      return false;
+    }
+
+    return (
+      selectedInforceMetric !== appliedInforceMetric ||
+      selectedInforceInsurer !== appliedInforceInsurer ||
+      selectedInforceBusinessType !== appliedInforceBusinessType ||
+      selectedInforceBusinessSegment !== appliedInforceBusinessSegment ||
+      selectedInforceMeasure !== appliedInforceMeasure
+    );
+  }, [
+    selectedInforceMetric,
+    appliedInforceMetric,
+    selectedInforceInsurer,
+    appliedInforceInsurer,
+    selectedInforceBusinessType,
+    appliedInforceBusinessType,
+    selectedInforceBusinessSegment,
+    appliedInforceBusinessSegment,
+    selectedInforceMeasure,
+    appliedInforceMeasure,
+  ]);
+
+  const yearWiseFiltersModified = isInforceIndividualBusinessModule
+    ? inforceFiltersModified
+    : Boolean(appliedPoliciesSector) && selectedPoliciesSector !== appliedPoliciesSector;
 
   useEffect(() => {
     const allowedMetrics = STATEWISE_METRICS[stateBusinessType] || [];
@@ -249,6 +346,19 @@ export default function LifeInsurance() {
   useEffect(() => {
     setStateWisePendingVisualizationType(stateWiseVisualizationType);
   }, [stateWiseVisualizationType]);
+
+  useEffect(() => {
+    setPendingPoliciesVisualizationType(policiesVisualizationType);
+  }, [policiesVisualizationType]);
+
+  useEffect(() => {
+    if (!isYearWiseSectorModule || !yearWiseFiltersModified) {
+      return;
+    }
+
+    setShowPoliciesTimelinePicker(false);
+    setShowPoliciesChartTypePicker(false);
+  }, [isYearWiseSectorModule, yearWiseFiltersModified]);
 
   useEffect(() => {
     if (!isStateWiseAnalysisModule || appliedStateMetrics.length === 0) {
@@ -310,8 +420,10 @@ export default function LifeInsurance() {
     stateWiseDocsByCollection,
   ]);
 
+  const requiresLifeInsurerOptions = showOnlyInsurerFilter;
+
   useEffect(() => {
-    if (!showOnlyInsurerFilter || lifeInsurerDocs.length > 0) {
+    if (!requiresLifeInsurerOptions || lifeInsurerDocs.length > 0) {
       return;
     }
 
@@ -335,7 +447,62 @@ export default function LifeInsurance() {
     };
 
     fetchInsurers();
-  }, [showOnlyInsurerFilter, lifeInsurerDocs.length]);
+  }, [requiresLifeInsurerOptions, lifeInsurerDocs.length]);
+
+  useEffect(() => {
+    if (!isIndividualPoliciesModule || individualPoliciesDocs.length > 0) {
+      return;
+    }
+
+    const fetchIndividualPoliciesDocs = async () => {
+      setIndividualPoliciesLoading(true);
+      setIndividualPoliciesError("");
+
+      try {
+        const snapshot = await getDocs(collection(db, INDIVIDUAL_POLICIES_COLLECTION_NAME));
+        const documents = snapshot.docs.map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
+
+        setIndividualPoliciesDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch individual policy data:", error);
+        setIndividualPoliciesError("Unable to load individual policy data.");
+        setIndividualPoliciesDocs([]);
+      } finally {
+        setIndividualPoliciesLoading(false);
+      }
+    };
+
+    fetchIndividualPoliciesDocs();
+  }, [isIndividualPoliciesModule, individualPoliciesDocs.length]);
+
+  useEffect(() => {
+    if (!isInforceIndividualBusinessModule || inforceIndividualBusinessDocs.length > 0) {
+      return;
+    }
+
+    const fetchInforceIndividualBusinessDocs = async () => {
+      setInforceIndividualBusinessLoading(true);
+      setInforceIndividualBusinessError("");
+
+      try {
+        const documents = await fetchFirstAvailableCollectionDocs(
+          INFORCE_INDIVIDUAL_BUSINESS_COLLECTION_CANDIDATES
+        );
+        setInforceIndividualBusinessDocs(documents);
+      } catch (error) {
+        console.error("Failed to fetch inforce individual business data:", error);
+        setInforceIndividualBusinessError("Unable to load inforce individual business data.");
+        setInforceIndividualBusinessDocs([]);
+      } finally {
+        setInforceIndividualBusinessLoading(false);
+      }
+    };
+
+    fetchInforceIndividualBusinessDocs();
+  }, [isInforceIndividualBusinessModule, inforceIndividualBusinessDocs.length]);
 
   useEffect(() => {
     if (!isTotalNewBusinessPremiumModule) {
@@ -410,12 +577,341 @@ export default function LifeInsurance() {
 
   const insurerOptions = useMemo(() => {
     const names = lifeInsurerDocs
-      .map((document) => document.insurer_name)
+      .map((document) => resolveInsurerNameFromDoc(document) || document.insurer_name)
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b));
 
-    return ["All Insurers", ...names];
+    return ["All Insurers", ...Array.from(new Set(names))];
   }, [lifeInsurerDocs]);
+
+  const lifeInsurerSectorMap = useMemo(() => {
+    const sectorMap = new Map();
+
+    lifeInsurerDocs.forEach((document) => {
+      const insurerName = resolveInsurerNameFromDoc(document) || document.insurer_name;
+      if (!insurerName) {
+        return;
+      }
+
+      sectorMap.set(normalizeText(insurerName), String(document?.sector || "").trim());
+    });
+
+    return sectorMap;
+  }, [lifeInsurerDocs]);
+
+  const individualPoliciesSectorOptions = useMemo(() => {
+    const discoveredSectors = Array.from(
+      new Set(activeYearWiseSectorDocs.map((document) => resolveSectorFromDoc(document)).filter(Boolean))
+    ).sort((first, second) => first.localeCompare(second));
+
+    return discoveredSectors.length > 0
+      ? discoveredSectors
+      : INDIVIDUAL_POLICIES_DEFAULT_SECTORS;
+  }, [activeYearWiseSectorDocs]);
+
+  const inforceInsurerOptions = useMemo(() => {
+    const insurers = Array.from(
+      new Set(
+        inforceIndividualBusinessDocs
+          .map((document) => resolveInsurerNameFromDoc(document))
+          .filter(Boolean)
+      )
+    ).sort((first, second) => first.localeCompare(second));
+
+    return ["All Insurers", ...insurers];
+  }, [inforceIndividualBusinessDocs]);
+
+  const inforceBusinessTypeOptions = useMemo(() => {
+    const discoveredTypes = Array.from(
+      new Set(
+        inforceIndividualBusinessDocs
+          .map((document) => resolveInforceBusinessType(document))
+          .filter(Boolean)
+      )
+    ).sort((first, second) => first.localeCompare(second));
+
+    return Array.from(new Set([...INFORCE_BUSINESS_TYPE_OPTIONS, ...discoveredTypes]));
+  }, [inforceIndividualBusinessDocs]);
+
+  const inforceBusinessSegmentOptions = useMemo(() => {
+    const discoveredSegments = Array.from(
+      new Set(
+        inforceIndividualBusinessDocs
+          .map((document) => resolveInforceBusinessSegment(document))
+          .filter(Boolean)
+      )
+    ).sort((first, second) => first.localeCompare(second));
+
+    return Array.from(new Set([...INFORCE_BUSINESS_SEGMENT_OPTIONS, ...discoveredSegments]));
+  }, [inforceIndividualBusinessDocs]);
+
+  const inforceMeasureOptions = useMemo(() => {
+    const discoveredMeasures = Array.from(
+      new Set(
+        inforceIndividualBusinessDocs
+          .map((document) => resolveInforceMeasure(document))
+          .filter(Boolean)
+      )
+    ).sort((first, second) => first.localeCompare(second));
+
+    return Array.from(new Set([...INFORCE_MEASURE_OPTIONS, ...discoveredMeasures]));
+  }, [inforceIndividualBusinessDocs]);
+
+  useEffect(() => {
+    if (selectedPoliciesSector && !individualPoliciesSectorOptions.includes(selectedPoliciesSector)) {
+      setSelectedPoliciesSector("");
+    }
+  }, [selectedPoliciesSector, individualPoliciesSectorOptions]);
+
+  useEffect(() => {
+    if (selectedInforceInsurer && !inforceInsurerOptions.includes(selectedInforceInsurer)) {
+      setSelectedInforceInsurer("All Insurers");
+    }
+  }, [selectedInforceInsurer, inforceInsurerOptions]);
+
+  useEffect(() => {
+    if (selectedInforceBusinessType && !inforceBusinessTypeOptions.includes(selectedInforceBusinessType)) {
+      setSelectedInforceBusinessType("");
+    }
+  }, [selectedInforceBusinessType, inforceBusinessTypeOptions]);
+
+  useEffect(() => {
+    if (selectedInforceBusinessSegment && !inforceBusinessSegmentOptions.includes(selectedInforceBusinessSegment)) {
+      setSelectedInforceBusinessSegment("");
+    }
+  }, [selectedInforceBusinessSegment, inforceBusinessSegmentOptions]);
+
+  useEffect(() => {
+    if (selectedInforceMeasure && !inforceMeasureOptions.includes(selectedInforceMeasure)) {
+      setSelectedInforceMeasure("End of Year");
+    }
+  }, [selectedInforceMeasure, inforceMeasureOptions]);
+
+  const individualPoliciesRows = useMemo(() => {
+    if (isIndividualPoliciesModule) {
+      if (!appliedPoliciesSector) {
+        return [];
+      }
+
+      const normalizedSector = normalizeText(appliedPoliciesSector);
+      const yearTotals = new Map();
+
+      individualPoliciesDocs.forEach((document) => {
+        const documentSector = normalizeText(resolveSectorFromDoc(document));
+        if (documentSector !== normalizedSector) {
+          return;
+        }
+
+        const yearLabel = resolveYearLabel(document);
+        if (!yearLabel) {
+          return;
+        }
+
+        const metricValue = resolveIndividualPoliciesValue(document);
+        yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + metricValue);
+      });
+
+      return Array.from(yearTotals.entries())
+        .map(([year, policies]) => ({ year, policies }))
+        .sort(
+          (first, second) =>
+            resolveYearSortValue(first.year) - resolveYearSortValue(second.year)
+        );
+    }
+
+    if (isInforceIndividualBusinessModule) {
+      if (!appliedInforceMetric || !appliedInforceMeasure) {
+        return [];
+      }
+
+      const normalizedMetric = normalizeText(appliedInforceMetric);
+      const normalizedInsurer = normalizeText(appliedInforceInsurer);
+      const normalizedBusinessType = normalizeText(appliedInforceBusinessType);
+      const normalizedBusinessSegment = normalizeText(appliedInforceBusinessSegment);
+      const normalizedMeasure = normalizeText(appliedInforceMeasure);
+      const yearTotals = new Map();
+
+      inforceIndividualBusinessDocs.forEach((document) => {
+        const documentMetric = normalizeText(resolveInforceMetricFromDoc(document));
+        if (documentMetric && documentMetric !== normalizedMetric) {
+          return;
+        }
+
+        if (
+          normalizedInsurer &&
+          normalizedInsurer !== "all insurers" &&
+          normalizeText(resolveInsurerNameFromDoc(document)) !== normalizedInsurer
+        ) {
+          return;
+        }
+
+        if (
+          normalizedBusinessType &&
+          normalizeText(resolveInforceBusinessType(document)) !== normalizedBusinessType
+        ) {
+          return;
+        }
+
+        if (
+          normalizedBusinessSegment &&
+          normalizeText(resolveInforceBusinessSegment(document)) !== normalizedBusinessSegment
+        ) {
+          return;
+        }
+
+        const documentMeasure = resolveInforceMeasure(document);
+        if (documentMeasure && normalizeText(documentMeasure) !== normalizedMeasure) {
+          return;
+        }
+
+        const yearLabel = resolveYearLabel(document);
+        if (!yearLabel) {
+          return;
+        }
+
+        const metricValue = resolveInforceMetricSelectionValue(
+          document,
+          appliedInforceMetric,
+          appliedInforceMeasure
+        );
+
+        yearTotals.set(yearLabel, (yearTotals.get(yearLabel) || 0) + metricValue);
+      });
+
+      return Array.from(yearTotals.entries())
+        .map(([year, policies]) => ({ year, policies }))
+        .sort(
+          (first, second) =>
+            resolveYearSortValue(first.year) - resolveYearSortValue(second.year)
+        );
+    }
+
+    return [];
+  }, [
+    isIndividualPoliciesModule,
+    appliedPoliciesSector,
+    individualPoliciesDocs,
+    isInforceIndividualBusinessModule,
+    inforceIndividualBusinessDocs,
+    appliedInforceMetric,
+    appliedInforceInsurer,
+    appliedInforceBusinessType,
+    appliedInforceBusinessSegment,
+    appliedInforceMeasure,
+  ]);
+
+  const individualPoliciesYearOptions = useMemo(() => {
+    const uniqueYears = Array.from(new Set(individualPoliciesRows.map((row) => row.year)));
+    return uniqueYears.sort((a, b) => resolveYearSortValue(a) - resolveYearSortValue(b));
+  }, [individualPoliciesRows]);
+
+  useEffect(() => {
+    if (!isYearWiseSectorModule || individualPoliciesRows.length === 0) {
+      setPoliciesTimelineStartYear("");
+      setPoliciesTimelineEndYear("");
+      return;
+    }
+
+    const years = individualPoliciesYearOptions;
+    if (!years.length) {
+      return;
+    }
+
+    setPoliciesTimelineStartYear(years[0]);
+    setPoliciesTimelineEndYear(years[years.length - 1]);
+  }, [isYearWiseSectorModule, individualPoliciesRows, individualPoliciesYearOptions]);
+
+  const individualPoliciesVisibleRows = useMemo(() => {
+    if (!individualPoliciesRows.length) {
+      return [];
+    }
+
+    if (!policiesTimelineStartYear || !policiesTimelineEndYear) {
+      return individualPoliciesRows;
+    }
+
+    const start = resolveYearSortValue(policiesTimelineStartYear);
+    const end = resolveYearSortValue(policiesTimelineEndYear);
+
+    return individualPoliciesRows.filter((row) => {
+      const yearValue = resolveYearSortValue(row.year);
+      return yearValue >= start && yearValue <= end;
+    });
+  }, [individualPoliciesRows, policiesTimelineStartYear, policiesTimelineEndYear]);
+
+  const individualPoliciesPlotTraces = useMemo(() => {
+    const xValues = individualPoliciesVisibleRows.map((row) => String(row.year));
+    const yValues = individualPoliciesVisibleRows.map((row) => row.policies ?? 0);
+    const metricLabel = activeYearWiseSectorMetricLabel;
+
+    if (policiesVisualizationType === "bar") {
+      return [{
+        type: "bar",
+        name: metricLabel,
+        x: xValues,
+        y: yValues,
+        marker: { color: "rgba(14, 165, 164, 0.88)", line: { color: "rgba(15, 118, 110, 0.95)", width: 1 } },
+        hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+      }];
+    }
+
+    if (policiesVisualizationType === "area") {
+      return [{
+        type: "scatter",
+        mode: "lines+markers",
+        name: metricLabel,
+        x: xValues,
+        y: yValues,
+        line: { color: "#0ea5a4", width: 3 },
+        marker: { color: "#0ea5a4", size: 8 },
+        fill: "tozeroy",
+        fillcolor: "rgba(14, 165, 164, 0.14)",
+        hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+      }];
+    }
+
+    return [{
+      type: "scatter",
+      mode: "lines+markers",
+      name: metricLabel,
+      x: xValues,
+      y: yValues,
+      line: { color: "#0ea5a4", width: 3 },
+      marker: { color: "#0ea5a4", size: 8 },
+      hovertemplate: `%{x}<br>${metricLabel}: %{y:,}<extra></extra>`,
+    }];
+  }, [individualPoliciesVisibleRows, policiesVisualizationType, activeYearWiseSectorMetricLabel]);
+
+  const individualPoliciesPlotLayout = useMemo(() => ({
+    autosize: true,
+    paper_bgcolor: "rgba(0, 0, 0, 0)",
+    plot_bgcolor: "rgba(0, 0, 0, 0)",
+    margin: { l: 60, r: 18, t: 20, b: 52 },
+    xaxis: {
+      title: { text: "Year", font: { size: 12, color: "#475569" } },
+      showgrid: true,
+      gridcolor: "rgba(148, 163, 184, 0.16)",
+      zeroline: false,
+      tickfont: { size: 12, color: "#334155" },
+    },
+    yaxis: {
+      title: { text: activeYearWiseSectorMetricLabel, font: { size: 12, color: "#475569" } },
+      showgrid: true,
+      gridcolor: "rgba(148, 163, 184, 0.16)",
+      zeroline: false,
+      tickfont: { size: 12, color: "#334155" },
+      separatethousands: true,
+    },
+    legend: { orientation: "h", x: 0, y: -0.16, font: { size: 14, color: "#334155" } },
+    hoverlabel: { bgcolor: "#ffffff", bordercolor: "rgba(148, 163, 184, 0.4)", font: { color: "#0f172a", size: 12 } },
+  }), [activeYearWiseSectorMetricLabel]);
+
+  const individualPoliciesPlotConfig = useMemo(() => ({
+    responsive: true,
+    displaylogo: false,
+    toImageButtonOptions: { format: "png", filename: "number_of_individual_policies_chart", width: 1280, height: 720, scale: 2 },
+    modeBarButtonsToRemove: ["select2d", "lasso2d", "toggleSpikelines", "autoScale2d"],
+  }), []);
 
   const stateWiseDraftCollectionName = useMemo(
     () => resolveStateWiseCollectionName(stateBusinessType, stateAggregationType),
@@ -881,6 +1377,28 @@ export default function LifeInsurance() {
     setShowPerformanceTimelinePicker(false);
     setPerformanceTimelineStartYear("");
     setPerformanceTimelineEndYear("");
+    setSelectedPoliciesInsurer("");
+    setAppliedPoliciesInsurer("");
+    setSelectedPoliciesSector("");
+    setAppliedPoliciesSector("");
+    setSelectedInforceMetric("Policies");
+    setAppliedInforceMetric("");
+    setSelectedInforceInsurer("All Insurers");
+    setAppliedInforceInsurer("");
+    setSelectedInforceBusinessType("");
+    setAppliedInforceBusinessType("");
+    setSelectedInforceBusinessSegment("");
+    setAppliedInforceBusinessSegment("");
+    setSelectedInforceMeasure("End of Year");
+    setAppliedInforceMeasure("");
+    setIndividualPoliciesError("");
+    setInforceIndividualBusinessError("");
+    setShowPoliciesTimelinePicker(false);
+    setPoliciesTimelineStartYear("");
+    setPoliciesTimelineEndYear("");
+    setPoliciesVisualizationType("line");
+    setPendingPoliciesVisualizationType("line");
+    setShowPoliciesChartTypePicker(false);
     setSelectedFinancialYear("");
     setSelectedCategory("");
     setSelectedSegment("");
@@ -942,6 +1460,32 @@ export default function LifeInsurance() {
       setShowPerformanceTimelinePicker(false);
       setPerformanceTimelineStartYear("");
       setPerformanceTimelineEndYear("");
+      return;
+    }
+
+    if (isInforceIndividualBusinessModule) {
+      setAppliedInforceMetric(selectedInforceMetric);
+      setAppliedInforceInsurer(selectedInforceInsurer);
+      setAppliedInforceBusinessType(selectedInforceBusinessType);
+      setAppliedInforceBusinessSegment(selectedInforceBusinessSegment);
+      setAppliedInforceMeasure(selectedInforceMeasure);
+      setInforceIndividualBusinessError("");
+      setShowPoliciesTimelinePicker(false);
+      setPoliciesTimelineStartYear("");
+      setPoliciesTimelineEndYear("");
+      setShowPoliciesChartTypePicker(false);
+      return;
+    }
+
+    if (isIndividualPoliciesModule) {
+      setSelectedPoliciesInsurer("");
+      setAppliedPoliciesInsurer("");
+      setAppliedPoliciesSector(selectedPoliciesSector);
+      setIndividualPoliciesError("");
+      setShowPoliciesTimelinePicker(false);
+      setPoliciesTimelineStartYear("");
+      setPoliciesTimelineEndYear("");
+      setShowPoliciesChartTypePicker(false);
       return;
     }
 
@@ -1038,9 +1582,11 @@ export default function LifeInsurance() {
   };
 
   const handleExportData = async () => {
-    const isSegmentAnalysis = selectedModule === 2;
+    const isSegmentAnalysis = isSegmentAnalysisModule;
     const isPerformancePremiumModule = isTotalNewBusinessPremiumModule;
     const isStateWiseAnalysis = isStateWiseAnalysisModule;
+    const isIndividualPolicies = isIndividualPoliciesModule;
+    const isInforceIndividualBusiness = isInforceIndividualBusinessModule;
 
     const activeFilters = isSegmentAnalysis
       ? [
@@ -1072,6 +1618,16 @@ export default function LifeInsurance() {
           },
           { label: "Metrics", value: appliedStateMetrics.join(", ") || "-" },
         ]
+      : isInforceIndividualBusiness
+      ? [
+          { label: "Metric", value: appliedInforceMetric || "-" },
+          { label: "Insurer", value: appliedInforceInsurer || "All Insurers" },
+          { label: "Business Type", value: appliedInforceBusinessType || "-" },
+          { label: "Business Segment", value: appliedInforceBusinessSegment || "-" },
+          { label: "Measure", value: appliedInforceMeasure || "-" },
+        ]
+      : isIndividualPolicies
+      ? [{ label: "Sector", value: appliedPoliciesSector || "-" }]
       : filterConfig.map((filter) => ({
           label: filter.label,
           value: filter.value,
@@ -1100,14 +1656,24 @@ export default function LifeInsurance() {
       : isStateWiseAnalysis
       ? stateWiseVisibleRows.map((row) => [
           row.year,
-          stateMetric === "Premium"
-            ? Number(row.value || 0).toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })
-            : Number(row.value || 0).toLocaleString("en-IN", {
-                maximumFractionDigits: 0,
-              }),
+          ...appliedStateMetrics.map((metric) =>
+            metric === "Premium"
+              ? Number(row[metric] || 0).toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              : Number(row[metric] || 0).toLocaleString("en-IN", {
+                  maximumFractionDigits: 0,
+                })
+          ),
+        ])
+      : isIndividualPolicies || isInforceIndividualBusiness
+      ? individualPoliciesVisibleRows.map((row) => [
+          row.year,
+          Number(row.policies || 0).toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }),
         ])
       : displayedDataRows.map((row) => [row.label, formatFieldValue(row.value)]);
 
@@ -1128,6 +1694,8 @@ export default function LifeInsurance() {
           ]
         : isStateWiseAnalysis
         ? ["Year", ...appliedStateMetrics.map((m) => m === "Premium" ? "Premium in Cr (₹)" : m)]
+        : isIndividualPolicies || isInforceIndividualBusiness
+        ? ["Year", activeYearWiseSectorTableHeader]
         : ["Data Panel Fields", "Value"],
       ...dataRows,
     ];
@@ -1228,7 +1796,7 @@ export default function LifeInsurance() {
             <button
               type="button"
               className="filter-refresh-btn"
-              onClick={selectedModule === 2 ? handleResetSegmentAnalysisFilters : handleResetFilters}
+              onClick={isSegmentAnalysisModule ? handleResetSegmentAnalysisFilters : handleResetFilters}
               aria-label="Reset filters"
               title="Reset filters"
             >
@@ -1236,7 +1804,7 @@ export default function LifeInsurance() {
             </button>
           </div>
           <div className="filters-body">
-            {selectedModule === 2 ? (
+            {isSegmentAnalysisModule ? (
               <SegmentAnalysisFilters
                 category={segmentCategory}
                 setCategory={setSegmentCategory}
@@ -1348,6 +1916,85 @@ export default function LifeInsurance() {
                 </button>
 
               </>
+            ) : isInforceIndividualBusinessModule ? (
+              <>
+                <div className="filter-item">
+                  <label className="filter-label label-text">Metric</label>
+                  <div className="premium-toggle-group">
+                    {INFORCE_METRIC_OPTIONS.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`premium-toggle-btn ${selectedInforceMetric === option ? "active" : ""}`}
+                        onClick={() => setSelectedInforceMetric(option)}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <FilterSelect
+                  label="Select Insurer"
+                  options={inforceInsurerOptions}
+                  value={selectedInforceInsurer}
+                  onChange={setSelectedInforceInsurer}
+                  disabled={inforceIndividualBusinessLoading}
+                />
+
+                <FilterSelect
+                  label="Select Business Type"
+                  options={inforceBusinessTypeOptions}
+                  value={selectedInforceBusinessType}
+                  onChange={setSelectedInforceBusinessType}
+                  disabled={inforceIndividualBusinessLoading}
+                />
+
+                <FilterSelect
+                  label="Select Business Segment"
+                  options={inforceBusinessSegmentOptions}
+                  value={selectedInforceBusinessSegment}
+                  onChange={setSelectedInforceBusinessSegment}
+                  disabled={inforceIndividualBusinessLoading}
+                />
+
+                <FilterSelect
+                  label="Select Metric"
+                  options={inforceMeasureOptions}
+                  value={selectedInforceMeasure}
+                  onChange={setSelectedInforceMeasure}
+                  disabled={inforceIndividualBusinessLoading}
+                />
+
+                <button
+                  type="button"
+                  className="data-export-btn"
+                  onClick={handleApplyFilters}
+                  disabled={!selectedInforceMetric || !selectedInforceMeasure}
+                  title="Apply Filters"
+                >
+                  Apply Filters
+                </button>
+              </>
+            ) : isIndividualPoliciesModule ? (
+              <>
+                <FilterSelect
+                  label="Select Sector"
+                  options={individualPoliciesSectorOptions}
+                  value={selectedPoliciesSector}
+                  onChange={setSelectedPoliciesSector}
+                  disabled={activeYearWiseSectorLoading}
+                />
+                <button
+                  type="button"
+                  className="data-export-btn"
+                  onClick={handleApplyFilters}
+                  disabled={!selectedPoliciesSector}
+                  title="Apply Filters"
+                >
+                  Apply Filters
+                </button>
+              </>
             ) : isTotalNewBusinessPremiumModule ? (
               <>
                 <div className="filter-item">
@@ -1437,6 +2084,17 @@ export default function LifeInsurance() {
                 className="data-export-btn"
                 onClick={() => setStateWiseShowTimelinePicker((previous) => !previous)}
                 title="Select Timeline"
+              >
+                Select Timeline
+              </button>
+            )}
+            {isYearWiseSectorModule && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowPoliciesTimelinePicker((previous) => !previous)}
+                title="Select Timeline"
+                disabled={individualPoliciesVisibleRows.length === 0 || yearWiseFiltersModified}
               >
                 Select Timeline
               </button>
@@ -1657,7 +2315,145 @@ export default function LifeInsurance() {
               ) : (
                 <PanelState variant="empty" message="No data found for the applied filters." hint="Try adjusting your filters and applying again." />
               )
-            ) : selectedModule === 2 ? (
+            ) : isYearWiseSectorModule ? (
+              activeYearWiseSectorLoading ? (
+                <PanelState
+                  variant="loading"
+                  message="Loading data"
+                  hint={
+                    isInforceIndividualBusinessModule
+                      ? "Please wait while inforce individual business data is fetched."
+                      : "Please wait while individual policy data is fetched."
+                  }
+                />
+              ) : activeYearWiseSectorError ? (
+                <PanelState variant="error" message={activeYearWiseSectorError} />
+              ) : !activeYearWiseFiltersApplied || yearWiseFiltersModified ? (
+                <PanelState
+                  variant="empty"
+                  message={
+                    yearWiseFiltersModified
+                      ? "Filters changed. Click Apply Filters to refresh the data panel."
+                      : isInforceIndividualBusinessModule
+                      ? "Select the inforce filters and click Apply Filters to view year-wise data."
+                      : "Select a sector and click Apply Filters to view year-wise policy data."
+                  }
+                  hint={
+                    yearWiseFiltersModified
+                      ? "New selections stay pending until you apply them."
+                      : isInforceIndividualBusinessModule
+                      ? "Choose Policies or Sum Assured, insurer, business type, business segment, and metric, then apply."
+                      : "Choose a sector from the collection and apply the filter."
+                  }
+                />
+              ) : individualPoliciesVisibleRows.length > 0 ? (
+                <>
+                  {showPoliciesTimelinePicker && individualPoliciesYearOptions.length > 0 && (
+                    <div className="timeline-filter-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">From</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={policiesTimelineStartYear}
+                          onChange={(event) => {
+                            const nextStartYear = event.target.value;
+                            setPoliciesTimelineStartYear(nextStartYear);
+
+                            if (
+                              policiesTimelineEndYear &&
+                              resolveYearSortValue(nextStartYear) >
+                                resolveYearSortValue(policiesTimelineEndYear)
+                            ) {
+                              setPoliciesTimelineEndYear(nextStartYear);
+                            }
+                          }}
+                        >
+                          {individualPoliciesYearOptions.map((year) => (
+                            <option key={`policy-start-${year}`} value={year}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">To</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={policiesTimelineEndYear}
+                          onChange={(event) => {
+                            const nextEndYear = event.target.value;
+                            setPoliciesTimelineEndYear(nextEndYear);
+
+                            if (
+                              policiesTimelineStartYear &&
+                              resolveYearSortValue(nextEndYear) <
+                                resolveYearSortValue(policiesTimelineStartYear)
+                            ) {
+                              setPoliciesTimelineStartYear(nextEndYear);
+                            }
+                          }}
+                        >
+                          {individualPoliciesYearOptions.map((year) => (
+                            <option key={`policy-end-${year}`} value={year}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => setShowPoliciesTimelinePicker(false)}
+                        title="Apply Timeline"
+                      >
+                        Apply Timeline
+                      </button>
+                    </div>
+                  )}
+                  <div className="data-table-container">
+                    <table className="segment-data-table">
+                      <thead>
+                        <tr>
+                          <th className="col-year">Year</th>
+                          <th className="col-value">{activeYearWiseSectorTableHeader}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {individualPoliciesVisibleRows.map((row) => (
+                          <tr key={row.year}>
+                            <td className="col-year">
+                              <span className="year-badge">{row.year}</span>
+                            </td>
+                            <td className="col-value">
+                              <span className="value-amount">
+                                {Number(row.policies || 0).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message={
+                    isInforceIndividualBusinessModule
+                      ? "No data found for the applied filters."
+                      : "No data found for the applied sector."
+                  }
+                  hint={
+                    isInforceIndividualBusinessModule
+                      ? "Try adjusting insurer, business type, business segment, or measure and apply again."
+                      : "Try another sector and apply the filter again."
+                  }
+                />
+              )
+            ) : isSegmentAnalysisModule ? (
               // Segment Analysis Module
               segmentLoading ? (
                 <p className="panel-placeholder">Loading data...</p>
@@ -1713,7 +2509,7 @@ export default function LifeInsurance() {
               <TrendingUp size={14} strokeWidth={2} />
             </div>
             <h3 className="panel-title section-title">Visualization Panel</h3>
-            {selectedModule === 2 && segmentData.length > 0 && (
+            {isSegmentAnalysisModule && segmentData.length > 0 && (
               <select
                 value={visualizationType}
                 onChange={(e) => setVisualizationType(e.target.value)}
@@ -1746,9 +2542,19 @@ export default function LifeInsurance() {
                 Select Chart Type
               </button>
             )}
+            {isYearWiseSectorModule && individualPoliciesVisibleRows.length > 0 && !yearWiseFiltersModified && (
+              <button
+                type="button"
+                className="data-export-btn"
+                onClick={() => setShowPoliciesChartTypePicker((previous) => !previous)}
+                title="Select chart type"
+              >
+                Select Chart Type
+              </button>
+            )}
           </div>
           <div className="panel-body viz-panel-body">
-            {selectedModule === 2 ? (
+            {isSegmentAnalysisModule ? (
               // Segment Analysis Module
               segmentLoading ? (
                 <p className="panel-placeholder">Loading visualization...</p>
@@ -2050,6 +2856,91 @@ export default function LifeInsurance() {
                   hint="Try adjusting your filters and applying again."
                 />
               )
+            ) : isYearWiseSectorModule ? (
+              activeYearWiseSectorLoading ? (
+                <PanelState
+                  variant="loading"
+                  message="Loading visualization"
+                  hint={
+                    isInforceIndividualBusinessModule
+                      ? "Rendering chart for the selected inforce business filters."
+                      : "Rendering chart for the selected policy filters."
+                  }
+                />
+              ) : activeYearWiseSectorError ? (
+                <PanelState variant="error" message={activeYearWiseSectorError} />
+              ) : !activeYearWiseFiltersApplied || yearWiseFiltersModified ? (
+                <PanelState
+                  variant="empty"
+                  message={
+                    yearWiseFiltersModified
+                      ? "Filters changed. Click Apply Filters to refresh the visualization."
+                      : isInforceIndividualBusinessModule
+                      ? "Select the inforce filters and click Apply Filters to view visualization."
+                      : "Select a sector and click Apply Filters to view visualization."
+                  }
+                  hint={
+                    yearWiseFiltersModified
+                      ? "The chart updates only after you apply the new filters."
+                      : isInforceIndividualBusinessModule
+                      ? "Use the new filter set to render the year-wise inforce business chart."
+                      : "Choose a sector to render the year-wise policy chart."
+                  }
+                />
+              ) : individualPoliciesVisibleRows.length > 0 ? (
+                <>
+                  {showPoliciesChartTypePicker && (
+                    <div className="timeline-filter-row chart-type-picker-row">
+                      <div className="timeline-field">
+                        <label className="filter-label label-text">Chart Type</label>
+                        <select
+                          className="filter-select timeline-select"
+                          value={pendingPoliciesVisualizationType}
+                          onChange={(event) => setPendingPoliciesVisualizationType(event.target.value)}
+                        >
+                          <option value="line">Line Chart</option>
+                          <option value="area">Area Chart</option>
+                          <option value="bar">Bar Chart</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="timeline-apply-btn"
+                        onClick={() => {
+                          setPoliciesVisualizationType(pendingPoliciesVisualizationType);
+                          setShowPoliciesChartTypePicker(false);
+                        }}
+                        title="Apply chart type"
+                      >
+                        Apply Chart Type
+                      </button>
+                    </div>
+                  )}
+                  <div className="chart-wrapper plotly-chart-wrapper">
+                    <Plot
+                      className="plot-component-fill"
+                      data={individualPoliciesPlotTraces}
+                      layout={individualPoliciesPlotLayout}
+                      config={individualPoliciesPlotConfig}
+                      useResizeHandler
+                    />
+                  </div>
+                </>
+              ) : (
+                <PanelState
+                  variant="empty"
+                  message={
+                    isInforceIndividualBusinessModule
+                      ? "Select the inforce filters and click Apply Filters to view visualization."
+                      : "Select a sector and click Apply Filters to view visualization."
+                  }
+                  hint={
+                    isInforceIndividualBusinessModule
+                      ? "Use the new filter set to render the year-wise inforce business chart."
+                      : "Choose a sector to render the year-wise policy chart."
+                  }
+                />
+              )
             ) : (
               <PanelState variant="empty" message="Select an insurer to view analytics." hint="Choose a module and apply filters to get started." />
             )}
@@ -2097,7 +2988,7 @@ export default function LifeInsurance() {
   );
 }
 
-function FilterSelect({ label, options, value, onChange }) {
+function FilterSelect({ label, options, value, onChange, disabled = false }) {
   return (
     <div className="filter-item">
       <label className="filter-label label-text">{label}</label>
@@ -2105,6 +2996,7 @@ function FilterSelect({ label, options, value, onChange }) {
         className="filter-select"
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
+        disabled={disabled}
       >
         <option value="">Select</option>
         {options.map((opt, idx) => (
@@ -2268,6 +3160,23 @@ function resolveStateNameFromDoc(document) {
   return "";
 }
 
+function resolveSectorFromDoc(document) {
+  const aliases = [
+    "sector",
+    "sector_name",
+    "sectorName",
+    "insurer_sector",
+    "category_sector",
+  ];
+
+  const mappedValue = getValueFromAliases(document, aliases);
+  if (mappedValue !== null) {
+    return String(mappedValue).trim();
+  }
+
+  return String(document?.sector || document?.sector_name || "").trim();
+}
+
 function resolveStateWiseMetricValue(document, businessType, metric) {
   const premiumFields = [
     "premium_in_cr",
@@ -2338,6 +3247,411 @@ function resolveStateWiseMetricValue(document, businessType, metric) {
   }
 
   return 0;
+}
+
+function resolveIndividualPoliciesValue(document) {
+  const policyAliases = [
+    "individual_new_policies",
+    "individual new policies",
+    "number_of_individual_new_policies",
+    "number_of_policies_issued",
+    "new_policies_issued",
+    "individual_policies",
+    "policies",
+    "policy_count",
+    "number_of_policies",
+  ];
+
+  const mappedValue = getValueFromAliases(document, policyAliases);
+  const parsedMappedValue = parseNumericFieldValue(mappedValue);
+  if (parsedMappedValue !== null) {
+    return parsedMappedValue;
+  }
+
+  return resolveStateWiseMetricValue(document, "Individual", "Policies");
+}
+
+function formatInforceMetricValue(value) {
+  const rawValue = String(value || "").trim();
+  const normalizedValue = normalizeFieldKey(rawValue);
+
+  if (!rawValue) {
+    return "";
+  }
+
+  if (normalizedValue.includes("sumassured") || normalizedValue === "sa") {
+    return "Sum Assured";
+  }
+
+  if (normalizedValue.includes("policy")) {
+    return "Policies";
+  }
+
+  return rawValue;
+}
+
+function resolveInforceMetricFromDoc(document) {
+  const aliases = ["metric", "metric_name", "indicator", "category"];
+
+  const mappedValue = getValueFromAliases(document, aliases);
+  const formattedMappedValue = formatInforceMetricValue(mappedValue);
+  if (formattedMappedValue) {
+    return formattedMappedValue;
+  }
+
+  const docLongMetric = formatInforceMetricValue(resolveDocLongFormatMetric(document));
+  if (docLongMetric) {
+    return docLongMetric;
+  }
+
+  return "";
+}
+
+function formatInforceBusinessType(value) {
+  const rawValue = String(value || "").trim();
+  const normalizedValue = normalizeFieldKey(rawValue);
+
+  if (!rawValue) {
+    return "";
+  }
+
+  if (normalizedValue.includes("nonlinked")) {
+    return "Non-Linked";
+  }
+
+  if (normalizedValue.includes("linked")) {
+    return "Linked";
+  }
+
+  return rawValue;
+}
+
+function resolveInforceBusinessType(document) {
+  const aliases = [
+    "business_type",
+    "business type",
+    "linked_non_linked",
+    "linked / non-linked",
+    "type_of_business",
+    "policy_type",
+  ];
+
+  const mappedValue = getValueFromAliases(document, aliases);
+  const formattedMappedValue = formatInforceBusinessType(mappedValue);
+  if (formattedMappedValue) {
+    return formattedMappedValue;
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/(linked|business.*type|type.*business)/i.test(fieldName)) {
+      continue;
+    }
+
+    const formattedValue = formatInforceBusinessType(fieldValue);
+    if (formattedValue) {
+      return formattedValue;
+    }
+  }
+
+  return "";
+}
+
+function formatInforceBusinessSegment(value) {
+  const rawValue = String(value || "").trim();
+  const normalizedValue = normalizeFieldKey(rawValue);
+
+  if (!rawValue) {
+    return "";
+  }
+
+  if (normalizedValue.includes("generalannuity") || normalizedValue === "annuity") {
+    return "General Annuity";
+  }
+
+  if (normalizedValue.includes("pension")) {
+    return "Pension";
+  }
+
+  if (normalizedValue.includes("health")) {
+    return "Health";
+  }
+
+  if (normalizedValue.includes("life")) {
+    return "Life";
+  }
+
+  return rawValue;
+}
+
+function resolveInforceBusinessSegment(document) {
+  const aliases = [
+    "business_segment",
+    "business segment",
+    "segment",
+    "product_segment",
+    "line_of_business",
+    "sub_segment",
+  ];
+
+  const mappedValue = getValueFromAliases(document, aliases);
+  const formattedMappedValue = formatInforceBusinessSegment(mappedValue);
+  if (formattedMappedValue) {
+    return formattedMappedValue;
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/(segment|annuity|pension|health|life)/i.test(fieldName)) {
+      continue;
+    }
+
+    const formattedValue = formatInforceBusinessSegment(fieldValue);
+    if (formattedValue) {
+      return formattedValue;
+    }
+  }
+
+  return "";
+}
+
+function formatInforceMeasureValue(value) {
+  const rawValue = String(value || "").trim();
+  const normalizedValue = normalizeFieldKey(rawValue);
+
+  if (!rawValue) {
+    return "";
+  }
+
+  if (normalizedValue.includes("startofyear") || normalizedValue.includes("opening")) {
+    return "Start of Year";
+  }
+
+  if (normalizedValue.includes("addition") || normalizedValue.includes("newbusiness")) {
+    return "Additions";
+  }
+
+  if (
+    normalizedValue.includes("deletion") ||
+    normalizedValue.includes("lapse") ||
+    normalizedValue.includes("surrender")
+  ) {
+    return "Deletions";
+  }
+
+  if (normalizedValue.includes("endofyear") || normalizedValue.includes("closing")) {
+    return "End of Year";
+  }
+
+  return rawValue;
+}
+
+function resolveInforceMeasure(document) {
+  const aliases = ["measure", "movement", "measure_type", "flow", "opening_closing"];
+
+  const mappedValue = getValueFromAliases(document, aliases);
+  const formattedMappedValue = formatInforceMeasureValue(mappedValue);
+  if (formattedMappedValue) {
+    return formattedMappedValue;
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/(measure|movement|opening|closing|addition|deletion|lapse|surrender)/i.test(fieldName)) {
+      continue;
+    }
+
+    const formattedValue = formatInforceMeasureValue(fieldValue);
+    if (formattedValue) {
+      return formattedValue;
+    }
+  }
+
+  return "";
+}
+
+function resolveInforceSumAssuredValue(document) {
+  const sumAssuredAliases = [
+    "sum_assured",
+    "sum assured",
+    "sum_assured_in_cr",
+    "sum_assured_in_crores",
+    "sum_assured_cr",
+    "sa",
+  ];
+
+  const mappedValue = getValueFromAliases(document, sumAssuredAliases);
+  const parsedMappedValue = parseNumericFieldValue(mappedValue);
+  if (parsedMappedValue !== null) {
+    return parsedMappedValue;
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/(sum.*assured|assured.*sum|\bsa\b)/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return 0;
+}
+
+function resolveInforceIndividualBusinessValue(document) {
+  const inforceAliases = [
+    "inforce_individual_business",
+    "inforce individual business",
+    "inforce_individual_policies",
+    "inforce individual policies",
+    "individual_inforce_business",
+    "individual_business_inforce",
+    "policies_inforce",
+    "number_of_inforce_policies",
+    "no_of_inforce_policies",
+    "policy_count",
+    "number_of_policies",
+    "individual_policies",
+    "value",
+    "amount",
+  ];
+
+  const mappedValue = getValueFromAliases(document, inforceAliases);
+  const parsedMappedValue = parseNumericFieldValue(mappedValue);
+  if (parsedMappedValue !== null) {
+    return parsedMappedValue;
+  }
+
+  const docLongMetric = normalizeMetricLabel(resolveDocLongFormatMetric(document));
+  if (
+    docLongMetric.includes("inforce") ||
+    docLongMetric.includes("policy") ||
+    docLongMetric.includes("business")
+  ) {
+    return resolveDocLongFormatValue(document);
+  }
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    if (!/(inforce|policy|business)/i.test(fieldName)) {
+      continue;
+    }
+
+    const parsedValue = parseNumericFieldValue(fieldValue);
+    if (parsedValue !== null) {
+      return parsedValue;
+    }
+  }
+
+  return resolveStateWiseMetricValue(document, "Individual", "Policies");
+}
+
+function resolveInforceMetricSelectionValue(document, metric = "Policies", measure = "End of Year") {
+  const normalizedMetric = metric === "Sum Assured" ? "sumassured" : "policies";
+  const normalizedMeasure = formatInforceMeasureValue(measure);
+
+  const metricAliases =
+    normalizedMetric === "sumassured"
+      ? [
+          "sum_assured",
+          "sum assured",
+          "sa",
+          "sum_assured_in_cr",
+          "sum_assured_in_crores",
+          "sum_assured_cr",
+          "metric_value",
+        ]
+      : [
+          "policies",
+          "policy_count",
+          "number_of_policies",
+          "no_of_policies",
+          "inforce_business",
+          "inforce_policies",
+          "individual_policies",
+          "metric_value",
+        ];
+
+  const docMetric = normalizeMetricLabel(resolveDocLongFormatMetric(document));
+  const docMeasure = formatInforceMeasureValue(resolveInforceMeasure(document));
+
+  if (docMetric) {
+    const metricMatches =
+      normalizedMetric === "sumassured"
+        ? docMetric.includes("sumassured") || (docMetric.includes("sum") && docMetric.includes("assured"))
+        : docMetric.includes("policy") || docMetric.includes("inforce") || docMetric.includes("business");
+
+    if (metricMatches && (!docMeasure || !normalizedMeasure || docMeasure === normalizedMeasure)) {
+      const directMetricValue = getValueFromAliases(document, [
+        ...metricAliases,
+        "value",
+        "amount",
+        "total",
+        "count",
+        "number",
+        "qty",
+        "quantity",
+      ]);
+      const parsedDirectMetricValue = parseNumericFieldValue(directMetricValue);
+      if (parsedDirectMetricValue !== null) {
+        return parsedDirectMetricValue;
+      }
+    }
+  }
+
+  const measureAliases = {
+    "Start of Year": ["start_of_year", "start of year", "opening", "opening_balance"],
+    Additions: ["additions", "addition", "new_business"],
+    Deletions: ["deletions", "deletion", "lapses", "surrenders"],
+    "End of Year": ["end_of_year", "end of year", "closing", "closing_balance"],
+  };
+
+  const selectedMeasureAliases = measureAliases[normalizedMeasure] || [];
+
+  for (const [fieldName, fieldValue] of Object.entries(document || {})) {
+    const normalizedKey = normalizeFieldKey(fieldName);
+    const matchesMetric = metricAliases.some((alias) =>
+      normalizedKey.includes(normalizeFieldKey(alias))
+    );
+    const matchesMeasure = selectedMeasureAliases.some((alias) =>
+      normalizedKey.includes(normalizeFieldKey(alias))
+    );
+
+    if (matchesMetric && (matchesMeasure || selectedMeasureAliases.length === 0)) {
+      const parsedValue = parseNumericFieldValue(fieldValue);
+      if (parsedValue !== null) {
+        return parsedValue;
+      }
+    }
+  }
+
+  return normalizedMetric === "sumassured"
+    ? resolveInforceSumAssuredValue(document)
+    : resolveInforceIndividualBusinessValue(document);
+}
+
+async function fetchFirstAvailableCollectionDocs(collectionNames = []) {
+  let lastError = null;
+
+  for (const collectionName of collectionNames) {
+    try {
+      const snapshot = await getDocs(collection(db, collectionName));
+      const documents = snapshot.docs.map((document) => ({
+        id: document.id,
+        ...document.data(),
+      }));
+
+      if (documents.length > 0) {
+        return documents;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  return [];
 }
 
 // ----- Long-format collection helpers -----
