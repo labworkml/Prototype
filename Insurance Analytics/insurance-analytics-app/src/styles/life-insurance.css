@@ -317,6 +317,39 @@
   line-height: 1.3;
 }
 
+.life-submodule-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.life-submodule-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: 0 2px;
+  white-space: nowrap;
+}
+
+.statewise-heatmap-view {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+  padding-right: 0;
+}
+
+.life-content.statewise-heatmap-layout {
+  display: block;
+  grid-template-columns: 1fr;
+  padding: 12px 24px 18px;
+  overflow: auto;
+}
+
 /* =====================================================
    HANDBOOK PAGE THEME OVERRIDES (LIFE/GENERAL/HEALTH/REINSURANCE)
    ===================================================== */
@@ -1357,7 +1390,7 @@
 .panel-body {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   padding: 20px;
   display: flex;
   flex-direction: column;

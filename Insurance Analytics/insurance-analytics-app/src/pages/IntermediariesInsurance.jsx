@@ -61,6 +61,9 @@ import {
   getHealthBusinessYearwiseData,
 } from "../services/lifeAgentsService";
 import { askAI, generateInsights } from "../services/aiService";
+import StateAgentHeatmap from "../components/StateAgentHeatmap";
+import ProductivityQuadrant from "./ProductivityQuadrant";
+import ChannelShareShift from "./ChannelShareShift";
 import "../styles/life-insurance.css";
 
 const Plot = PlotComponentModule?.default || PlotComponentModule;
@@ -105,9 +108,17 @@ const INTERMEDIARY_EFFICIENCY_MODULE_CONFIG = {
     requiresAgentType: true,
     metricLabel: "Amount in Rupees",
   },
+  "productivity-quadrant": {
+    isCustomQuadrant: true,
+    metricLabel: "Productivity",
+  },
 };
 
 const STATE_WISE_MODULE_CONFIG = {
+  "distribution-individual-agents-heatmap": {
+    isCustomHeatmap: true,
+    metricLabel: "Number of Agents",
+  },
   "distribution-individual-agents-life": {
     collectionName: "life_agents_statewise",
     getInsurers: getStatewiseInsurers,
@@ -141,6 +152,10 @@ const LIFE_BUSINESS_DISTRIBUTION_MODULE_CONFIG = {
     requiresBusinessType: true,
     requiresBusinessTypeInsurer: true,
     metricLabel: "Premium (Crore)",
+  },
+  "Channel Share Shift": {
+    isCustomChannelShareShift: true,
+    metricLabel: "Channel Share",
   },
 };
 
@@ -226,6 +241,11 @@ const SUB_MODULES = {
       title: "Number of Insurance Marketing Firms",
       icon: Building2,
     },
+    {
+      id: "distribution-individual-agents-heatmap",
+      title: "Agent Distribution - Analytics",
+      icon: MapPin,
+    },
   ],
   "intermediary-efficiency": [
     {
@@ -243,6 +263,11 @@ const SUB_MODULES = {
       title: "Average Premium Income per Policy per Agent",
       icon: TrendingUp,
     },
+    {
+      id: "productivity-quadrant",
+      title: "Productivity Quadrant",
+      icon: BarChart3,
+    },
   ],
   "life-business-distribution": [
     {
@@ -254,6 +279,11 @@ const SUB_MODULES = {
       id: "Insurer-wise - Business",
       title: "Insurer-wise - Business",
       icon: BarChart3,
+    },
+    {
+      id: "Channel Share Shift",
+      title: "Channel Share Shift",
+      icon: TrendingUp,
     },
   ],
   "non-life-business-distribution": [
@@ -349,6 +379,15 @@ export default function IntermediariesInsurance() {
     distributionAgentModuleConfig?.requiresBusinessType &&
       !distributionAgentModuleConfig?.requiresBusinessTypeInsurer
   );
+  const isStatewiseHeatmapView =
+    activeTab === "state-wise-analysis" &&
+    distributionAgentModuleConfig?.isCustomHeatmap;
+  const isProductivityQuadrantView =
+    activeTab === "intermediary-efficiency" &&
+    distributionAgentModuleConfig?.isCustomQuadrant;
+  const isChannelShareShiftView =
+    activeTab === "life-business-distribution" &&
+    distributionAgentModuleConfig?.isCustomChannelShareShift;
   const selectedLifeBusinessMetric = selectedLifeBusinessMetrics[0] || "";
 
   const availableLifeBusinessMetrics =
@@ -1186,6 +1225,8 @@ export default function IntermediariesInsurance() {
 
   const hasDistributionFilterSelection = distributionAgentModuleConfig?.requiresInsurerAndState
     ? Boolean(selectedStatewiseInsurer && selectedStatewiseState)
+    : distributionAgentModuleConfig?.isCustomHeatmap
+    ? true
     : distributionAgentModuleConfig?.requiresStateOnly
     ? Boolean(selectedStatewiseState)
     : distributionAgentModuleConfig?.requiresBusinessTypeInsurer
@@ -1936,25 +1977,89 @@ export default function IntermediariesInsurance() {
         className={`life-submodules submodules-${activeTab}`}
         style={{ "--tab-accent": TABS.find((tab) => tab.id === activeTab)?.accent || "#0ea5a4" }}
       >
-        {SUB_MODULES[activeTab]?.map((module) => {
-          const IconComponent = module.icon;
-          return (
-            <div
-              key={module.id}
-              className={`life-submodule ${selectedModule === module.id ? "selected" : ""}`}
-              data-module={module.id}
-              onClick={() => setSelectedModule(module.id)}
-            >
-              <div className="submodule-icon">
-                <IconComponent size={20} strokeWidth={2} />
-              </div>
-              <span className="submodule-name card-title">{module.title}</span>
+        {activeTab === "state-wise-analysis" ? (
+          <>
+            <div className="life-submodule-group" role="group" aria-label="Year-wise tables">
+              {SUB_MODULES[activeTab]
+                ?.filter((module) => module.id !== "distribution-individual-agents-heatmap")
+                .map((module) => {
+                  const IconComponent = module.icon;
+                  return (
+                    <div
+                      key={module.id}
+                      className={`life-submodule ${selectedModule === module.id ? "selected" : ""}`}
+                      data-module={module.id}
+                      onClick={() => setSelectedModule(module.id)}
+                    >
+                      <div className="submodule-icon">
+                        <IconComponent size={20} strokeWidth={2} />
+                      </div>
+                      <span className="submodule-name card-title">{module.title}</span>
+                    </div>
+                  );
+                })}
             </div>
-          );
-        })}
+
+            <div className="life-submodule-group" role="group" aria-label="Interactive view">
+              {SUB_MODULES[activeTab]
+                ?.filter((module) => module.id === "distribution-individual-agents-heatmap")
+                .map((module) => {
+                  const IconComponent = module.icon;
+                  return (
+                    <div
+                      key={module.id}
+                      className={`life-submodule ${selectedModule === module.id ? "selected" : ""}`}
+                      data-module={module.id}
+                      onClick={() => setSelectedModule(module.id)}
+                    >
+                      <div className="submodule-icon">
+                        <IconComponent size={20} strokeWidth={2} />
+                      </div>
+                      <span className="submodule-name card-title">{module.title}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          </>
+        ) : (
+          SUB_MODULES[activeTab]?.map((module) => {
+            const IconComponent = module.icon;
+            return (
+              <div
+                key={module.id}
+                className={`life-submodule ${selectedModule === module.id ? "selected" : ""}`}
+                data-module={module.id}
+                onClick={() => setSelectedModule(module.id)}
+              >
+                <div className="submodule-icon">
+                  <IconComponent size={20} strokeWidth={2} />
+                </div>
+                <span className="submodule-name card-title">{module.title}</span>
+              </div>
+            );
+          })
+        )}
       </div>
 
-      <div className={`life-content ${showInsights ? "insights-expanded" : "insights-collapsed"}`}>
+      <div
+        className={`life-content ${showInsights ? "insights-expanded" : "insights-collapsed"} ${
+          isStatewiseHeatmapView || isProductivityQuadrantView || isChannelShareShiftView ? "statewise-heatmap-layout" : ""
+        }`}
+      >
+        {isStatewiseHeatmapView ? (
+          <div className="statewise-heatmap-view">
+            <StateAgentHeatmap />
+          </div>
+        ) : isProductivityQuadrantView ? (
+          <div className="statewise-heatmap-view">
+            <ProductivityQuadrant />
+          </div>
+        ) : isChannelShareShiftView ? (
+          <div className="statewise-heatmap-view">
+            <ChannelShareShift />
+          </div>
+        ) : (
+          <>
         <div className="life-filters card">
           <div className="panel-header">
             <div className="panel-icon-badge">
@@ -2763,6 +2868,8 @@ export default function IntermediariesInsurance() {
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
     </div>
   );
